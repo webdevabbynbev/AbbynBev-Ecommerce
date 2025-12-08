@@ -1,5 +1,5 @@
 
-export { Button } from "./Button.jsx";
+export { Button } from "./button.jsx";
 export { BtnIcon } from "./BtnIcon.jsx";
 export { BtnIconToggle } from "./BtnIconToggle.jsx";
 export { TxtField } from "./TextField.jsx";
@@ -13,7 +13,7 @@ export {
   TooltipContent,
   TooltipTrigger,
   TooltipProvider,
-} from "./Tooltip.jsx"
+} from "./tooltip.jsx"
 
 export {
   Breadcrumb,
@@ -23,7 +23,7 @@ export {
   BreadcrumbPage,
   BreadcrumbSeparator,
   BreadcrumbEllipsis,
-} from "./Breadcrumb.jsx";
+} from "./breadcrumb.jsx";
 
 export {
   Select,
@@ -45,7 +45,7 @@ export {
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
-} from "./Carousel.jsx";
+} from "./carousel.jsx";
 
 export {
   Dialog,
@@ -70,6 +70,6 @@ export {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "./Accordion.jsx";
+} from "./accordion.jsx";
 
 export { Toaster } from "./sonner.jsx"

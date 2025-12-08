@@ -696,7 +696,7 @@ export default class AuthController {
       const { token } = await request.validateUsing(validator)
       const ticket = await googleClient.verifyIdToken({
         idToken: token,
-        audience: env.get('GOOGLE_CLIENT_ID'),
+        audience: env.get('NEXT_PUBLIC_GOOGLE_CLIENT_ID'),
       })
       const googlePayload = ticket.getPayload()
 
