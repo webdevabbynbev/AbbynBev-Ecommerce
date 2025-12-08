@@ -83,7 +83,6 @@ export default class AuthController {
       const { email, password } = request.only(['email', 'password'])
       const user = await User.query()
         .where('email', email)
-        .where('role', Role.ADMINISTRATOR)
         .whereNull('deleted_at')
         .first()
 
