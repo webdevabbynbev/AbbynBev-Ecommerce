@@ -33,8 +33,8 @@ export default function AccountTabs({ slug }) {
 
         <div className="flex-1 h-auto w-full">
           <TabsContent value="profile"><Profilepage/> </TabsContent>
-          <TabsContent value="my-order">Halaman My Order 📦</TabsContent>
-          <TabsContent value="wishlist">Halaman Wishlist ❤️</TabsContent>
+          <TabsContent value="my-order">Halaman My Order </TabsContent>
+          <TabsContent value="wishlist">Halaman Wishlist </TabsContent>
         </div>
       </Tabs>
   );
