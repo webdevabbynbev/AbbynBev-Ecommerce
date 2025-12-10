@@ -1,24 +1,18 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
-import {
-  BtnIcon,
-  Button,
-  TxtField,
-  LoginRegisModalForm,
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
+import { BtnIcon, Button, TxtField, LoginRegisModalForm,
+  Sheet, SheetContent, SheetDescription, SheetHeader,
+  SheetTitle, SheetTrigger,
 } from ".";
 import { usePathname, useRouter } from "next/navigation";
 import * as FaIcons from "react-icons/fa";
-
+import CartButton from "@/components/CartButton"; 
 import clsx from "clsx";
+
 export function Navbar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
@@ -26,8 +20,8 @@ export function Navbar() {
   const router = useRouter();
 
   const handleLogout = async () => {
-    await logout();          // pastikan fungsi logout clear session
-    router.push("/");        // redirect ke halaman home (atau ganti "/dashboard")
+    await logout();
+    router.push("/");
   };
 
   const linksidebar = [
@@ -38,52 +32,60 @@ export function Navbar() {
 
   const links = [
     { href: "/", label: "Home" },
-    { href: "", label: "Shop" },
-    { href: "/best-seller", label: "Best seller" },
+    { href: "/", label: "Best seller" },
+    { href: "/", label: "Brand" },
     { href: "/sale", label: "Sale" },
     { href: "/new-arrival", label: "New arrival" },
-    { href: "/beauty-and-tips", label: "Beauty & tips" },
+    { href: "/beauty-and-tips", label: "Beauty and Tips" },
+    { href: "/abeauties", label: "ABeauties" },
   ];
 
   return (
-    <nav className="Navbar flex h-auto px-10 py-5 sticky top-0 w-full bg-white border-b-[1px] border-primary-700 transition-all justify-between items-center z-50">
-      <div className="content-wrapper flex justify-between w-full max-w-[1536px] mx-auto">
-        <div className="content-left flex w-auto items-center justify-center space-x-6">
-          <div className="Icon-wrapper h-auto w-auto flex justify-center space-x-3">
+    <nav className="w-full sticky top-0 z-50 bg-white border-b border-gray-200">
+      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+
+        {/* LEFT SECTION */}
+        <div className="flex items-center gap-6">
+
+          {/* Logo */}
+          <div className="flex items-center gap-3">
             <Image
               src="/logo-abby-circle.svg"
-              alt="Logo-circle"
-              height={45}
-              width={45}
-              className="justify-center"
+              width={40}
+              height={40}
+              alt="logo"
             />
             <Image
               src="/Logoabby-text.svg"
-              alt="Logo"
-              height={0}
-              width={0}
-              className="w-[150px] h-auto justify-center"
+              width={130}
+              height={40}
+              alt="logo-text"
             />
           </div>
-          <div className="w-auto justify-center">
+
+          {/* Search bar */}
+          <div className="w-[280px]">
             <TxtField
-              placeholder="Wardah, Maybeline, anything. . ."
+              placeholder="Search here..."
               iconLeftName="MagnifyingGlass"
               variant="outline"
               size="md"
-              className="min-w-[280px]"
+              className="w-full"
             />
           </div>
+        </div>
+
+        {/* CENTER NAV LINKS */}
+        <div className="hidden lg:flex items-center gap-5">
           {links.map((link) => {
             const isActive = pathname === link.href;
-
             return (
               <Link
                 key={link.href}
                 href={link.href}
                 className={clsx(
-                  "items-center transition-colors text-sm",
-                  isActive ? "text-primary-700" : "hover:text-primary-500"
+                  "text-sm transition",
+                  isActive ? "text-pink-600 font-semibold" : "text-gray-700 hover:text-pink-500"
                 )}
               >
                 {link.label}
@@ -92,68 +94,66 @@ export function Navbar() {
           })}
         </div>
 
-        {user ? (
-          <div className="flex justify-end items-center gap-2">
-            <BtnIcon iconName="Bell" variant="tertiary" size="sm" />
+        {/* RIGHT SECTION */}
+        <div className="flex items-center gap-4">
 
-            <Sheet open={open} onOpenChange={() => setOpen()}>
-              <SheetTrigger asChild>
-                <BtnIcon iconName="User" variant="tertiary" size="sm" />
-              </SheetTrigger>
+          {/* CART ICON */}
+          <CartButton />
 
-              <SheetContent>
-                <SheetHeader>
-                  <SheetTitle className="flex items-center gap-2">
-                    <img
-                      src="/Logoabby-text.svg"
-                      alt="abbynbev"
-                      className="w-[150px] h-auto"
-                    />
-                  </SheetTitle>
-                  {/* keep description text-only */}
-                  <SheetDescription className="py-1">
-                    Account menu
-                  </SheetDescription>
-                </SheetHeader>
+          {/* IF USER LOGIN */}
+          {user ? (
+            <>
+              <BtnIcon iconName="Bell" variant="tertiary" size="sm" />
 
-                {/* links live OUTSIDE description (no div-inside-p) */}
-                <nav className="py-4 space-y-1">
-                  {linksidebar.map((linkside) => {
-                    const Icon = FaIcons[linkside.icon];
-                    const isActive = pathname === linkside.href;
-                    return (
-                      <Link
-                        onClick={()=> setOpen (false)}
-                        key={linkside.href}
-                        href={linkside.href}
-                        className={clsx(
-                          "rounded-md px-4 py-2 items-center transition-colors flex justify-between",
-                          isActive
-                            ? "text-neutral-950 bg-neutral-100"
-                            : "hover:bg-neutral-100 transition-all duration-300"
-                        )}
-                      >
-                        <span>{linkside.label}</span>
-                        {Icon ? (
-                          <Icon className="font-bold w-3.5 h-3.5" />
-                        ) : null}
-                      </Link>
-                    );
-                  })}
-                  <div className="h-full w-full flex-row items-end justify-end">
-                  <Button onClick={handleLogout} variant="tertiary" size="sm">
-                    Sign out
-                  </Button>
-                  </div>
-                </nav>
-              </SheetContent>
-            </Sheet>
-          </div>
-        ) : (
-          <div>
+              <Sheet open={open} onOpenChange={() => setOpen(!open)}>
+                <SheetTrigger asChild>
+                  <BtnIcon iconName="User" variant="tertiary" size="sm" />
+                </SheetTrigger>
+
+                <SheetContent>
+                  <SheetHeader>
+                    <SheetTitle className="flex items-center gap-2">
+                      <img
+                        src="/Logoabby-text.svg"
+                        alt="abbynbev"
+                        className="w-[130px] h-auto"
+                      />
+                    </SheetTitle>
+                    <SheetDescription>Account menu</SheetDescription>
+                  </SheetHeader>
+
+                  <nav className="py-4 space-y-1">
+                    {linksidebar.map((item) => {
+                      const Icon = FaIcons[item.icon];
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setOpen(false)}
+                          className="flex justify-between px-4 py-2 rounded-md hover:bg-gray-100"
+                        >
+                          <span>{item.label}</span>
+                          <Icon />
+                        </Link>
+                      );
+                    })}
+
+                    <Button
+                      onClick={handleLogout}
+                      variant="tertiary"
+                      size="sm"
+                      className="mt-4"
+                    >
+                      Sign out
+                    </Button>
+                  </nav>
+                </SheetContent>
+              </Sheet>
+            </>
+          ) : (
             <LoginRegisModalForm />
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </nav>
   );

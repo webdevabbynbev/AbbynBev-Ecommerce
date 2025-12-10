@@ -9,6 +9,7 @@
 
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
+import { Role } from '../app/enums/role.js'
 
 const AuthController = () => import('#controllers/auth_controller')
 const UsersController = () => import('#controllers/cms/users_controller')
@@ -226,7 +227,7 @@ router
             router.put('/:slug', [CmsTagController, 'update'])
             router.delete('/:slug', [CmsTagController, 'delete'])
           })
-          .use(middleware.roleAdmin())
+.middleware([middleware.auth(), middleware.rolePermission([Role.GUDANG])])
           .prefix('/tags')
 
         router
@@ -249,7 +250,7 @@ router
             router.put('/:slug', [CmsPersonaController, 'update'])
             router.delete('/:slug', [CmsPersonaController, 'delete'])
           })
-          .use(middleware.roleAdmin())
+.middleware([middleware.auth(), middleware.rolePermission([Role.GUDANG])])
           .prefix('/personas')
 
         router
