@@ -1,31 +1,60 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import api from "@/lib/axios";
+import axios from "@/lib/axios";
 import Image from "next/image";
-import Link from "next/link";
-import clsx from "clsx";
 
-const STATUS_COLOR = {
-  arrived: "bg-green-100 text-green-600",
-  pending: "bg-yellow-100 text-yellow-600",
-  cancelled: "bg-red-100 text-red-600",
-  success: "bg-green-100 text-green-600",
-};
+// Dummy order data (hanya muncul jika API kosong)
+const dummyOrders = [
+  {
+    id: 1,
+    transaction_number: "INV/20250207/ML/834850124",
+    status: "arrived",
+    created_at: "2025-02-08",
+    total_price: 56000,
+    items: [
+      {
+        id: 10,
+        product: {
+          name: "Milky Way Powder Mask",
+          thumbnail: "/images/sample-product.jpg",
+          variant_name: "20gr",
+          price: 10000,
+        },
+        quantity: 2,
+      },
+      {
+        id: 20,
+        product: {
+          name: "Acne Patch",
+          thumbnail: "/images/sample-product.jpg",
+          variant_name: "10pcs",
+          price: 18000,
+        },
+        quantity: 1,
+      },
+    ],
+  },
+];
 
 export default function OrderHistoryPage() {
   const [orders, setOrders] = useState([]);
-  const [tab, setTab] = useState("all");
-  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
 
   const loadOrders = async () => {
     try {
-      const res = await api.get("/orders");
-      setOrders(res.data.data || []);
+      const res = await axios.get("/transaction");
+      const data = res.data?.serve?.data ?? [];
+
+      // Jika API kosong → pakai dummy
+      if (data.length === 0) {
+        setOrders(dummyOrders);
+      } else {
+        setOrders(data);
+      }
     } catch (err) {
-      console.log("Error load orders:", err);
-    } finally {
-      setLoading(false);
+      console.log("Error order:", err);
+      setOrders(dummyOrders); // fallback dummy
     }
   };
 
@@ -33,110 +62,144 @@ export default function OrderHistoryPage() {
     loadOrders();
   }, []);
 
-  const filteredOrders =
-    tab === "all" ? orders : orders.filter((o) => o.status === tab);
+  // ----- FILTERING -----
+  const filterOrders = orders.filter((o) => {
+    if (filter === "all") return true;
+    if (filter === "ongoing") return ["pending", "processing", "on_delivery"].includes(o.status);
+    if (filter === "success") return ["arrived", "finished"].includes(o.status);
+    if (filter === "cancelled") return ["cancelled"].includes(o.status);
+    return true;
+  });
 
-  if (loading) return <div className="p-6">Loading...</div>;
+  // ----- STATUS BADGE -----
+  const statusBadgeClass = (status) => {
+    switch (status) {
+      case "arrived":
+      case "finished":
+        return "bg-green-100 text-green-600";
+      case "pending":
+      case "processing":
+      case "on_delivery":
+        return "bg-yellow-100 text-yellow-600";
+      case "cancelled":
+        return "bg-red-100 text-red-600";
+      default:
+        return "bg-gray-200 text-gray-600";
+    }
+  };
+
+  const statusLabel = (status) => {
+    switch (status) {
+      case "arrived":
+        return "Arrived";
+      case "finished":
+        return "Completed";
+      case "pending":
+        return "Awaiting Payment";
+      case "processing":
+        return "Processing";
+      case "on_delivery":
+        return "On Delivery";
+      case "cancelled":
+        return "Cancelled";
+      default:
+        return status;
+    }
+  };
 
   return (
-    <div className="p-6 w-full">
-      <h1 className="text-xl font-semibold mb-4">Order History</h1>
+    <div className="max-w-4xl mx-auto py-10 px-4">
 
-      {/* TAB FILTER */}
-      <div className="flex gap-4 mb-6">
-        {["all", "ongoing", "success", "cancelled"].map((t) => (
+      <h2 className="text-2xl font-semibold mb-8">My Orders</h2>
+
+      {/* FILTER TABS */}
+      <div className="flex gap-4 mb-8 border-b pb-4">
+        {[
+          { key: "all", label: "All" },
+          { key: "ongoing", label: "Ongoing" },
+          { key: "success", label: "Success" },
+          { key: "cancelled", label: "Cancelled" },
+        ].map((tab) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={clsx(
-              "px-4 py-1 rounded-full border text-sm capitalize",
-              tab === t
-                ? "bg-pink-600 text-white border-pink-600"
-                : "text-gray-600 border-gray-300"
-            )}
+            key={tab.key}
+            onClick={() => setFilter(tab.key)}
+            className={`pb-2 px-2 text-sm font-medium transition 
+              ${
+                filter === tab.key
+                  ? "text-pink-600 border-b-2 border-pink-600"
+                  : "text-gray-500 hover:text-gray-800"
+              }`}
           >
-            {t}
+            {tab.label}
           </button>
         ))}
       </div>
 
       {/* ORDER LIST */}
-      <div className="flex flex-col gap-6">
-        {filteredOrders.map((order) => (
-          <div
-            key={order.id}
-            className="border rounded-xl p-4 bg-white shadow-sm"
-          >
-            {/* STATUS BADGE + DATE */}
-            <div className="flex justify-between items-center mb-3">
-              <span
-                className={`px-3 py-1 text-xs rounded-full ${STATUS_COLOR[order.status]}`}
-              >
-                {order.status_label}
+      {filterOrders.length === 0 ? (
+        <p className="text-gray-400 text-center py-20 italic">No orders found</p>
+      ) : (
+        filterOrders.map((order) => (
+          <div key={order.id} className="bg-white border rounded-xl p-6 shadow-sm mb-6">
+
+            {/* Header */}
+            <div className="flex justify-between items-center mb-4">
+              <span className={`px-3 py-1 text-sm rounded-full ${statusBadgeClass(order.status)}`}>
+                {statusLabel(order.status)}
               </span>
-              <span className="text-sm text-gray-500">
-                Order created: {order.created_at}
-              </span>
+              <p className="text-xs text-gray-500">
+                Order created:{" "}
+                {new Date(order.created_at).toLocaleDateString("id-ID", {
+                  day: "2-digit",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </p>
             </div>
 
-            {/* PRODUCT LIST */}
-            <div className="flex flex-col gap-3">
-              {order.items.map((item, idx) => (
-                <div key={idx} className="flex gap-3">
-                  <Image
-                    src={item.image}
-                    width={70}
-                    height={70}
-                    className="rounded"
-                    alt={item.name}
-                  />
-                  <div className="flex flex-col text-sm">
-                    <span className="font-medium">{item.name}</span>
-                    <span className="text-gray-500">Variant: {item.variant}</span>
-                    <span className="text-gray-500">
-                      {item.qty} item x Rp {item.price.toLocaleString()}
-                    </span>
-                  </div>
+            {/* Items */}
+            {order.items.map((item) => (
+              <div key={item.id} className="flex items-start gap-4 border-b pb-4 mb-4">
+                <Image
+                  src={item.product.thumbnail}
+                  alt={item.product.name}
+                  width={70}
+                  height={70}
+                  className="rounded-lg"
+                />
+                <div className="flex-1">
+                  <p className="font-medium">{item.product.name}</p>
+                  <p className="text-gray-500 text-sm">
+                    Variant: {item.product.variant_name || "-"}
+                  </p>
+                  <p className="text-gray-500 text-sm">Qty: {item.quantity}</p>
                 </div>
-              ))}
-            </div>
+                <p className="text-pink-600 font-semibold">
+                  Rp {item.product.price.toLocaleString("id-ID")}
+                </p>
+              </div>
+            ))}
 
-            {/* INVOICE + TOTAL */}
-            <div className="flex justify-between mt-4 text-sm">
-              <span className="text-gray-600">{order.invoice}</span>
-              <span className="font-semibold">
-                Total: Rp {order.total.toLocaleString()}
+            {/* Total */}
+            <div className="flex justify-between font-semibold text-lg mt-2">
+              <span>Total Payment:</span>
+              <span className="text-pink-600">
+                Rp {order.total_price.toLocaleString("id-ID")}
               </span>
             </div>
 
-            {/* ACTION BUTTONS */}
-            <div className="flex justify-between items-center mt-3">
-              <Link
-                href={`/account/order-history/${order.id}`}
-                className="text-pink-600 text-sm font-medium underline"
-              >
-                See Transactions detail
-              </Link>
-
-              {order.status === "success" && (
-                <button className="px-4 py-1 bg-pink-600 text-white rounded-full text-sm">
-                  Buy again
-                </button>
-              )}
-
-              {order.status === "pending" && (
-                <button className="px-4 py-1 bg-red-600 text-white rounded-full text-sm">
-                  Cancel order
-                </button>
-              )}
+            {/* Buttons */}
+            <div className="flex justify-end gap-4 mt-6">
+              <button className="text-pink-600 underline text-sm">
+                See Transaction Details
+              </button>
+              <button className="px-4 py-2 bg-pink-600 text-white text-sm rounded-lg">
+                Buy Again
+              </button>
             </div>
           </div>
-        ))}
-
-        {filteredOrders.length === 0 && (
-          <p className="text-gray-500">No orders found.</p>
-        )}
-      </div>
+        ))
+      )}
     </div>
   );
 }
