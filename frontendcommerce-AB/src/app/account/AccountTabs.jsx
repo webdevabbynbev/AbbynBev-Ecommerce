@@ -8,50 +8,62 @@ export default function AccountTabs({ slug }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Tabs yang tetap di dalam halaman account
-  const INTERNAL_TABS = [
-    { value: "profile", label: "Profile" },
-    { value: "wishlist", label: "Wishlist" },
-  ];
+  // Tabs internal (profile + wishlist)
+  const INTERNAL_TABS = ["profile", "wishlist"];
+
+  // Jika halaman adalah order-history, kita harus override slug
+  const activeSlug = pathname.includes("order-history") ? null : slug;
 
   return (
     <Tabs
-      key={slug}
-      value={slug}
+      key={activeSlug}
+      value={activeSlug || undefined}
       onValueChange={(val) => router.push(`/account/${val}`)}
-      className="flex md:flex-row sm:flex-col gap-4 w-full"
+      className="flex md:flex-row sm:flex-col gap-6 w-full"
     >
       {/* SIDEBAR */}
       <TabsList
-        className="flex md:flex-col sm:flex-row h-fit w-[200px] 
-        items-center justify-between rounded-lg border p-2 space-y-2"
+        className="
+          flex md:flex-col sm:flex-row 
+          h-fit w-[220px] 
+          items-start 
+          rounded-xl border p-4 space-y-2 
+          bg-white shadow-sm
+        "
       >
-        {/* Profile Tab */}
-        <TabsTrigger value="profile" className="w-full justify-start">
+        {/* ========== PROFILE ========== */}
+        <TabsTrigger
+          value="profile"
+          className="w-full justify-start text-left"
+        >
           Profile
         </TabsTrigger>
 
-        {/* My Order — buka halaman terpisah */}
+        {/* ========== MY ORDER (Halaman terpisah, bukan tabs) ========== */}
         <button
+          onClick={() => router.push("/account/order-history")}
           className={`
-            w-full text-left px-3 py-2 rounded-md text-sm
-            ${pathname.includes("order-history")
-              ? "bg-pink-600 text-white"
-              : "hover:bg-gray-100 text-gray-700"
+            w-full text-left px-3 py-2 rounded-md text-sm transition
+            ${
+              pathname.includes("order-history")
+                ? "bg-pink-600 text-white shadow"
+                : "text-gray-700 hover:bg-gray-100"
             }
           `}
-          onClick={() => router.push("/account/order-history")}
         >
           My Order
         </button>
 
-        {/* Wishlist Tab */}
-        <TabsTrigger value="wishlist" className="w-full justify-start">
+        {/* ========== WISHLIST ========== */}
+        <TabsTrigger
+          value="wishlist"
+          className="w-full justify-start text-left"
+        >
           Wishlist
         </TabsTrigger>
       </TabsList>
 
-      {/* CONTENT AREA */}
+      {/* CONTENT */}
       <div className="flex-1 h-auto w-full">
         <TabsContent value="profile">
           <Profilepage />
@@ -60,6 +72,8 @@ export default function AccountTabs({ slug }) {
         <TabsContent value="wishlist">
           Halaman Wishlist
         </TabsContent>
+
+        {/* Order history tidak dirender di sini — dibuka di halaman terpisah */}
       </div>
     </Tabs>
   );

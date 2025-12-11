@@ -17,8 +17,7 @@ import {
 } from ".";
 import { usePathname, useRouter } from "next/navigation";
 import * as FaIcons from "react-icons/fa";
-import CartButton from "@/components/CartButton";   // <--- DITAMBAHKAN DI SINI
-
+import CartButton from "@/components/CartButton";
 import clsx from "clsx";
 
 export function Navbar() {
@@ -32,9 +31,10 @@ export function Navbar() {
     router.push("/");
   };
 
+  // 🔥 FIXED — My Order now points to /account/order-history
   const linksidebar = [
     { icon: "FaRegUser", href: "/account/profile", label: "Profile" },
-    { icon: "FaBox", href: "/account/my-order", label: "My order" },
+    { icon: "FaBox", href: "/account/order-history", label: "My order" },
     { icon: "FaRegHeart", href: "/account/wishlist", label: "Wishlist" },
   ];
 
@@ -50,7 +50,7 @@ export function Navbar() {
   return (
     <nav className="Navbar flex h-auto px-10 py-5 sticky top-0 w-full bg-white border-b-[1px] border-primary-700 transition-all justify-between items-center z-50">
       <div className="content-wrapper flex justify-between w-full max-w-[1536px] mx-auto">
-        
+
         {/* LEFT SIDE */}
         <div className="content-left flex w-auto items-center justify-center space-x-6">
           <div className="Icon-wrapper h-auto w-auto flex justify-center space-x-3">
@@ -101,7 +101,7 @@ export function Navbar() {
         {user ? (
           <div className="flex justify-end items-center gap-3">
 
-            {/* 🔥 CART BUTTON ADA DI SINI */}
+            {/* CART BUTTON */}
             <CartButton />
 
             <BtnIcon iconName="Bell" variant="tertiary" size="sm" />
