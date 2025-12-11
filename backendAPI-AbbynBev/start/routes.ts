@@ -454,3 +454,8 @@ router
       .use(middleware.roleCashier())
   })
   .prefix('/api/v1')
+
+
+  Route.group(() => {
+  Route.get('/orders', [() => import('#controllers/frontend/orders_controller'), 'index'])
+}).prefix('api/v1').middleware('auth')
