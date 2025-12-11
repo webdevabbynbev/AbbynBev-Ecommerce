@@ -444,7 +444,7 @@ router
     ])
     router.post('/midtrans/callback', [FeTransactionEcommerceController, 'webhookMidtrans'])
 
-    // POS Cashier Routes.
+    // POS Cashier Routes
     router
       .group(() => {
         router.post('/scan-barcode', [PosProductsController, 'scanByBarcode'])
@@ -456,6 +456,4 @@ router
   .prefix('/api/v1')
 
 
-  Route.group(() => {
-  Route.get('/orders', [() => import('#controllers/frontend/orders_controller'), 'index'])
-}).prefix('api/v1').middleware('auth')
+  

@@ -5,7 +5,7 @@ import axios from "@/lib/axios";
 import Image from "next/image";
 
 export default function CheckoutPage() {
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState([]); // selalu array
   const [address, setAddress] = useState(null);
   const [shippingMethods, setShippingMethods] = useState([]);
   const [selectedShipping, setSelectedShipping] = useState(null);
@@ -15,9 +15,10 @@ export default function CheckoutPage() {
   const loadCart = async () => {
     try {
       const res = await axios.get("/cart");
-      setCart(res.data.data);
+      setCart(Array.isArray(res.data.data) ? res.data.data : []);
     } catch (e) {
       console.log("Error cart:", e);
+      setCart([]); // antisipasi error 500 → bikin array kosong
     }
   };
 
@@ -29,6 +30,7 @@ export default function CheckoutPage() {
       setAddress(primary || null);
     } catch (e) {
       console.log("Error address:", e);
+      setAddress(null);
     }
   };
 
@@ -47,11 +49,15 @@ export default function CheckoutPage() {
     loadShipping();
   }, []);
 
-  // === TOTAL CALCULATION ===
-  const subtotal = cart.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
+  // === TOTAL CALCULATION (AMAN ANTI ERROR) ===
+  const safeCart = Array.isArray(cart) ? cart : [];
+
+  const subtotal = safeCart.reduce(
+    (sum, item) =>
+      sum + (item?.product?.price || 0) * (item?.quantity || 0),
     0
   );
+
   const total = subtotal + (selectedShipping?.price || 0);
 
   return (
@@ -66,11 +72,11 @@ export default function CheckoutPage() {
         <div className="bg-white border rounded-xl p-6 shadow-sm">
           <h2 className="text-xl font-semibold mb-5">Your order</h2>
 
-          {cart.length === 0 && (
+          {safeCart.length === 0 && (
             <p className="text-gray-400 italic">No products in cart</p>
           )}
 
-          {cart.map((item) => (
+          {safeCart.map((item) => (
             <div
               key={item.id}
               className="flex justify-between items-center border-b pb-4 mb-4"
@@ -148,90 +154,83 @@ export default function CheckoutPage() {
       </div>
 
       {/* ===========================================================
-          RIGHT SECTION (PAYMENT + SUMMARY) — DI RAPIKAN TOTAL
+          RIGHT SECTION (PAYMENT + SUMMARY)
       ============================================================ */}
-      {/* ====================== RIGHT SECTION ====================== */}
-<div className="w-[360px] bg-white border rounded-2xl shadow-md p-6 h-fit">
+      <div className="w-[360px] bg-white border rounded-2xl shadow-md p-6 h-fit">
 
-  {/* HEADER */}
-  <div className="flex justify-between items-center mb-6">
-    <h2 className="text-xl font-semibold">Payment</h2>
-    <span className="text-sm text-pink-600 font-medium">
-      Payment option
-    </span>
-  </div>
-
-  {/* PAYMENT METHODS */}
-  <div className="space-y-5">
-    {[
-      { name: "BCA virtual account", icon: "/icons/bca.png" },
-      { name: "BRI virtual account", icon: "/icons/bri.png" },
-      { name: "Mandiri virtual account", icon: "/icons/mandiri.png" },
-    ].map((method) => (
-      <label
-        key={method.name}
-        className="flex items-center justify-between w-full cursor-pointer"
-      >
-        {/* LEFT SIDE: ICON + NAME */}
-        <div className="flex items-center gap-3">
-          <Image
-            src={method.icon}
-            width={42}
-            height={42}
-            alt={method.name}
-            className="rounded-md"
-          />
-          <span className="text-[15px] text-gray-800">{method.name}</span>
+        {/* HEADER */}
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold">Payment</h2>
+          <span className="text-sm text-pink-600 font-medium">
+            Payment option
+          </span>
         </div>
 
-        {/* RADIO BUTTON */}
-        <input
-          type="radio"
-          name="payment"
-          value={method.name}
-          onChange={() => setSelectedPayment(method.name)}
-          className="w-5 h-5 accent-pink-600"
-        />
-      </label>
-    ))}
-  </div>
+        {/* PAYMENT METHODS */}
+        <div className="space-y-5">
+          {[
+            { name: "BCA virtual account", icon: "/icons/bca.png" },
+            { name: "BRI virtual account", icon: "/icons/bri.png" },
+            { name: "Mandiri virtual account", icon: "/icons/mandiri.png" },
+          ].map((method) => (
+            <label
+              key={method.name}
+              className="flex items-center justify-between w-full cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <Image
+                  src={method.icon}
+                  width={42}
+                  height={42}
+                  alt={method.name}
+                  className="rounded-md"
+                />
+                <span className="text-[15px] text-gray-800">{method.name}</span>
+              </div>
 
-  {/* DIVIDER */}
-  <hr className="my-6 border-gray-200" />
+              <input
+                type="radio"
+                name="payment"
+                value={method.name}
+                onChange={() => setSelectedPayment(method.name)}
+                className="w-5 h-5 accent-pink-600"
+              />
+            </label>
+          ))}
+        </div>
 
-  {/* SUMMARY */}
-  <div className="space-y-3 text-sm">
-    <div className="flex justify-between">
-      <span>{cart.length} product(s)</span>
-      <span>Rp {subtotal.toLocaleString("id-ID")}</span>
-    </div>
+        <hr className="my-6 border-gray-200" />
 
-    <div className="flex justify-between">
-      <span>Shipment:</span>
-      <span>
-        {selectedShipping
-          ? `Rp ${selectedShipping.price.toLocaleString("id-ID")}`
-          : "-"}
-      </span>
-    </div>
+        {/* SUMMARY */}
+        <div className="space-y-3 text-sm">
+          <div className="flex justify-between">
+            <span>{safeCart.length} product(s)</span>
+            <span>Rp {subtotal.toLocaleString("id-ID")}</span>
+          </div>
 
-    {/* DOTTED LINE */}
-    <div className="border-t border-dashed border-gray-300 my-3"></div>
+          <div className="flex justify-between">
+            <span>Shipment:</span>
+            <span>
+              {selectedShipping
+                ? `Rp ${selectedShipping.price.toLocaleString("id-ID")}`
+                : "-"}
+            </span>
+          </div>
 
-    {/* TOTAL */}
-    <div className="flex justify-between font-semibold text-lg">
-      <span>Total:</span>
-      <span className="text-pink-600">
-        Rp {total.toLocaleString("id-ID")}
-      </span>
-    </div>
-  </div>
+          <div className="border-t border-dashed border-gray-300 my-3"></div>
 
-  {/* PAY BUTTON */}
-  <button className="w-full mt-6 py-3 bg-pink-600 hover:bg-pink-700 transition text-white rounded-full text-center font-semibold text-[16px]">
-    Pay now
-  </button>
-</div>
+          <div className="flex justify-between font-semibold text-lg">
+            <span>Total:</span>
+            <span className="text-pink-600">
+              Rp {total.toLocaleString("id-ID")}
+            </span>
+          </div>
+        </div>
+
+        <button className="w-full mt-6 py-3 bg-pink-600 hover:bg-pink-700 transition text-white rounded-full text-center font-semibold text-[16px]">
+          Pay now
+        </button>
+      </div>
     </div>
   );
 }
