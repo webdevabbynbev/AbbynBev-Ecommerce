@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import axios from "@/lib/axios";
 import Image from "next/image";
+import Link from "next/link";
 
 // Dummy order data (hanya muncul jika API kosong)
 const dummyOrders = [
@@ -59,8 +60,10 @@ export default function OrderHistoryPage() {
   // Filtering
   const filterOrders = orders.filter((o) => {
     if (filter === "all") return true;
-    if (filter === "ongoing") return ["pending", "processing", "on_delivery"].includes(o.status);
-    if (filter === "success") return ["arrived", "finished"].includes(o.status);
+    if (filter === "ongoing")
+      return ["pending", "processing", "on_delivery"].includes(o.status);
+    if (filter === "success")
+      return ["arrived", "finished"].includes(o.status);
     if (filter === "cancelled") return ["cancelled"].includes(o.status);
     return true;
   });
@@ -114,25 +117,6 @@ export default function OrderHistoryPage() {
     }
   };
 
-  const statusLabel = (status) => {
-    switch (status) {
-      case "arrived":
-        return "Arrived";
-      case "finished":
-        return "Completed";
-      case "pending":
-        return "Awaiting Payment";
-      case "processing":
-        return "Processing";
-      case "on_delivery":
-        return "On Delivery";
-      case "cancelled":
-        return "Cancelled";
-      default:
-        return status;
-    }
-  };
-
   return (
     <div className="max-w-7xl mx-auto py-8 px-4">
       <div className="flex gap-8">
@@ -141,131 +125,145 @@ export default function OrderHistoryPage() {
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="space-y-1">
               <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
-                <span className="text-lg"></span>
                 <span>Profile management</span>
               </button>
-              
+
               <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
-                <span className="text-lg"></span>
                 <span>Wishlist</span>
               </button>
-              
+
               <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-pink-600 bg-pink-50 rounded-lg font-medium">
-                <span className="text-lg"></span>
                 <span>Order History</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* Main Content */}
+        {/* MAIN CONTENT */}
         <div className="flex-1">
           <h2 className="text-2xl font-bold mb-6 text-gray-900">Order history</h2>
 
-                {/* Filter Tabs */}
+          {/* FILTER */}
           <div className="flex gap-3 mb-6">
-        {[
-          { key: "all", label: "All" },
-          { key: "ongoing", label: "Ongoing" },
-          { key: "success", label: "Success" },
-          { key: "cancelled", label: "Cancelled" },
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setFilter(tab.key)}
-            className={`px-6 py-2 text-sm font-medium rounded-full transition-all ${
-              filter === tab.key
-                ? "bg-pink-600 text-white"
-                : "bg-white text-gray-600 border border-gray-200 hover:border-pink-300"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Order List */}
-      {filterOrders.length === 0 ? (
-        <div className="text-center py-20">
-          <p className="text-gray-400 text-lg">No orders found</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {filterOrders.map((order) => {
-            const statusInfo = getStatusInfo(order.status);
-            return (
-              <div
-                key={order.id}
-                className="bg-white border border-gray-200 rounded-lg p-5"
+            {[
+              { key: "all", label: "All" },
+              { key: "ongoing", label: "Ongoing" },
+              { key: "success", label: "Success" },
+              { key: "cancelled", label: "Cancelled" },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setFilter(tab.key)}
+                className={`px-6 py-2 text-sm font-medium rounded-full transition-all ${
+                  filter === tab.key
+                    ? "bg-pink-600 text-white"
+                    : "bg-white text-gray-600 border border-gray-200 hover:border-pink-300"
+                }`}
               >
-                {/* Status Message */}
-                <div className={`${statusInfo.bgColor} ${statusInfo.textColor} px-4 py-2.5 rounded-md flex items-center justify-between mb-4`}>
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">{statusInfo.icon}</span>
-                    <span className="text-sm font-medium">{statusInfo.message}</span>
-                  </div>
-                  <div className="text-xs">
-                    Order created: {new Date(order.created_at).toLocaleDateString("en-GB", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                    }).replace(/\//g, '/')}
-                  </div>
-                </div>
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
-                {/* Items */}
-                <div className="space-y-4 mb-4">
-                  {order.items.map((item) => (
-                    <div key={item.id} className="flex items-start gap-4">
-                      <Image
-                        src={item.product.thumbnail}
-                        alt={item.product.name}
-                        width={60}
-                        height={60}
-                        className="rounded-md border border-gray-200 object-cover"
-                      />
-
-                      <div className="flex-1">
-                        <p className="font-semibold text-gray-900 text-sm mb-1">
-                          {item.product.name}
-                        </p>
-                        <p className="text-xs text-gray-500 mb-0.5">
-                          Variant: {item.product.variant_name || "-"}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {item.quantity} item • Rp. {item.product.price.toLocaleString("id-ID")}
-                        </p>
+          {/* LIST ORDER */}
+          {filterOrders.length === 0 ? (
+            <div className="text-center py-20">
+              <p className="text-gray-400 text-lg">No orders found</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filterOrders.map((order) => {
+                const statusInfo = getStatusInfo(order.status);
+                return (
+                  <div
+                    key={order.id}
+                    className="bg-white border border-gray-200 rounded-lg p-5"
+                  >
+                    {/* STATUS MESSAGE */}
+                    <div
+                      className={`${statusInfo.bgColor} ${statusInfo.textColor} px-4 py-2.5 rounded-md flex items-center justify-between mb-4`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{statusInfo.icon}</span>
+                        <span className="text-sm font-medium">
+                          {statusInfo.message}
+                        </span>
+                      </div>
+                      <div className="text-xs">
+                        Order created:{" "}
+                        {new Date(order.created_at)
+                          .toLocaleDateString("en-GB")
+                          .replace(/\//g, "/")}
                       </div>
                     </div>
-                  ))}
-                </div>
 
-                {/* Footer */}
-                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                  <p className="text-xs text-gray-500">{order.transaction_number}</p>
-                  
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-xs text-gray-500 mb-1">Total</p>
-                      <p className="text-base font-bold text-gray-900">
-                        {order.items.reduce((sum, item) => sum + item.quantity, 0)} item: Rp{order.total_price.toLocaleString("id-ID")}
-                      </p>
+                    {/* ITEMS LIST */}
+                    <div className="space-y-4 mb-4">
+                      {order.items.map((item) => (
+                        <div key={item.id} className="flex items-start gap-4">
+                          <Image
+                            src={item.product.thumbnail}
+                            alt={item.product.name}
+                            width={60}
+                            height={60}
+                            className="rounded-md border border-gray-200 object-cover"
+                          />
+
+                          <div className="flex-1">
+                            <p className="font-semibold text-gray-900 text-sm mb-1">
+                              {item.product.name}
+                            </p>
+                            <p className="text-xs text-gray-500 mb-0.5">
+                              Variant: {item.product.variant_name || "-"}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {item.quantity} item • Rp{" "}
+                              {item.product.price.toLocaleString("id-ID")}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    
-                    <button className="px-5 py-2 text-xs font-medium text-white bg-pink-600 rounded-full hover:bg-pink-700 transition-colors">
-                      See Transactions detail
-                    </button>
-                    
-                    <button className="px-5 py-2 text-xs font-medium text-pink-600 bg-white border border-pink-600 rounded-full hover:bg-pink-50 transition-colors">
-                      Buy again
-                    </button>
+
+                    {/* FOOTER */}
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                      <p className="text-xs text-gray-500">
+                        {order.transaction_number}
+                      </p>
+
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500 mb-1">Total</p>
+                          <p className="text-base font-bold text-gray-900">
+                            {order.items.reduce(
+                              (sum, item) => sum + item.quantity,
+                              0
+                            )}{" "}
+                            item: Rp
+                            {order.total_price.toLocaleString("id-ID")}
+                          </p>
+                        </div>
+
+                        {/* 🔗 SUDAH DIUBAH DARI BUTTON → LINK */}
+                        <Link
+                          href={`/account/order-history/${encodeURIComponent(
+                            order.transaction_number
+                          )}`}
+                          className="px-5 py-2 text-xs font-medium text-white bg-pink-600 rounded-full hover:bg-pink-700 transition-colors"
+                        >
+                          See Transactions detail
+                        </Link>
+
+                        <button className="px-5 py-2 text-xs font-medium text-pink-600 bg-white border border-pink-600 rounded-full hover:bg-pink-50 transition-colors">
+                          Buy again
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>
