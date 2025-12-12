@@ -1,41 +1,80 @@
 "use client";
-import { useRouter } from "next/navigation";
+
+import { useRouter, usePathname } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui";
 import { Profilepage } from "./profile";
 
 export default function AccountTabs({ slug }) {
   const router = useRouter();
+  const pathname = usePathname();
 
-  const TABS = [
-  { value: "profile",  label: "Profile",   href: (v) => `/account/${v}` },
-  { value: "my-order", label: "My Order",  href: (v) => `/account/${v}` },
-  { value: "wishlist", label: "Wishlist",  href: (v) => `/account/${v}` },
-];
+  // Tabs internal (profile + wishlist)
+  const INTERNAL_TABS = ["profile", "wishlist"];
 
-  return ( 
-      <Tabs
-        key={slug}
-        value={slug}
-        onValueChange={(val) => router.push(`/account/${val}`)}
-        className="flex md:flex-row sm:flex-col gap-4 w-full"
+  // Jika halaman adalah order-history, kita harus override slug
+  const activeSlug = pathname.includes("order-history") ? null : slug;
+
+  return (
+    <Tabs
+      key={activeSlug}
+      value={activeSlug || undefined}
+      onValueChange={(val) => router.push(`/account/${val}`)}
+      className="flex md:flex-row sm:flex-col gap-6 w-full"
+    >
+      {/* SIDEBAR */}
+      <TabsList
+        className="
+          flex md:flex-col sm:flex-row 
+          h-fit w-[220px] 
+          items-start 
+          rounded-xl border p-4 space-y-2 
+          bg-white shadow-sm
+        "
       >
-        <TabsList className="flex md:flex-col sm:flex-row h-fit w-[200px] items-center justify-between rounded-lg border p-2 space-y-2">
-          <TabsTrigger value="profile" className="w-full justify-start">
-            Profile
-          </TabsTrigger>
-          <TabsTrigger value="my-order" className="w-full justify-start">
-            My Order
-          </TabsTrigger>
-          <TabsTrigger value="wishlist" className="w-full justify-start">
-            Wishlist
-          </TabsTrigger>
-        </TabsList>
+        {/* ========== PROFILE ========== */}
+        <TabsTrigger
+          value="profile"
+          className="w-full justify-start text-left"
+        >
+          Profile
+        </TabsTrigger>
 
-        <div className="flex-1 h-auto w-full">
-          <TabsContent value="profile"><Profilepage/> </TabsContent>
-          <TabsContent value="my-order">Halaman My Order 📦</TabsContent>
-          <TabsContent value="wishlist">Halaman Wishlist ❤️</TabsContent>
-        </div>
-      </Tabs>
+        {/* ========== MY ORDER (Halaman terpisah, bukan tabs) ========== */}
+        <button
+          onClick={() => router.push("/account/order-history")}
+          className={`
+            w-full text-left px-3 py-2 rounded-md text-sm transition
+            ${
+              pathname.includes("order-history")
+                ? "bg-pink-600 text-white shadow"
+                : "text-gray-700 hover:bg-gray-100"
+            }
+          `}
+        >
+          My Order
+        </button>
+
+        {/* ========== WISHLIST ========== */}
+        <TabsTrigger
+          value="wishlist"
+          className="w-full justify-start text-left"
+        >
+          Wishlist
+        </TabsTrigger>
+      </TabsList>
+
+      {/* CONTENT */}
+      <div className="flex-1 h-auto w-full">
+        <TabsContent value="profile">
+          <Profilepage />
+        </TabsContent>
+
+        <TabsContent value="wishlist">
+          Halaman Wishlist
+        </TabsContent>
+
+        {/* Order history tidak dirender di sini — dibuka di halaman terpisah */}
+      </div>
+    </Tabs>
   );
 }

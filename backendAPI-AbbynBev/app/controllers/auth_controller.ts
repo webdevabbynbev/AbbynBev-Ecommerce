@@ -720,6 +720,7 @@ export default class AuthController {
           googleId: googleId,
           isActive: 1,
           role: Role.GUEST,
+          password: 'randomPassword', 
         })
       }
 
