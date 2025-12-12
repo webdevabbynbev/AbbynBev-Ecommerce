@@ -117,7 +117,11 @@ export function Navbar() {
         {user ? (
           <div className="flex justify-end items-center gap-3">
             <CartButton />
-            <BtnIcon iconName="Bell" variant="tertiary" size="sm" />
+
+            {/* 🔔 Bell sekarang menuju ke /notification */}
+            <Link href="/notification">
+              <BtnIcon iconName="Bell" variant="tertiary" size="sm" />
+            </Link>
 
             <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger asChild>
