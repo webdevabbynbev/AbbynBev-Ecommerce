@@ -4,150 +4,169 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
-// ====== DUMMY DATA NEW ARRIVAL ======
-const NEW_PRODUCTS = [
+// ========= DUMMY DATA PRODUK SHOP (boleh diganti nanti) =========
+const SHOP_PRODUCTS = [
   {
     id: 1,
-    slug: "loreal-new-lip-tint",
-    brand: "L'ORÉAL",
-    name: "NEW Luxe Satin Lip Tint",
+    slug: "avoskin-ysb-serum-salicylic",
+    brand: "AVOSKIN",
+    name: "YSB Serum Salicylic Acid 2% + Zinc",
     image: "/images/sample-product.jpg",
-    price: 159000,
-    rating: 4.7,
-    reviewCount: 32,
-    category: "Makeup",
+    price: 135_360,
+    originalPrice: 169_000,
+    rating: 4.5,
+    reviewCount: 112,
+    category: "Serum",
   },
   {
     id: 2,
-    slug: "cosrx-snail-advanced-foam",
+    slug: "cosrx-advanced-snail-96",
     brand: "COSRX",
-    name: "Advanced Snail Gentle Foam Cleanser",
+    name: "Advanced Snail 96 Mucin Power Essence",
     image: "/images/sample-product.jpg",
-    price: 145000,
-    rating: 4.5,
-    reviewCount: 21,
-    category: "Cleanser",
+    price: 289_000,
+    originalPrice: 320_000,
+    rating: 4.7,
+    reviewCount: 89,
+    category: "Essence",
   },
   {
     id: 3,
-    slug: "avoskin-hydrating-serum",
-    brand: "AVOSKIN",
-    name: "Hydrating Glow Serum",
+    slug: "cosrx-niacinamide-15",
+    brand: "COSRX",
+    name: "The Niacinamide 15 Serum",
     image: "/images/sample-product.jpg",
-    price: 189000,
-    rating: 4.8,
-    reviewCount: 18,
+    price: 249_000,
+    originalPrice: 280_000,
+    rating: 4.6,
+    reviewCount: 64,
     category: "Serum",
   },
   {
     id: 4,
-    slug: "hada-labo-brightening-wash",
-    brand: "HADA LABO",
-    name: "Brightening Face Wash",
+    slug: "cosrx-vit-c-23",
+    brand: "COSRX",
+    name: "The Vitamin C 23 Serum",
     image: "/images/sample-product.jpg",
-    price: 69000,
+    price: 265_000,
+    originalPrice: 310_000,
+    rating: 4.4,
+    reviewCount: 52,
+    category: "Serum",
+  },
+  {
+    id: 5,
+    slug: "somebymi-acne-foam",
+    brand: "SOME BY MI",
+    name: "AHA BHA PHA 30 Days Miracle Acne Clear Foam",
+    image: "/images/sample-product.jpg",
+    price: 110_000,
+    originalPrice: 135_000,
     rating: 4.3,
     reviewCount: 40,
     category: "Cleanser",
   },
   {
-    id: 5,
-    slug: "laneige-water-sleeping-mask",
-    brand: "LANEIGE",
-    name: "Water Sleeping Mask Fresh",
-    image: "/images/sample-product.jpg",
-    price: 329000,
-    rating: 4.6,
-    reviewCount: 55,
-    category: "Mask",
-  },
-  {
     id: 6,
-    slug: "somebymi-cica-cleansing-balm",
-    brand: "SOME BY MI",
-    name: "Cica Cleansing Balm",
+    slug: "sunscreen-gel-bright",
+    brand: "SKIN1004",
+    name: "Sunscreen Brightening Watery Gel SPF50+",
     image: "/images/sample-product.jpg",
-    price: 179000,
-    rating: 4.4,
-    reviewCount: 22,
-    category: "Cleanser",
+    price: 139_000,
+    originalPrice: 165_000,
+    rating: 4.6,
+    reviewCount: 74,
+    category: "Sunscreen",
   },
   {
     id: 7,
-    slug: "skin1004-new-sunscreen",
+    slug: "sunscreen-matte",
     brand: "SKIN1004",
-    name: "Madagascar Centella Air-Fit Suncream SPF50+",
+    name: "Sunscreen Ultra Matte Finish SPF50+",
     image: "/images/sample-product.jpg",
-    price: 149000,
-    rating: 4.7,
-    reviewCount: 60,
+    price: 145_000,
+    originalPrice: 175_000,
+    rating: 4.5,
+    reviewCount: 53,
     category: "Sunscreen",
   },
   {
     id: 8,
-    slug: "cosrx-propolis-toner",
-    brand: "COSRX",
-    name: "Full Fit Propolis Toner",
+    slug: "toner-miracle",
+    brand: "AVOSKIN",
+    name: "Miraculous Refining Toner",
     image: "/images/sample-product.jpg",
-    price: 210000,
-    rating: 4.5,
-    reviewCount: 48,
+    price: 189_000,
+    originalPrice: 219_000,
+    rating: 4.8,
+    reviewCount: 180,
     category: "Toner",
   },
   {
     id: 9,
-    slug: "banila-co-clean-it-zero",
-    brand: "BANILA CO",
-    name: "Clean It Zero Purifying Balm",
+    slug: "cleanser-gentle",
+    brand: "SENKA",
+    name: "Perfect Whip Gentle Cleanser",
     image: "/images/sample-product.jpg",
-    price: 259000,
-    rating: 4.6,
-    reviewCount: 70,
+    price: 59_000,
+    originalPrice: 80_000,
+    rating: 4.2,
+    reviewCount: 36,
     category: "Cleanser",
   },
   {
     id: 10,
-    slug: "innisfree-black-tea-ampoule",
-    brand: "INNISFREE",
-    name: "Black Tea Youth Enhancing Ampoule",
+    slug: "lotion-hydrating",
+    brand: "HADA LABO",
+    name: "Gokujyun Hydrating Lotion",
     image: "/images/sample-product.jpg",
-    price: 345000,
-    rating: 4.8,
-    reviewCount: 37,
-    category: "Serum",
+    price: 78_000,
+    originalPrice: 95_000,
+    rating: 4.7,
+    reviewCount: 120,
+    category: "Toner",
   },
   {
     id: 11,
-    slug: "biore-aqua-rich-new",
-    brand: "BIORE",
-    name: "UV Aqua Rich Light Up Essence SPF50+",
+    slug: "ampoule-cica",
+    brand: "SOME BY MI",
+    name: "Cica Ampoule Soothing",
     image: "/images/sample-product.jpg",
-    price: 139000,
+    price: 210_000,
+    originalPrice: 250_000,
     rating: 4.4,
-    reviewCount: 44,
-    category: "Sunscreen",
+    reviewCount: 55,
+    category: "Serum",
   },
   {
     id: 12,
-    slug: "etude-fixing-tint",
-    brand: "ETUDE",
-    name: "Fixing Tint Velvet",
+    slug: "cream-brightening",
+    brand: "LANEIGE",
+    name: "Radian-C Brightening Cream",
     image: "/images/sample-product.jpg",
-    price: 125000,
-    rating: 4.5,
-    reviewCount: 29,
-    category: "Makeup",
+    price: 325_000,
+    originalPrice: 389_000,
+    rating: 4.6,
+    reviewCount: 77,
+    category: "Cream",
   },
 ];
 
-const CATEGORY_FILTERS = [
+const CATEGORIES = [
   "All",
-  "Makeup",
   "Serum",
+  "Essence",
   "Toner",
   "Cleanser",
   "Sunscreen",
-  "Mask",
+  "Cream",
+];
+
+const SORT_OPTIONS = [
+  { key: "recommended", label: "Recommended" },
+  { key: "lowest", label: "Lowest price" },
+  { key: "highest", label: "Highest price" },
+  { key: "discount", label: "Biggest discount" },
 ];
 
 const RATING_OPTIONS = [
@@ -156,6 +175,12 @@ const RATING_OPTIONS = [
   { value: 3.5, label: "3.5 & above" },
   { value: 0, label: "All rating" },
 ];
+
+function calcDiscountPercent(price, originalPrice) {
+  if (!price || !originalPrice || originalPrice <= price) return null;
+  const diff = originalPrice - price;
+  return Math.round((diff / originalPrice) * 100);
+}
 
 function StarRow({ count = 5 }) {
   return (
@@ -166,7 +191,7 @@ function StarRow({ count = 5 }) {
 }
 
 function HeartButton() {
-  const [active, setActive] = useState(true);
+  const [active, setActive] = useState(false);
   return (
     <button
       type="button"
@@ -190,28 +215,24 @@ function HeartButton() {
   );
 }
 
-export default function NewArrivalPage() {
+export default function ShopPage() {
   const [activeCategory, setActiveCategory] = useState("All");
+  const [sortBy, setSortBy] = useState("recommended");
   const [minRating, setMinRating] = useState(0);
   const [search, setSearch] = useState("");
 
   const filteredProducts = useMemo(() => {
-    let products = [...NEW_PRODUCTS];
+    let products =
+      activeCategory === "All"
+        ? [...SHOP_PRODUCTS]
+        : SHOP_PRODUCTS.filter(
+            (p) => p.category.toLowerCase() === activeCategory.toLowerCase()
+          );
 
-    // filter kategori
-    if (activeCategory !== "All") {
-      products = products.filter(
-        (p) =>
-          p.category.toLowerCase() === activeCategory.toLowerCase()
-      );
-    }
-
-    // filter rating
     if (minRating > 0) {
       products = products.filter((p) => p.rating >= minRating);
     }
 
-    // filter search
     if (search.trim()) {
       const q = search.toLowerCase();
       products = products.filter(
@@ -221,57 +242,91 @@ export default function NewArrivalPage() {
       );
     }
 
+    if (sortBy === "lowest") {
+      products.sort((a, b) => a.price - b.price);
+    } else if (sortBy === "highest") {
+      products.sort((a, b) => b.price - a.price);
+    } else if (sortBy === "discount") {
+      products.sort((a, b) => {
+        const da = calcDiscountPercent(a.price, a.originalPrice) || 0;
+        const db = calcDiscountPercent(b.price, b.originalPrice) || 0;
+        return db - da;
+      });
+    }
+
     return products;
-  }, [activeCategory, minRating, search]);
+  }, [activeCategory, sortBy, minRating, search]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Title */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-1">
-          New arrivals
-        </h1>
-        <p className="text-sm text-gray-500">
-          Produk-produk terbaru yang baru saja hadir di Abby N Bev.
-        </p>
-      </div>
-
-      <div className="flex gap-8">
-        {/* LEFT COLUMN: Banner + Filter */}
-        <aside className="w-64 flex-shrink-0 hidden md:block">
-          {/* Promo banner kiri (seperti gambar) */}
-          <div className="mb-4 rounded-2xl overflow-hidden border border-gray-200 bg-gradient-to-br from-red-600 via-red-500 to-amber-400">
-            <div className="relative h-32 flex">
-              <div className="flex-1 p-4 flex flex-col justify-between text-white">
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.2em] font-semibold">
-                    NEW
-                  </p>
-                  <p className="text-lg font-extrabold leading-tight mt-1">
-                    Luxe Lip Tint
-                  </p>
-                </div>
-                <p className="text-[10px] text-red-100">
-                  Discover the newest long‑lasting lip tint with satin finish.
-                </p>
-              </div>
-              <div className="relative w-24 h-full">
-                <Image
-                  src="/images/sample-product.jpg"
-                  alt="New arrival banner"
-                  fill
-                  className="object-cover"
-                />
-              </div>
-            </div>
+      {/* BANNER ATAS – mirip Sale, tapi versi Shop */}
+      <div className="mb-8">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-pink-300 via-pink-200 to-amber-200 h-40 md:h-52 flex items-center px-6 md:px-10">
+          <div className="absolute -right-10 -bottom-16 w-52 h-52 bg-pink-400/40 rounded-full blur-3xl" />
+          <div className="absolute right-10 top-4 hidden md:block">
+            <Image
+              src="/images/sample-product.jpg"
+              alt="Shop banner"
+              width={120}
+              height={120}
+              className="rounded-2xl shadow-xl object-cover"
+            />
           </div>
 
-          {/* Filter box */}
+          <div className="relative z-10 max-w-md">
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-pink-700 mb-1">
+              Beauty Products
+            </p>
+            <h1 className="text-3xl md:text-4xl font-extrabold text-pink-900 mb-2">
+              Shop all products
+            </h1>
+            <p className="text-xs md:text-sm text-pink-800/90">
+              Explore all skincare and makeup favorites from Abby N Bev in one
+              place.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* SEARCH + SORT BAR – mirip sale */}
+      <div className="flex flex-col md:flex-row gap-4 mb-6 items-center justify-between">
+        <div className="relative w-full md:max-w-xl">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search products here..."
+            className="w-full rounded-full border border-gray-200 bg-white px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-1 focus:ring-pink-400"
+          />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+            🔍
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500">Sort by</span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="text-sm border border-gray-200 rounded-full px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-pink-400"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.key} value={opt.key}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* MAIN LAYOUT: LEFT FILTER + RIGHT GRID (kaya sale) */}
+      <div className="flex gap-8">
+        {/* SIDEBAR FILTER */}
+        <aside className="w-64 flex-shrink-0 hidden md:block">
           <div className="bg-white border border-gray-200 rounded-xl p-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-gray-900">Filter</h2>
               <span className="text-[11px] text-gray-400 font-medium">
-                Newest
+                All items
               </span>
             </div>
 
@@ -281,7 +336,7 @@ export default function NewArrivalPage() {
                 Category
               </p>
               <div className="space-y-1">
-                {CATEGORY_FILTERS.map((cat) => (
+                {CATEGORIES.map((cat) => (
                   <label
                     key={cat}
                     className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer"
@@ -337,29 +392,12 @@ export default function NewArrivalPage() {
           </div>
         </aside>
 
-        {/* RIGHT COLUMN: Search + Grid products */}
+        {/* GRID PRODUK */}
         <section className="flex-1">
-          {/* Search bar */}
-          <div className="mb-4">
-            <div className="relative w-full">
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search new arrival product here..."
-                className="w-full rounded-full border border-gray-200 bg-white px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-1 focus:ring-pink-400"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
-                🔍
-              </span>
-            </div>
-          </div>
-
-          {/* Info jumlah produk */}
           <p className="text-xs text-gray-500 mb-3">
-            Showing {filteredProducts.length} new products
+            Showing {filteredProducts.length} products
           </p>
 
-          {/* Grid produk */}
           {filteredProducts.length === 0 ? (
             <div className="py-20 text-center text-sm text-gray-400">
               Belum ada produk yang cocok dengan filtermu.
@@ -367,8 +405,12 @@ export default function NewArrivalPage() {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
               {filteredProducts.map((product) => {
-                // TODO: ganti href ke halaman detail produk jika sudah ada
-                const href = "#";
+                const discount = calcDiscountPercent(
+                  product.price,
+                  product.originalPrice
+                );
+
+                const href = "#"; // TODO: ganti ke route detail product
 
                 return (
                   <Link
@@ -376,7 +418,7 @@ export default function NewArrivalPage() {
                     href={href}
                     className="bg-white border border-gray-200 rounded-xl p-3 flex flex-col hover:shadow-sm transition-shadow"
                   >
-                    {/* Image */}
+                    {/* Image + badge */}
                     <div className="relative mb-3">
                       <div className="relative w-full aspect-[3/4] rounded-lg overflow-hidden bg-gray-50">
                         <Image
@@ -387,10 +429,11 @@ export default function NewArrivalPage() {
                         />
                       </div>
 
-                      {/* Badge NEW kecil di pojok kiri atas */}
-                      <span className="absolute top-2 left-2 px-2 py-1 text-[10px] font-semibold rounded-full bg-pink-600 text-white">
-                        NEW
-                      </span>
+                      {discount && (
+                        <span className="absolute top-2 left-2 px-2 py-1 text-[10px] font-semibold rounded-full bg-orange-400 text-white">
+                          -{discount}%
+                        </span>
+                      )}
 
                       <div className="absolute top-2 right-2">
                         <HeartButton />
@@ -405,11 +448,18 @@ export default function NewArrivalPage() {
                       {product.name}
                     </p>
 
-                    {/* Price */}
+                    {/* Pricing */}
                     <div className="mt-2 text-sm">
-                      <span className="text-pink-600 font-semibold">
-                        Rp{product.price.toLocaleString("id-ID")}
-                      </span>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-pink-600 font-semibold">
+                          Rp{product.price.toLocaleString("id-ID")}
+                        </span>
+                        {product.originalPrice && (
+                          <span className="text-xs line-through text-gray-400">
+                            Rp{product.originalPrice.toLocaleString("id-ID")}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Rating */}

@@ -124,26 +124,37 @@ export default function OrderHistoryPage() {
         <div className="w-64 flex-shrink-0">
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="space-y-1">
-              <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
+              <Link
+                href="/account"
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+              >
                 <span>Profile management</span>
-              </button>
+              </Link>
 
-              <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
+              <Link
+                href="/account/wishlist"
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+              >
                 <span>Wishlist</span>
-              </button>
+              </Link>
 
-              <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-pink-600 bg-pink-50 rounded-lg font-medium">
+              <Link
+                href="/account/order-history"
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-pink-600 bg-pink-50 rounded-lg font-medium"
+              >
                 <span>Order History</span>
-              </button>
+              </Link>
             </div>
           </div>
         </div>
 
-        {/* MAIN CONTENT */}
+        {/* Main Content */}
         <div className="flex-1">
-          <h2 className="text-2xl font-bold mb-6 text-gray-900">Order history</h2>
+          <h2 className="text-2xl font-bold mb-6 text-gray-900">
+            Order history
+          </h2>
 
-          {/* FILTER */}
+          {/* Filter Tabs */}
           <div className="flex gap-3 mb-6">
             {[
               { key: "all", label: "All" },
@@ -165,7 +176,7 @@ export default function OrderHistoryPage() {
             ))}
           </div>
 
-          {/* LIST ORDER */}
+          {/* Order List */}
           {filterOrders.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-gray-400 text-lg">No orders found</p>
@@ -179,7 +190,7 @@ export default function OrderHistoryPage() {
                     key={order.id}
                     className="bg-white border border-gray-200 rounded-lg p-5"
                   >
-                    {/* STATUS MESSAGE */}
+                    {/* Status Message */}
                     <div
                       className={`${statusInfo.bgColor} ${statusInfo.textColor} px-4 py-2.5 rounded-md flex items-center justify-between mb-4`}
                     >
@@ -197,7 +208,7 @@ export default function OrderHistoryPage() {
                       </div>
                     </div>
 
-                    {/* ITEMS LIST */}
+                    {/* Items */}
                     <div className="space-y-4 mb-4">
                       {order.items.map((item) => (
                         <div key={item.id} className="flex items-start gap-4">
@@ -225,7 +236,7 @@ export default function OrderHistoryPage() {
                       ))}
                     </div>
 
-                    {/* FOOTER */}
+                    {/* Footer */}
                     <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                       <p className="text-xs text-gray-500">
                         {order.transaction_number}
@@ -244,7 +255,6 @@ export default function OrderHistoryPage() {
                           </p>
                         </div>
 
-                        {/* 🔗 SUDAH DIUBAH DARI BUTTON → LINK */}
                         <Link
                           href={`/account/order-history/${encodeURIComponent(
                             order.transaction_number
