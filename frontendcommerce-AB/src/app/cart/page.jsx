@@ -11,7 +11,7 @@ export default function CheckoutPage() {
   const [selectedShipping, setSelectedShipping] = useState(null);
   const [selectedPayment, setSelectedPayment] = useState(null);
 
-  // === LOAD CART ===
+  
   const loadCart = async () => {
     try {
       const res = await axios.get("/cart");
@@ -22,7 +22,6 @@ export default function CheckoutPage() {
     }
   };
 
-  // === LOAD ADDRESS ===
   const loadAddress = async () => {
     try {
       const res = await axios.get("/addresses");
@@ -34,7 +33,7 @@ export default function CheckoutPage() {
     }
   };
 
-  // === SHIPPING METHODS (dummy) ===
+  
   const loadShipping = () => {
     setShippingMethods([
       { id: "jnt", name: "J&T", price: 10800, estimate: "7 - 8 August" },
@@ -49,7 +48,7 @@ export default function CheckoutPage() {
     loadShipping();
   }, []);
 
-  // === TOTAL CALCULATION (AMAN ANTI ERROR) ===
+
   const safeCart = Array.isArray(cart) ? cart : [];
 
   const subtotal = safeCart.reduce(
@@ -63,9 +62,7 @@ export default function CheckoutPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-10 flex gap-10">
 
-      {/* ===========================================================
-          LEFT SECTION
-      ============================================================ */}
+      {/* LEFT SECTION */}
       <div className="flex-1 space-y-6">
 
         {/* ORDER LIST */}
@@ -153,9 +150,7 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      {/* ===========================================================
-          RIGHT SECTION (PAYMENT + SUMMARY)
-      ============================================================ */}
+      {/*RIGHT SECTION (PAYMENT + SUMMARY)*/}
       <div className="w-[360px] bg-white border rounded-2xl shadow-md p-6 h-fit">
 
         {/* HEADER */}

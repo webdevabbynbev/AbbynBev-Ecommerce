@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
-// ====== DUMMY DATA NEW ARRIVAL ======
+
 const NEW_PRODUCTS = [
   {
     id: 1,
@@ -198,7 +198,6 @@ export default function NewArrivalPage() {
   const filteredProducts = useMemo(() => {
     let products = [...NEW_PRODUCTS];
 
-    // filter kategori
     if (activeCategory !== "All") {
       products = products.filter(
         (p) =>
@@ -206,12 +205,10 @@ export default function NewArrivalPage() {
       );
     }
 
-    // filter rating
     if (minRating > 0) {
       products = products.filter((p) => p.rating >= minRating);
     }
 
-    // filter search
     if (search.trim()) {
       const q = search.toLowerCase();
       products = products.filter(

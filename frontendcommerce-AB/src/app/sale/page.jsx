@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
-// ====== DUMMY DATA PRODUK SALE ======
 const SALE_PRODUCTS = [
   {
     id: 1,
@@ -232,12 +231,12 @@ export default function SalePage() {
       );
     }
 
-    // Filter rating minimal
+    
     if (minRating > 0) {
       products = products.filter((p) => p.rating >= minRating);
     }
 
-    // Filter search
+  
     if (search.trim()) {
       const q = search.toLowerCase();
       products = products.filter(
@@ -247,7 +246,7 @@ export default function SalePage() {
       );
     }
 
-    // Sorting
+    
     if (sortBy === "lowest") {
       products.sort((a, b) => a.price - b.price);
     } else if (sortBy === "highest") {

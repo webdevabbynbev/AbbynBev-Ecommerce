@@ -38,16 +38,19 @@ export function Navbar() {
     { icon: "FaRegHeart", href: "/account/wishlist", label: "Wishlist" },
   ];
 
+  // 🔧 Beauty & tips diarahkan ke blog eksternal
   const links = [
     { href: "/", label: "Home" },
     { href: "/shop", label: "Shop" },
     { href: "/best-seller", label: "Best seller" },
     { href: "/sale", label: "Sale" },
     { href: "/new-arrival", label: "New arrival" },
-    { href: "/beauty-and-tips", label: "Beauty & tips" },
+    { href: "https://abbynbev.com/blog/", label: "Beauty & tips" },
   ];
 
   const isNavActive = (href) => {
+    // untuk external link, nggak perlu active state
+    if (href.startsWith("http")) return false;
     if (href === "/") return pathname === "/";
     return pathname === href || pathname.startsWith(href + "/");
   };
@@ -84,27 +87,41 @@ export function Navbar() {
             />
           </div>
 
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={clsx(
-                "items-center transition-colors text-sm",
-                isNavActive(link.href)
-                  ? "text-primary-700"
-                  : "hover:text-primary-500"
-              )}
-            >
-              {link.label}
-            </Link>
-          ))}
+          {links.map((link) => {
+            const isExternal = link.href.startsWith("http");
+            const active = isNavActive(link.href);
+            const className = clsx(
+              "items-center transition-colors text-sm",
+              active ? "text-primary-700" : "hover:text-primary-500"
+            );
+
+            if (isExternal) {
+              // external link → pakai <a>
+              return (
+                <a key={link.href} href={link.href} className={className}>
+                  {link.label}
+                </a>
+              );
+            }
+
+            // internal link → tetap pakai <Link>
+            return (
+              <Link key={link.href} href={link.href} className={className}>
+                {link.label}
+              </Link>
+            );
+          })}
         </div>
 
         {/* RIGHT SIDE */}
         {user ? (
           <div className="flex justify-end items-center gap-3">
             <CartButton />
-            <BtnIcon iconName="Bell" variant="tertiary" size="sm" />
+
+            {/* 🔔 Bell sekarang menuju ke /notification */}
+            <Link href="/notification">
+              <BtnIcon iconName="Bell" variant="tertiary" size="sm" />
+            </Link>
 
             <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger asChild>
