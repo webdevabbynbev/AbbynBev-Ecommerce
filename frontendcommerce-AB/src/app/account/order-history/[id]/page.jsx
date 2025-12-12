@@ -3,7 +3,7 @@
 import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
 
-// STEP DI ATAS (order created → packaged → on delivery → complete)
+
 const STEPS = [
   { key: "created", label: "Order created" },
   { key: "packaged", label: "Packaged" },
@@ -11,7 +11,7 @@ const STEPS = [
   { key: "completed", label: "Order complete" },
 ];
 
-// DUMMY ORDER (contoh persis kira-kira seperti desain)
+
 const BASE_DUMMY_ORDER = {
   transactionNumber: "2015080418",
   statusLabel: "On Delivery",
@@ -46,7 +46,7 @@ const BASE_DUMMY_ORDER = {
       image: "/images/sample-product.jpg",
     },
   ],
-  // angka bawah ini dummy, diset manual biar sama kayak desain
+ 
   subtotal: 56800,
   serviceCharges: 0,
   shipmentFee: 10800,
@@ -57,7 +57,7 @@ export default function OrderTrackingPage() {
   const router = useRouter();
   const params = useParams();
 
-  // Ambil nomor transaksi dari URL (biar teks "No pesanan:" ikut berubah)
+
   const transactionNumberFromUrl = params?.id
     ? decodeURIComponent(params.id)
     : null;
@@ -68,7 +68,7 @@ export default function OrderTrackingPage() {
       transactionNumberFromUrl || BASE_DUMMY_ORDER.transactionNumber,
   };
 
-  // Step ke-3 (index 2) = On delivery
+
   const currentStep = 2;
 
   return (

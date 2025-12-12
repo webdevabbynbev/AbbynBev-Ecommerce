@@ -5,7 +5,7 @@ import axios from "@/lib/axios";
 import Image from "next/image";
 import Link from "next/link";
 
-// Dummy order data (hanya muncul jika API kosong)
+
 const dummyOrders = [
   {
     id: 1,
@@ -57,7 +57,7 @@ export default function OrderHistoryPage() {
     loadOrders();
   }, []);
 
-  // Filtering
+
   const filterOrders = orders.filter((o) => {
     if (filter === "all") return true;
     if (filter === "ongoing")
@@ -68,7 +68,7 @@ export default function OrderHistoryPage() {
     return true;
   });
 
-  // Status Badge & Message
+ 
   const getStatusInfo = (status) => {
     switch (status) {
       case "arrived":

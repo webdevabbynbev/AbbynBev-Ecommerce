@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 
-// Dummy data wishlist (sementara pakai static dulu)
+
 const wishlistItems = [
   {
     id: 1,
