@@ -91,17 +91,46 @@ export default class TransactionCartsController {
 
   public async create({ response, request, auth }: HttpContext) {
     const trx = await db.transaction()
+
     try {
+      // pastikan user login
+      const user = auth.user
+      if (!user) {
+        await trx.rollback()
+        return response.status(401).send({
+          message: 'Unauthenticated',
+          serve: null,
+        })
+      }
+
+      // ambil & normalisasi input
+      const productId = Number(request.input('product_id'))
+      const variantId = Number(request.input('variant_id'))
+      const qty = Number(request.input('qty') ?? 0)
+      const isBuyNow = !!request.input('is_buy_now')
+      const attributes = request.input('attributes') || []
+
+      if (!productId || !variantId || qty <= 0) {
+        await trx.rollback()
+        return response.status(400).send({
+          message: 'Invalid payload: product_id, variant_id, dan qty wajib diisi',
+          serve: null,
+        })
+      }
+
       const now = new Date()
       now.setHours(now.getHours() + 7)
       const dateString = now.toISOString().slice(0, 19).replace('T', ' ')
-      const productOnline = await ProductOnline.query()
-        .where('product_id', request.input('product_id'))
+
+      // cek apakah product online & aktif
+      const productOnline = await ProductOnline.query({ client: trx })
+        .where('product_id', productId)
         .where('is_active', true)
         .preload('product')
         .first()
 
       if (!productOnline) {
+        await trx.rollback()
         return response.status(400).send({
           message: 'Product not available online',
           serve: null,
@@ -110,33 +139,41 @@ export default class TransactionCartsController {
 
       const dataProduct = productOnline.product
       if (!dataProduct) {
-        return response.status(400).send({ message: 'Product not found', serve: null })
+        await trx.rollback()
+        return response.status(400).send({
+          message: 'Product not found',
+          serve: null,
+        })
       }
 
-      const dataProductVariant = await ProductVariant.find(request.input('variant_id'))
+      // cek variant
+      const dataProductVariant = await ProductVariant.query({ client: trx })
+        .where('id', variantId)
+        .first()
+
       if (!dataProductVariant) {
-        return response.status(400).send({ message: 'Product variant not found', serve: null })
+        await trx.rollback()
+        return response.status(400).send({
+          message: 'Product variant not found',
+          serve: null,
+        })
       }
 
-      if (dataProductVariant.stock < request.input('qty')) {
+      // cek stock
+      if (dataProductVariant.stock < qty) {
+        await trx.rollback()
         return response.status(400).send({
           message: 'Stock not enough',
           serve: null,
         })
       }
 
-      const dataCart = new TransactionCart()
-      dataCart.qty = request.input('qty')
-      if (request.input('is_buy_now')) {
-        dataCart.qtyCheckout = request.input('qty')
-        dataCart.isCheckout = 1
-      }
-
+      // hitung harga & diskon
       let finalPrice = Number(dataProductVariant.price)
       let discount = 0
 
-      const dataProductDisc = await ProductDiscount.query()
-        .where('product_id', request.input('product_id'))
+      const dataProductDisc = await ProductDiscount.query({ client: trx })
+        .where('product_id', productId)
         .where('start_date', '<=', dateString)
         .where('end_date', '>=', dateString)
         .first()
@@ -152,13 +189,24 @@ export default class TransactionCartsController {
         discount = calc.disc
       }
 
+      // buat cart
+      const dataCart = new TransactionCart()
+      dataCart.useTransaction(trx)
+
+      dataCart.userId = user.id                 // ✅ user, BUKAN id primary key
+      dataCart.productId = productId
+      dataCart.productVariantId = variantId
+
+      dataCart.qty = qty
+      if (isBuyNow) {
+        dataCart.qtyCheckout = qty
+        dataCart.isCheckout = 1
+      }
+
       dataCart.price = Number(dataProductVariant.price)
       dataCart.discount = discount
       dataCart.amount = finalPrice * dataCart.qty
-      dataCart.productVariantId = request.input('variant_id')
-      dataCart.productId = request.input('product_id')
-      dataCart.id = auth.user?.id ?? 0
-      dataCart.attributes = JSON.stringify(request.input('attributes'))
+      dataCart.attributes = JSON.stringify(attributes)
 
       await dataCart.save()
       await trx.commit()
@@ -227,18 +275,21 @@ export default class TransactionCartsController {
   public async delete({ response, request, auth }: HttpContext) {
     const trx = await db.transaction()
     try {
-      const dataCart = await TransactionCart.query()
+      const dataCart = await TransactionCart.query({ client: trx })
         .where('id', request.input('id'))
         .where('user_id', auth.user?.id ?? 0)
         .first()
 
       if (!dataCart) {
+        await trx.rollback()
         return response.status(400).send({ message: 'Delete cart failed', serve: [] })
       }
 
       await dataCart.delete()
       await trx.commit()
-      return response.status(200).send({ message: 'Deleted successfully', serve: [] })
+      return response
+        .status(200)
+        .send({ message: 'Deleted successfully', serve: [] })
     } catch (error) {
       await trx.rollback()
       return response.status(500).send({

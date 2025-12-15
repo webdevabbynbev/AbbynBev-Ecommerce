@@ -14,6 +14,7 @@ export default class ProductsController {
       const sortType = queryString.value || 'ASC'
       const page = isNaN(parseInt(queryString.page)) ? 1 : parseInt(queryString.page)
       const perPage = isNaN(parseInt(queryString.per_page)) ? 10 : parseInt(queryString.per_page)
+
       const now = new Date()
       now.setHours(now.getHours() + 7)
       const dateString = now.toISOString().slice(0, 19).replace('T', ' ')
@@ -75,8 +76,10 @@ export default class ProductsController {
       const productOnline = await ProductOnline.query()
         .where('product_onlines.is_active', true)
         .join('products', 'products.id', '=', 'product_onlines.product_id')
+        .where('products.path', path) // 🔥 filter path di query utama
         .preload('product', (q) => {
           q.apply((scopes) => scopes.active())
+            // baris di bawah boleh ada / boleh dihapus, sifatnya redundant tapi aman
             .where('products.path', path)
             .withCount('reviews', (reviewQuery) => reviewQuery.as('review_count'))
             .withAggregate('reviews', (reviewQuery) => reviewQuery.avg('rating').as('avg_rating'))
