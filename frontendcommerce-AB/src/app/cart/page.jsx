@@ -11,7 +11,24 @@ export default function CheckoutPage() {
   const [selectedShipping, setSelectedShipping] = useState(null);
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [loadingCart, setLoadingCart] = useState(true);
-  const [loadingItemId, setLoadingItemId] = useState(null); // untuk disabled tombol per-item
+  const [loadingItemId, setLoadingItemId] = useState(null);
+
+  // ========= helpers =========
+  const getCartItemId = (item) =>
+    item?.id ??
+    item?.cartId ??
+    item?.cart_id ??
+    item?.transactionCartId ??
+    item?.transaction_cart_id ??
+    null;
+
+  const toNumber = (v, fallback = 0) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
+  };
+
+  const getQuantity = (item) =>
+    toNumber(item?.qtyCheckout ?? item?.qty ?? item?.quantity ?? 0, 0);
 
   /* ======================
    * LOAD CART
@@ -21,10 +38,11 @@ export default function CheckoutPage() {
       const res = await axios.get("/cart");
       console.log("Cart response:", res.data);
 
-      // backend kita kirim: { message, data: [items], subtotal, meta }
       const items =
-        res.data?.data?.items || // kalau suatu saat dibungkus { items: [...] }
-        res.data?.data ||        // sekarang: langsung array
+        res.data?.serve?.data ||
+        res.data?.serve?.items ||
+        res.data?.data?.items ||
+        res.data?.data ||
         [];
 
       setCart(Array.isArray(items) ? items : []);
@@ -70,20 +88,26 @@ export default function CheckoutPage() {
   /* ======================
    * HANDLER: UPDATE QTY
    * ====================== */
-  const handleUpdateQty = async (item, newQty) => {
-    // kalau qty <= 0 anggap hapus
+  const handleUpdateQty = async (item, nextQty) => {
+    const cartId = getCartItemId(item);
+    if (!cartId) {
+      alert("Cart item id tidak ditemukan (data cart dari backend tidak lengkap).");
+      return;
+    }
+
+    const newQty = toNumber(nextQty, 0);
+
+    // qty <= 0 anggap hapus
     if (newQty <= 0) {
       await handleDelete(item);
       return;
     }
 
     try {
-      setLoadingItemId(item.id);
-      // butuh endpoint PUT /cart yang update qty
-      await axios.put("/cart", {
-        id: item.id,
-        qty: newQty,
-      });
+      setLoadingItemId(cartId);
+
+      // Lebih aman pakai /cart/:id
+      await axios.put(`/cart/${cartId}`, { qty: newQty });
 
       await loadCart();
     } catch (err) {
@@ -101,13 +125,20 @@ export default function CheckoutPage() {
    * HANDLER: DELETE ITEM
    * ====================== */
   const handleDelete = async (item) => {
+    const cartId = getCartItemId(item);
+    if (!cartId) {
+      alert("Cart item id tidak ditemukan (data cart dari backend tidak lengkap).");
+      return;
+    }
+
     if (!window.confirm("Hapus produk ini dari keranjang?")) return;
 
     try {
-      setLoadingItemId(item.id);
-      await axios.delete("/cart", {
-        data: { id: item.id }, // backend baca request.input('id')
-      });
+      setLoadingItemId(cartId);
+
+      // Lebih aman pakai /cart/:id
+      await axios.delete(`/cart/${cartId}`);
+
       await loadCart();
     } catch (err) {
       console.error("Error delete cart item:", err);
@@ -125,13 +156,8 @@ export default function CheckoutPage() {
    * ====================== */
   const safeCart = Array.isArray(cart) ? cart : [];
 
-  // qty yg dipakai: utamakan qtyCheckout → fallback ke qty → fallback ke quantity
-  const getQuantity = (item) =>
-    item.qtyCheckout ?? item.qty ?? item.quantity ?? 0;
-
-  // subtotal: pakai amount dari backend (sudah final per item)
   const subtotal = safeCart.reduce(
-    (sum, item) => sum + Number(item.amount ?? 0),
+    (sum, item) => sum + toNumber(item.amount ?? 0, 0),
     0
   );
 
@@ -156,16 +182,35 @@ export default function CheckoutPage() {
             <p className="text-gray-400 italic">No products in cart</p>
           )}
 
-          {safeCart.map((item) => {
+          {safeCart.map((item, idx) => {
+            const cartId = getCartItemId(item) ?? `tmp-${idx}`;
             const product = item.product || {};
+
+            // Fix nama produk biar gak kosong
+            const productName =
+              product.name ||
+              product.title ||
+              item.product_name ||
+              item.productName ||
+              "-";
+
             const image =
               product.thumbnail || product.image || "/placeholder.png";
+
             const quantity = getQuantity(item);
-            const isBusy = loadingItemId === item.id;
+            const isBusy = loadingItemId === cartId;
+
+            const variantName =
+              item?.variant?.name ||
+              item?.variant?.sku ||
+              item?.variant?.code ||
+              item?.variant_name ||
+              product?.variant_name ||
+              "-";
 
             return (
               <div
-                key={item.id}
+                key={cartId}
                 className="flex justify-between items-center border-b pb-4 mb-4"
               >
                 {/* left: image + info */}
@@ -174,37 +219,35 @@ export default function CheckoutPage() {
                     src={image}
                     width={60}
                     height={60}
-                    alt={product.name || "Product"}
+                    alt={productName}
                     className="rounded-md"
                   />
 
                   <div>
-                    <p className="font-medium">{product.name || "-"}</p>
+                    <p className="font-medium">{productName}</p>
 
                     <p className="text-sm text-gray-500">
-                      Variant: {item.variant?.name || product.variant_name || "-"}
+                      Variant: {variantName}
                     </p>
 
                     {/* Quantity + action */}
                     <div className="mt-2 flex items-center gap-3">
                       <div className="flex items-center gap-2">
                         <button
-                          disabled={isBusy || quantity <= 1}
-                          onClick={() =>
-                            handleUpdateQty(item, quantity - 1)
-                          }
+                          disabled={isBusy || quantity <= 0}
+                          onClick={() => handleUpdateQty(item, quantity - 1)}
                           className="w-7 h-7 flex items-center justify-center border rounded-full text-sm disabled:opacity-40"
                         >
                           -
                         </button>
+
                         <span className="min-w-[32px] text-center">
                           {quantity}
                         </span>
+
                         <button
                           disabled={isBusy}
-                          onClick={() =>
-                            handleUpdateQty(item, quantity + 1)
-                          }
+                          onClick={() => handleUpdateQty(item, quantity + 1)}
                           className="w-7 h-7 flex items-center justify-center border rounded-full text-sm disabled:opacity-40"
                         >
                           +
@@ -225,11 +268,9 @@ export default function CheckoutPage() {
                 {/* right: price per item / line */}
                 <p className="font-semibold text-pink-600 text-right">
                   Rp{" "}
-                  {Number(
-                    item.amount ??
-                      item.price ??
-                      product.price ??
-                      0
+                  {toNumber(
+                    item.amount ?? item.price ?? product.price ?? 0,
+                    0
                   ).toLocaleString("id-ID")}
                 </p>
               </div>
@@ -287,7 +328,6 @@ export default function CheckoutPage() {
       <div className="w-[360px] bg-white border rounded-2xl shadow-md p-6 h-fit">
         <h2 className="text-xl font-semibold mb-6">Payment</h2>
 
-        {/* PAYMENT METHODS */}
         <div className="space-y-5">
           {[
             { name: "BCA virtual account", icon: "/icons/bca.png" },
@@ -299,12 +339,7 @@ export default function CheckoutPage() {
               className="flex items-center justify-between cursor-pointer"
             >
               <div className="flex items-center gap-3">
-                <Image
-                  src={method.icon}
-                  width={42}
-                  height={42}
-                  alt={method.name}
-                />
+                <Image src={method.icon} width={42} height={42} alt={method.name} />
                 <span>{method.name}</span>
               </div>
 
@@ -320,7 +355,6 @@ export default function CheckoutPage() {
 
         <hr className="my-6" />
 
-        {/* SUMMARY */}
         <div className="space-y-3 text-sm">
           <div className="flex justify-between">
             <span>{safeCart.length} product(s)</span>
