@@ -1,165 +1,9 @@
 "use client";
+console.log("SHOP PAGE DB VERSION ✅");
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-
-const SHOP_PRODUCTS = [
-  {
-    id: 1,
-    slug: "avoskin-ysb-serum-salicylic",
-    brand: "AVOSKIN",
-    name: "YSB Serum Salicylic Acid 2% + Zinc",
-    image: "/images/sample-product.jpg",
-    price: 135_360,
-    originalPrice: 169_000,
-    rating: 4.5,
-    reviewCount: 112,
-    category: "Serum",
-  },
-  {
-    id: 2,
-    slug: "cosrx-advanced-snail-96",
-    brand: "COSRX",
-    name: "Advanced Snail 96 Mucin Power Essence",
-    image: "/images/sample-product.jpg",
-    price: 289_000,
-    originalPrice: 320_000,
-    rating: 4.7,
-    reviewCount: 89,
-    category: "Essence",
-  },
-  {
-    id: 3,
-    slug: "cosrx-niacinamide-15",
-    brand: "COSRX",
-    name: "The Niacinamide 15 Serum",
-    image: "/images/sample-product.jpg",
-    price: 249_000,
-    originalPrice: 280_000,
-    rating: 4.6,
-    reviewCount: 64,
-    category: "Serum",
-  },
-  {
-    id: 4,
-    slug: "cosrx-vit-c-23",
-    brand: "COSRX",
-    name: "The Vitamin C 23 Serum",
-    image: "/images/sample-product.jpg",
-    price: 265_000,
-    originalPrice: 310_000,
-    rating: 4.4,
-    reviewCount: 52,
-    category: "Serum",
-  },
-  {
-    id: 5,
-    slug: "somebymi-acne-foam",
-    brand: "SOME BY MI",
-    name: "AHA BHA PHA 30 Days Miracle Acne Clear Foam",
-    image: "/images/sample-product.jpg",
-    price: 110_000,
-    originalPrice: 135_000,
-    rating: 4.3,
-    reviewCount: 40,
-    category: "Cleanser",
-  },
-  {
-    id: 6,
-    slug: "sunscreen-gel-bright",
-    brand: "SKIN1004",
-    name: "Sunscreen Brightening Watery Gel SPF50+",
-    image: "/images/sample-product.jpg",
-    price: 139_000,
-    originalPrice: 165_000,
-    rating: 4.6,
-    reviewCount: 74,
-    category: "Sunscreen",
-  },
-  {
-    id: 7,
-    slug: "sunscreen-matte",
-    brand: "SKIN1004",
-    name: "Sunscreen Ultra Matte Finish SPF50+",
-    image: "/images/sample-product.jpg",
-    price: 145_000,
-    originalPrice: 175_000,
-    rating: 4.5,
-    reviewCount: 53,
-    category: "Sunscreen",
-  },
-  {
-    id: 8,
-    slug: "toner-miracle",
-    brand: "AVOSKIN",
-    name: "Miraculous Refining Toner",
-    image: "/images/sample-product.jpg",
-    price: 189_000,
-    originalPrice: 219_000,
-    rating: 4.8,
-    reviewCount: 180,
-    category: "Toner",
-  },
-  {
-    id: 9,
-    slug: "cleanser-gentle",
-    brand: "SENKA",
-    name: "Perfect Whip Gentle Cleanser",
-    image: "/images/sample-product.jpg",
-    price: 59_000,
-    originalPrice: 80_000,
-    rating: 4.2,
-    reviewCount: 36,
-    category: "Cleanser",
-  },
-  {
-    id: 10,
-    slug: "lotion-hydrating",
-    brand: "HADA LABO",
-    name: "Gokujyun Hydrating Lotion",
-    image: "/images/sample-product.jpg",
-    price: 78_000,
-    originalPrice: 95_000,
-    rating: 4.7,
-    reviewCount: 120,
-    category: "Toner",
-  },
-  {
-    id: 11,
-    slug: "ampoule-cica",
-    brand: "SOME BY MI",
-    name: "Cica Ampoule Soothing",
-    image: "/images/sample-product.jpg",
-    price: 210_000,
-    originalPrice: 250_000,
-    rating: 4.4,
-    reviewCount: 55,
-    category: "Serum",
-  },
-  {
-    id: 12,
-    slug: "cream-brightening",
-    brand: "LANEIGE",
-    name: "Radian-C Brightening Cream",
-    image: "/images/sample-product.jpg",
-    price: 325_000,
-    originalPrice: 389_000,
-    rating: 4.6,
-    reviewCount: 77,
-    category: "Cream",
-  },
-];
-
-const CATEGORIES = [
-  "All",
-  "Serum",
-  "Essence",
-  "Toner",
-  "Cleanser",
-  "Sunscreen",
-  "Cream",
-];
 
 const SORT_OPTIONS = [
   { key: "recommended", label: "Recommended" },
@@ -181,12 +25,17 @@ function calcDiscountPercent(price, originalPrice) {
   return Math.round((diff / originalPrice) * 100);
 }
 
+function toBackendImageUrl(url) {
+  if (!url) return "/images/sample-product.jpg"; // fallback local
+  if (url.startsWith("http")) return url;
+
+  const base = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3333";
+  // url dari API biasanya "/uploads/...."
+  return `${base}${url}`;
+}
+
 function StarRow({ count = 5 }) {
-  return (
-    <span className="text-xs text-yellow-400">
-      {"★".repeat(count)}
-    </span>
-  );
+  return <span className="text-xs text-yellow-400">{"★".repeat(count)}</span>;
 }
 
 function HeartButton() {
@@ -220,31 +69,108 @@ export default function ShopPage() {
   const [minRating, setMinRating] = useState(0);
   const [search, setSearch] = useState("");
 
+  const [dbProducts, setDbProducts] = useState([]);
+  const [loadingDb, setLoadingDb] = useState(true);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function load() {
+      try {
+        setLoadingDb(true);
+
+        const apiUrl =
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333/api/v1";
+
+        const res = await fetch(`${apiUrl}/products?page=1&per_page=50`, {
+          cache: "no-store",
+        });
+
+        const json = await res.json();
+        const rows = json?.serve?.data ?? [];
+
+        // rows = ProductOnline[], produk ada di rows[i].product
+        const mapped = rows
+          .map((x) => x?.product)
+          .filter(Boolean)
+          .map((p) => {
+            const reviews = Array.isArray(p.reviews) ? p.reviews : [];
+
+            const avg =
+              p.avg_rating !== undefined && p.avg_rating !== null
+                ? Number(p.avg_rating)
+                : reviews.length
+                ? reviews.reduce((s, r) => s + Number(r.rating || 0), 0) /
+                  reviews.length
+                : 0;
+
+            const count =
+              p.review_count !== undefined && p.review_count !== null
+                ? Number(p.review_count)
+                : reviews.length;
+
+            return {
+              id: p.id,
+              slug: p.path ?? p.slug, // penting: detail pakai path (catch-all route)
+              brand: p.brand?.name ?? "",
+              name: p.name ?? "",
+              image: toBackendImageUrl(p.medias?.[0]?.url),
+              price: Number(p.basePrice ?? p.base_price ?? 0),
+              originalPrice: null, // product_discounts lo masih kosong
+              rating: Number.isFinite(avg) ? avg : 0,
+              reviewCount: Number.isFinite(count) ? count : 0,
+              category: p.categoryType?.name ?? "",
+            };
+          });
+
+        if (!ignore) setDbProducts(mapped);
+      } catch (e) {
+        if (!ignore) setDbProducts([]);
+      } finally {
+        if (!ignore) setLoadingDb(false);
+      }
+    }
+
+    load();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const categories = useMemo(() => {
+    const uniq = Array.from(
+      new Set(dbProducts.map((p) => p.category).filter(Boolean))
+    );
+    return ["All", ...uniq];
+  }, [dbProducts]);
+
   const filteredProducts = useMemo(() => {
     let products =
       activeCategory === "All"
-        ? [...SHOP_PRODUCTS]
-        : SHOP_PRODUCTS.filter(
-            (p) => p.category.toLowerCase() === activeCategory.toLowerCase()
+        ? [...dbProducts]
+        : dbProducts.filter(
+            (p) =>
+              (p.category || "").toLowerCase() ===
+              activeCategory.toLowerCase()
           );
 
     if (minRating > 0) {
-      products = products.filter((p) => p.rating >= minRating);
+      products = products.filter((p) => (p.rating || 0) >= minRating);
     }
 
     if (search.trim()) {
       const q = search.toLowerCase();
-      products = products.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.brand.toLowerCase().includes(q)
-      );
+      products = products.filter((p) => {
+        const name = (p.name || "").toLowerCase();
+        const brand = (p.brand || "").toLowerCase();
+        return name.includes(q) || brand.includes(q);
+      });
     }
 
     if (sortBy === "lowest") {
-      products.sort((a, b) => a.price - b.price);
+      products.sort((a, b) => (a.price || 0) - (b.price || 0));
     } else if (sortBy === "highest") {
-      products.sort((a, b) => b.price - a.price);
+      products.sort((a, b) => (b.price || 0) - (a.price || 0));
     } else if (sortBy === "discount") {
       products.sort((a, b) => {
         const da = calcDiscountPercent(a.price, a.originalPrice) || 0;
@@ -254,7 +180,7 @@ export default function ShopPage() {
     }
 
     return products;
-  }, [activeCategory, sortBy, minRating, search]);
+  }, [activeCategory, sortBy, minRating, search, dbProducts]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -296,8 +222,7 @@ export default function ShopPage() {
             placeholder="Search products here..."
             className="w-full rounded-full border border-gray-200 bg-white px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-1 focus:ring-pink-400"
           />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
-          </span>
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -334,7 +259,7 @@ export default function ShopPage() {
                 Category
               </p>
               <div className="space-y-1">
-                {CATEGORIES.map((cat) => (
+                {categories.map((cat) => (
                   <label
                     key={cat}
                     className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer"
@@ -393,10 +318,12 @@ export default function ShopPage() {
         {/* GRID PRODUK */}
         <section className="flex-1">
           <p className="text-xs text-gray-500 mb-3">
-            Showing {filteredProducts.length} products
+            {loadingDb
+              ? "Loading products..."
+              : `Showing ${filteredProducts.length} products`}
           </p>
 
-          {filteredProducts.length === 0 ? (
+          {!loadingDb && filteredProducts.length === 0 ? (
             <div className="py-20 text-center text-sm text-gray-400">
               Belum ada produk yang cocok dengan filtermu.
             </div>
@@ -408,7 +335,7 @@ export default function ShopPage() {
                   product.originalPrice
                 );
 
-                const href = "#"; // TODO: ganti ke route detail product
+                const href = `/product-detail/${product.slug}`;
 
                 return (
                   <Link
@@ -450,11 +377,14 @@ export default function ShopPage() {
                     <div className="mt-2 text-sm">
                       <div className="flex items-baseline gap-2">
                         <span className="text-pink-600 font-semibold">
-                          Rp{product.price.toLocaleString("id-ID")}
+                          Rp{Number(product.price || 0).toLocaleString("id-ID")}
                         </span>
                         {product.originalPrice && (
                           <span className="text-xs line-through text-gray-400">
-                            Rp{product.originalPrice.toLocaleString("id-ID")}
+                            Rp
+                            {Number(product.originalPrice || 0).toLocaleString(
+                              "id-ID"
+                            )}
                           </span>
                         )}
                       </div>
@@ -464,10 +394,10 @@ export default function ShopPage() {
                     <div className="mt-2 flex items-center gap-1 text-xs">
                       <span className="text-yellow-400">★</span>
                       <span className="font-medium text-gray-900">
-                        {product.rating.toFixed(1)}
+                        {Number(product.rating || 0).toFixed(1)}
                       </span>
                       <span className="text-gray-400">
-                        ({product.reviewCount} reviews)
+                        ({Number(product.reviewCount || 0)} reviews)
                       </span>
                     </div>
                   </Link>
