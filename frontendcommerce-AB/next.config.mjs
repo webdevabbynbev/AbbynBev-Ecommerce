@@ -1,12 +1,20 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
+    // ini paling "gampang tembus" untuk localhost
+    domains: ["localhost", "127.0.0.1"],
+
+    // tambahan pengaman pattern (tanpa port supaya gak strict)
     remotePatterns: [
       {
         protocol: "http",
         hostname: "localhost",
-        port: "3000", 
-        pathname: "/**",
+        pathname: "/uploads/**",
+      },
+      {
+        protocol: "http",
+        hostname: "127.0.0.1",
+        pathname: "/uploads/**",
       },
     ],
   },

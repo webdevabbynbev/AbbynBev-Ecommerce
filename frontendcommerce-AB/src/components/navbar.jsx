@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
@@ -17,8 +18,9 @@ import {
 } from ".";
 import { usePathname, useRouter } from "next/navigation";
 import * as FaIcons from "react-icons/fa";
-
+import CartButton from "@/components/CartButton";
 import clsx from "clsx";
+
 export function Navbar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
@@ -26,28 +28,37 @@ export function Navbar() {
   const router = useRouter();
 
   const handleLogout = async () => {
-    await logout();          // pastikan fungsi logout clear session
-    router.push("/");        // redirect ke halaman home (atau ganti "/dashboard")
+    await logout();
+    router.push("/");
   };
 
   const linksidebar = [
     { icon: "FaRegUser", href: "/account/profile", label: "Profile" },
-    { icon: "FaBox", href: "/account/my-order", label: "My order" },
+    { icon: "FaBox", href: "/account/order-history", label: "My order" },
     { icon: "FaRegHeart", href: "/account/wishlist", label: "Wishlist" },
   ];
 
+  // 🔧 Beauty & tips diarahkan ke blog eksternal
   const links = [
     { href: "/", label: "Home" },
-    { href: "", label: "Shop" },
+    { href: "/shop", label: "Shop" },
     { href: "/best-seller", label: "Best seller" },
     { href: "/sale", label: "Sale" },
     { href: "/new-arrival", label: "New arrival" },
-    { href: "/beauty-and-tips", label: "Beauty & tips" },
+    { href: "https://abbynbev.com/blog/", label: "Beauty & tips" },
   ];
+
+  const isNavActive = (href) => {
+    // untuk external link, nggak perlu active state
+    if (href.startsWith("http")) return false;
+    if (href === "/") return pathname === "/";
+    return pathname === href || pathname.startsWith(href + "/");
+  };
 
   return (
     <nav className="Navbar flex h-auto px-10 py-5 sticky top-0 w-full bg-white border-b-[1px] border-primary-700 transition-all justify-between items-center z-50">
       <div className="content-wrapper flex justify-between w-full max-w-[1536px] mx-auto">
+        {/* LEFT SIDE */}
         <div className="content-left flex w-auto items-center justify-center space-x-6">
           <div className="Icon-wrapper h-auto w-auto flex justify-center space-x-3">
             <Image
@@ -65,6 +76,7 @@ export function Navbar() {
               className="w-[150px] h-auto justify-center"
             />
           </div>
+
           <div className="w-auto justify-center">
             <TxtField
               placeholder="Wardah, Maybeline, anything. . ."
@@ -74,29 +86,44 @@ export function Navbar() {
               className="min-w-[280px]"
             />
           </div>
-          {links.map((link) => {
-            const isActive = pathname === link.href;
 
+          {links.map((link) => {
+            const isExternal = link.href.startsWith("http");
+            const active = isNavActive(link.href);
+            const className = clsx(
+              "items-center transition-colors text-sm",
+              active ? "text-primary-700" : "hover:text-primary-500"
+            );
+
+            if (isExternal) {
+              // external link → pakai <a>
+              return (
+                <a key={link.href} href={link.href} className={className}>
+                  {link.label}
+                </a>
+              );
+            }
+
+            // internal link → tetap pakai <Link>
             return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={clsx(
-                  "items-center transition-colors text-sm",
-                  isActive ? "text-primary-700" : "hover:text-primary-500"
-                )}
-              >
+              <Link key={link.href} href={link.href} className={className}>
                 {link.label}
               </Link>
             );
           })}
         </div>
 
+        {/* RIGHT SIDE */}
         {user ? (
-          <div className="flex justify-end items-center gap-2">
-            <BtnIcon iconName="Bell" variant="tertiary" size="sm" />
+          <div className="flex justify-end items-center gap-3">
+            <CartButton />
 
-            <Sheet open={open} onOpenChange={() => setOpen()}>
+            {/* 🔔 Bell sekarang menuju ke /notification */}
+            <Link href="/notification">
+              <BtnIcon iconName="Bell" variant="tertiary" size="sm" />
+            </Link>
+
+            <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger asChild>
                 <BtnIcon iconName="User" variant="tertiary" size="sm" />
               </SheetTrigger>
@@ -110,22 +137,24 @@ export function Navbar() {
                       className="w-[150px] h-auto"
                     />
                   </SheetTitle>
-                  {/* keep description text-only */}
                   <SheetDescription className="py-1">
                     Account menu
                   </SheetDescription>
                 </SheetHeader>
 
-                {/* links live OUTSIDE description (no div-inside-p) */}
                 <nav className="py-4 space-y-1">
                   {linksidebar.map((linkside) => {
                     const Icon = FaIcons[linkside.icon];
-                    const isActive = pathname === linkside.href;
+                    const isActive =
+                      pathname === linkside.href ||
+                      (linkside.href === "/account/order-history" &&
+                        pathname.startsWith("/account/order-history"));
+
                     return (
                       <Link
-                        onClick={()=> setOpen (false)}
                         key={linkside.href}
                         href={linkside.href}
+                        onClick={() => setOpen(false)}
                         className={clsx(
                           "rounded-md px-4 py-2 items-center transition-colors flex justify-between",
                           isActive
@@ -134,16 +163,22 @@ export function Navbar() {
                         )}
                       >
                         <span>{linkside.label}</span>
-                        {Icon ? (
-                          <Icon className="font-bold w-3.5 h-3.5" />
-                        ) : null}
+                        {Icon && (
+                          <Icon className="font-bold w-3.5 h-3.5 shrink-0" />
+                        )}
                       </Link>
                     );
                   })}
-                  <div className="h-full w-full flex-row items-end justify-end">
-                  <Button onClick={handleLogout} variant="tertiary" size="sm">
-                    Sign out
-                  </Button>
+
+                  <div className="pt-4">
+                    <Button
+                      onClick={handleLogout}
+                      variant="tertiary"
+                      size="sm"
+                      className="w-full"
+                    >
+                      Sign out
+                    </Button>
                   </div>
                 </nav>
               </SheetContent>

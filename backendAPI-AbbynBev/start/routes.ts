@@ -9,6 +9,7 @@
 
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
+import { Role } from '../app/enums/role.js'
 
 const AuthController = () => import('#controllers/auth_controller')
 const UsersController = () => import('#controllers/cms/users_controller')
@@ -226,7 +227,7 @@ router
             router.put('/:slug', [CmsTagController, 'update'])
             router.delete('/:slug', [CmsTagController, 'delete'])
           })
-          .use(middleware.roleAdmin())
+.middleware([middleware.auth(), middleware.rolePermission([Role.GUDANG])])
           .prefix('/tags')
 
         router
@@ -249,7 +250,7 @@ router
             router.put('/:slug', [CmsPersonaController, 'update'])
             router.delete('/:slug', [CmsPersonaController, 'delete'])
           })
-          .use(middleware.roleAdmin())
+.middleware([middleware.auth(), middleware.rolePermission([Role.GUDANG])])
           .prefix('/personas')
 
         router
@@ -453,3 +454,15 @@ router
       .use(middleware.roleCashier())
   })
   .prefix('/api/v1')
+
+
+  router.get('/cart', [FeTransactionCartController, 'get'])
+router.post('/cart', [FeTransactionCartController, 'create'])
+
+router.put('/cart', [FeTransactionCartController, 'update'])
+router.patch('/cart', [FeTransactionCartController, 'update'])
+router.put('/cart/:id', [FeTransactionCartController, 'update'])
+router.patch('/cart/:id', [FeTransactionCartController, 'update'])
+
+router.delete('/cart/:id', [FeTransactionCartController, 'delete'])
+router.delete('/cart', [FeTransactionCartController, 'delete'])
