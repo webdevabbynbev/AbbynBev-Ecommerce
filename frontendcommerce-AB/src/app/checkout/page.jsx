@@ -1,26 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import axios from "@/lib/axios";
 import Image from "next/image";
 
+const STORAGE_KEY = "checkout_selected_ids";
+
 export default function CheckoutPage() {
+  const router = useRouter();
+
   const [cart, setCart] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
+
   const [address, setAddress] = useState(null);
   const [shippingMethods, setShippingMethods] = useState([]);
   const [selectedShipping, setSelectedShipping] = useState(null);
   const [selectedPayment, setSelectedPayment] = useState(null);
+
   const [loadingCart, setLoadingCart] = useState(true);
   const [loadingItemId, setLoadingItemId] = useState(null);
-
-  // ========= helpers =========
-  const getCartItemId = (item) =>
-    item?.id ??
-    item?.cartId ??
-    item?.cart_id ??
-    item?.transactionCartId ??
-    item?.transaction_cart_id ??
-    null;
 
   const toNumber = (v, fallback = 0) => {
     const n = Number(v);
@@ -30,21 +29,21 @@ export default function CheckoutPage() {
   const getQuantity = (item) =>
     toNumber(item?.qtyCheckout ?? item?.qty ?? item?.quantity ?? 0, 0);
 
-  /* ======================
-   * LOAD CART
-   * ====================== */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      setSelectedIds(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      setSelectedIds([]);
+    }
+  }, []);
+
   const loadCart = async () => {
     try {
+      setLoadingCart(true);
       const res = await axios.get("/cart");
-      console.log("Cart response:", res.data);
-
-      const items =
-        res.data?.serve?.data ||
-        res.data?.serve?.items ||
-        res.data?.data?.items ||
-        res.data?.data ||
-        [];
-
+      const items = res.data?.data?.items || res.data?.data || [];
       setCart(Array.isArray(items) ? items : []);
     } catch (err) {
       console.error("Error load cart:", err);
@@ -54,9 +53,7 @@ export default function CheckoutPage() {
     }
   };
 
-  /* ======================
-   * LOAD ADDRESS
-   * ====================== */
+
   const loadAddress = async () => {
     try {
       const res = await axios.get("/addresses");
@@ -68,9 +65,6 @@ export default function CheckoutPage() {
     }
   };
 
-  /* ======================
-   * DUMMY SHIPPING
-   * ====================== */
   const loadShipping = () => {
     setShippingMethods([
       { id: "jnt", name: "J&T", price: 10800, estimate: "7 - 8 August" },
@@ -85,87 +79,76 @@ export default function CheckoutPage() {
     loadShipping();
   }, []);
 
-  /* ======================
-   * HANDLER: UPDATE QTY
-   * ====================== */
-  const handleUpdateQty = async (item, nextQty) => {
-    const cartId = getCartItemId(item);
-    if (!cartId) {
-      alert("Cart item id tidak ditemukan (data cart dari backend tidak lengkap).");
-      return;
+  const safeCart = Array.isArray(cart) ? cart : [];
+
+  const checkoutItems = useMemo(() => {
+    const s = new Set(selectedIds);
+    return safeCart.filter((item) => s.has(item?.id));
+  }, [safeCart, selectedIds]);
+
+  useEffect(() => {
+    if (!loadingCart && selectedIds.length === 0) {
+      router.replace("/cart");
     }
+  }, [loadingCart, selectedIds.length, router]);
+
+  useEffect(() => {
+    if (!loadingCart && selectedIds.length > 0 && checkoutItems.length === 0) {
+      router.replace("/cart");
+    }
+  }, [loadingCart, selectedIds.length, checkoutItems.length, router]);
+
+  const subtotal = useMemo(() => {
+    return checkoutItems.reduce((sum, item) => sum + toNumber(item.amount ?? 0, 0), 0);
+  }, [checkoutItems]);
+
+  const total = subtotal + (selectedShipping?.price || 0);
+
+  const handleUpdateQty = async (item, nextQty) => {
+    if (!item?.id) return alert("Cart item id tidak ditemukan");
 
     const newQty = toNumber(nextQty, 0);
-
-    // qty <= 0 anggap hapus
     if (newQty <= 0) {
       await handleDelete(item);
       return;
     }
 
     try {
-      setLoadingItemId(cartId);
-
-      // Lebih aman pakai /cart/:id
-      await axios.put(`/cart/${cartId}`, { qty: newQty });
-
+      setLoadingItemId(item.id);
+      await axios.put(`/cart/${item.id}`, { qty: newQty });
       await loadCart();
     } catch (err) {
       console.error("Error update qty:", err);
-      alert(
-        err?.response?.data?.message ||
-          "Terjadi kesalahan saat mengubah jumlah produk"
-      );
+      alert(err?.response?.data?.message || "Gagal mengubah jumlah produk");
     } finally {
       setLoadingItemId(null);
     }
   };
 
-  /* ======================
-   * HANDLER: DELETE ITEM
-   * ====================== */
   const handleDelete = async (item) => {
-    const cartId = getCartItemId(item);
-    if (!cartId) {
-      alert("Cart item id tidak ditemukan (data cart dari backend tidak lengkap).");
-      return;
-    }
-
+    if (!item?.id) return alert("Cart item id tidak ditemukan");
     if (!window.confirm("Hapus produk ini dari keranjang?")) return;
 
     try {
-      setLoadingItemId(cartId);
+      setLoadingItemId(item.id);
+      await axios.delete(`/cart/${item.id}`);
 
-      // Lebih aman pakai /cart/:id
-      await axios.delete(`/cart/${cartId}`);
+    
+      setSelectedIds((prev) => {
+        const next = prev.filter((id) => id !== item.id);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        return next;
+      });
 
       await loadCart();
     } catch (err) {
       console.error("Error delete cart item:", err);
-      alert(
-        err?.response?.data?.message ||
-          "Terjadi kesalahan saat menghapus produk dari keranjang"
-      );
+      alert(err?.response?.data?.message || "Gagal menghapus produk dari keranjang");
     } finally {
       setLoadingItemId(null);
     }
   };
 
-  /* ======================
-   * SAFE DATA + PERHITUNGAN
-   * ====================== */
-  const safeCart = Array.isArray(cart) ? cart : [];
-
-  const subtotal = safeCart.reduce(
-    (sum, item) => sum + toNumber(item.amount ?? 0, 0),
-    0
-  );
-
-  const total = subtotal + (selectedShipping?.price || 0);
-
-  /* ======================
-   * RENDER
-   * ====================== */
   return (
     <div className="max-w-7xl mx-auto px-4 py-10 flex gap-10">
       {/* LEFT */}
@@ -174,31 +157,20 @@ export default function CheckoutPage() {
         <div className="bg-white border rounded-xl p-6 shadow-sm">
           <h2 className="text-xl font-semibold mb-5">Your order</h2>
 
-          {loadingCart && (
-            <p className="text-gray-400 italic">Loading cart...</p>
+          {loadingCart && <p className="text-gray-400 italic">Loading cart...</p>}
+
+          {!loadingCart && checkoutItems.length === 0 && (
+            <p className="text-gray-400 italic">No selected products</p>
           )}
 
-          {!loadingCart && safeCart.length === 0 && (
-            <p className="text-gray-400 italic">No products in cart</p>
-          )}
-
-          {safeCart.map((item, idx) => {
-            const cartId = getCartItemId(item) ?? `tmp-${idx}`;
+          {checkoutItems.map((item, idx) => {
             const product = item.product || {};
-
-            // Fix nama produk biar gak kosong
-            const productName =
-              product.name ||
-              product.title ||
-              item.product_name ||
-              item.productName ||
-              "-";
-
-            const image =
-              product.thumbnail || product.image || "/placeholder.png";
-
+            const image = product.thumbnail || product.image || "/placeholder.png";
             const quantity = getQuantity(item);
-            const isBusy = loadingItemId === cartId;
+            const isBusy = loadingItemId !== null && loadingItemId === item.id;
+
+            const productName =
+              product.name || product.title || item.product_name || item.productName || "-";
 
             const variantName =
               item?.variant?.name ||
@@ -210,10 +182,10 @@ export default function CheckoutPage() {
 
             return (
               <div
-                key={cartId}
+                key={item.id ?? `tmp-${idx}`}
                 className="flex justify-between items-center border-b pb-4 mb-4"
               >
-                {/* left: image + info */}
+                {/* left */}
                 <div className="flex gap-3 items-center">
                   <Image
                     src={image}
@@ -225,25 +197,19 @@ export default function CheckoutPage() {
 
                   <div>
                     <p className="font-medium">{productName}</p>
+                    <p className="text-sm text-gray-500">Variant: {variantName}</p>
 
-                    <p className="text-sm text-gray-500">
-                      Variant: {variantName}
-                    </p>
-
-                    {/* Quantity + action */}
                     <div className="mt-2 flex items-center gap-3">
                       <div className="flex items-center gap-2">
                         <button
-                          disabled={isBusy || quantity <= 0}
+                          disabled={isBusy || quantity <= 1}
                           onClick={() => handleUpdateQty(item, quantity - 1)}
                           className="w-7 h-7 flex items-center justify-center border rounded-full text-sm disabled:opacity-40"
                         >
                           -
                         </button>
 
-                        <span className="min-w-[32px] text-center">
-                          {quantity}
-                        </span>
+                        <span className="min-w-[32px] text-center">{quantity}</span>
 
                         <button
                           disabled={isBusy}
@@ -265,13 +231,9 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                {/* right: price per item / line */}
+                {/* right */}
                 <p className="font-semibold text-pink-600 text-right">
-                  Rp{" "}
-                  {toNumber(
-                    item.amount ?? item.price ?? product.price ?? 0,
-                    0
-                  ).toLocaleString("id-ID")}
+                  Rp {toNumber(item.amount ?? item.price ?? product.price ?? 0, 0).toLocaleString("id-ID")}
                 </p>
               </div>
             );
@@ -324,7 +286,7 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      {/* RIGHT: PAYMENT SUMMARY */}
+      {/* RIGHT */}
       <div className="w-[360px] bg-white border rounded-2xl shadow-md p-6 h-fit">
         <h2 className="text-xl font-semibold mb-6">Payment</h2>
 
@@ -357,7 +319,7 @@ export default function CheckoutPage() {
 
         <div className="space-y-3 text-sm">
           <div className="flex justify-between">
-            <span>{safeCart.length} product(s)</span>
+            <span>{checkoutItems.length} product(s)</span>
             <span>Rp {subtotal.toLocaleString("id-ID")}</span>
           </div>
 

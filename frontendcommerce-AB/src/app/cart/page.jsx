@@ -5,13 +5,15 @@ import { useRouter } from "next/navigation";
 import axios from "@/lib/axios";
 import Image from "next/image";
 
+const STORAGE_KEY = "checkout_selected_ids";
+
 export default function CartPage() {
   const router = useRouter();
 
   const [cart, setCart] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]); // ✅ selection local
   const [loadingCart, setLoadingCart] = useState(true);
   const [loadingItemId, setLoadingItemId] = useState(null);
-  const [loadingSelectAll, setLoadingSelectAll] = useState(false);
 
   const toNumber = (v, fallback = 0) => {
     const n = Number(v);
@@ -21,15 +23,13 @@ export default function CartPage() {
   const getQuantity = (item) =>
     toNumber(item?.qtyCheckout ?? item?.qty ?? item?.quantity ?? 0, 0);
 
-  const isSelected = (item) =>
-    Number(item?.isCheckout ?? item?.is_checkout ?? 0) === 1;
-
   const loadCart = async () => {
     try {
       setLoadingCart(true);
       const res = await axios.get("/cart");
       const items = res.data?.data?.items || res.data?.data || [];
-      setCart(Array.isArray(items) ? items : []);
+      const arr = Array.isArray(items) ? items : [];
+      setCart(arr);
     } catch (err) {
       console.error("Error load cart:", err);
       setCart([]);
@@ -42,15 +42,38 @@ export default function CartPage() {
     loadCart();
   }, []);
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) setSelectedIds(parsed);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedIds));
+    } catch {
+      // ignore
+    }
+  }, [selectedIds]);
+
   const safeCart = Array.isArray(cart) ? cart : [];
 
-  const selectedIds = useMemo(
-    () => safeCart.filter(isSelected).map((x) => x.id).filter(Boolean),
-    [safeCart]
-  );
+  useEffect(() => {
+    const idsInCart = new Set(safeCart.map((x) => x?.id).filter(Boolean));
+    setSelectedIds((prev) => prev.filter((id) => idsInCart.has(id)));
+
+  }, [safeCart.length]);
+
+  const isSelected = (item) => selectedIds.includes(item?.id);
 
   const allIds = useMemo(
-    () => safeCart.map((x) => x.id).filter(Boolean),
+    () => safeCart.map((x) => x?.id).filter(Boolean),
     [safeCart]
   );
 
@@ -58,13 +81,12 @@ export default function CartPage() {
 
   const selectedSubtotal = useMemo(() => {
     return safeCart
-      .filter(isSelected)
+      .filter((item) => selectedIds.includes(item?.id))
       .reduce((sum, item) => sum + toNumber(item.amount ?? 0, 0), 0);
-  }, [safeCart]);
+  }, [safeCart, selectedIds]);
 
-  // ======================
-  // UPDATE QTY
-  // ======================
+  const allSelected = allIds.length > 0 && selectedIds.length === allIds.length;
+
   const handleUpdateQty = async (item, nextQty) => {
     if (!item?.id) return alert("Cart item id tidak ditemukan");
 
@@ -88,9 +110,6 @@ export default function CartPage() {
     }
   };
 
-  // ======================
-  // DELETE ITEM
-  // ======================
   const handleDelete = async (item) => {
     if (!item?.id) return alert("Cart item id tidak ditemukan");
     if (!window.confirm("Hapus produk ini dari keranjang?")) return;
@@ -98,6 +117,9 @@ export default function CartPage() {
     try {
       setLoadingItemId(item.id);
       await axios.delete(`/cart/${item.id}`);
+
+      setSelectedIds((prev) => prev.filter((id) => id !== item.id));
+
       await loadCart();
     } catch (err) {
       console.error("Error delete cart item:", err);
@@ -107,51 +129,20 @@ export default function CartPage() {
     }
   };
 
-  // ======================
-  // TOGGLE SELECT (per item)
-  // ======================
-  const toggleSelect = async (item, checked) => {
-    if (!item?.id) return alert("Cart item id tidak ditemukan");
+  const toggleSelect = (itemId, checked) => {
+    if (!itemId) return;
 
-    try {
-      setLoadingItemId(item.id);
-      await axios.post("/cart/update-selection", {
-        cart_ids: [item.id],
-        is_checkout: checked ? 1 : 0,
-      });
-      await loadCart();
-    } catch (err) {
-      console.error("Error update selection:", err);
-      alert(err?.response?.data?.message || "Gagal memilih item checkout");
-    } finally {
-      setLoadingItemId(null);
-    }
+    setSelectedIds((prev) => {
+      const s = new Set(prev);
+      checked ? s.add(itemId) : s.delete(itemId);
+      return Array.from(s);
+    });
   };
 
-  // ======================
-  // SELECT ALL
-  // ======================
-  const toggleSelectAll = async (checked) => {
-    if (allIds.length === 0) return;
-
-    try {
-      setLoadingSelectAll(true);
-      await axios.post("/cart/update-selection", {
-        cart_ids: allIds,
-        is_checkout: checked ? 1 : 0,
-      });
-      await loadCart();
-    } catch (err) {
-      console.error("Error select all:", err);
-      alert(err?.response?.data?.message || "Gagal select all");
-    } finally {
-      setLoadingSelectAll(false);
-    }
+  const toggleSelectAll = (checked) => {
+    setSelectedIds(checked ? allIds : []);
   };
 
-  // ======================
-  // CHECKOUT
-  // ======================
   const handleCheckout = () => {
     if (selectedCount === 0) {
       alert("Pilih minimal 1 produk untuk checkout");
@@ -159,8 +150,6 @@ export default function CartPage() {
     }
     router.push("/checkout");
   };
-
-  const allSelected = allIds.length > 0 && selectedIds.length === allIds.length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-10">
@@ -183,17 +172,13 @@ export default function CartPage() {
             <label className="flex items-center gap-2 text-sm text-gray-700">
               <input
                 type="checkbox"
-                className="w-5 h-5 accent-pink-600"
+                className="w-5 h-5 accent-pink-600 cursor-pointer"
                 checked={allSelected}
-                disabled={loadingSelectAll || loadingCart}
+                disabled={loadingCart}
                 onChange={(e) => toggleSelectAll(e.target.checked)}
               />
               Select all
             </label>
-
-            {loadingSelectAll && (
-              <span className="text-xs text-gray-400">Updating...</span>
-            )}
           </div>
 
           {loadingCart && <p className="text-gray-400 italic">Loading cart...</p>}
@@ -202,11 +187,13 @@ export default function CartPage() {
             <p className="text-gray-400 italic">No products in cart</p>
           )}
 
-          {safeCart.map((item) => {
+          {safeCart.map((item, idx) => {
+            const id = item?.id;
             const product = item.product || {};
             const image = product.thumbnail || product.image || "/placeholder.png";
             const quantity = getQuantity(item);
-            const busy = loadingItemId === item.id;
+
+            const busy = loadingItemId !== null && loadingItemId === id;
 
             const productName =
               product.name || product.title || item.product_name || item.productName || "-";
@@ -219,18 +206,20 @@ export default function CartPage() {
               product?.variant_name ||
               "-";
 
+            const rowKey = id ?? `tmp-${idx}`;
+
             return (
               <div
-                key={item.id}
+                key={rowKey}
                 className="flex justify-between items-center border-b pb-4 mb-4"
               >
                 <div className="flex gap-3 items-start">
                   <input
                     type="checkbox"
-                    className="mt-2 w-5 h-5 accent-pink-600"
-                    checked={isSelected(item)}
-                    disabled={busy}
-                    onChange={(e) => toggleSelect(item, e.target.checked)}
+                    className="mt-2 w-5 h-5 accent-pink-600 cursor-pointer"
+                    checked={!!id && isSelected(item)}
+                    disabled={!id || busy}
+                    onChange={(e) => toggleSelect(id, e.target.checked)}
                   />
 
                   <Image
@@ -254,7 +243,9 @@ export default function CartPage() {
                         >
                           -
                         </button>
+
                         <span className="min-w-[32px] text-center">{quantity}</span>
+
                         <button
                           disabled={busy}
                           onClick={() => handleUpdateQty(item, quantity + 1)}
@@ -307,7 +298,7 @@ export default function CartPage() {
             disabled={selectedCount === 0}
             className="w-full mt-6 py-3 bg-pink-600 text-white rounded-full font-semibold disabled:opacity-40"
           >
-            Proceed to Checkout
+            Checkout
           </button>
 
           <p className="text-xs text-gray-400 mt-3">
