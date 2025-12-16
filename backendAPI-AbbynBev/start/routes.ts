@@ -66,6 +66,9 @@ const PosTransactionPosController = () => import('#controllers/pos/transaction_p
 
 router
   .group(() => {
+    // =========================
+    // AUTH & UPLOAD
+    // =========================
     router.post('/auth/login-google', [AuthController, 'loginGoogle'])
     router.post('/auth/register', [AuthController, 'register'])
     router.post('/auth/verify-register', [AuthController, 'verifyRegisterOtp'])
@@ -79,9 +82,12 @@ router
       .get('/auth/forgot-password/:email/verify', [AuthController, 'verifyForgotPassword'])
       .as('verifyForgotPassword')
     router.post('/auth/reset-password', [AuthController, 'resetPassword'])
+
     router.post('/upload', [UploadsController, 'upload'])
 
-    // Admin CMS Routes
+    // =========================
+    // ADMIN CMS ROUTES
+    // =========================
     router
       .group(() => {
         router
@@ -97,6 +103,7 @@ router
           .prefix('/users')
 
         router.get('/customers', [UsersController, 'getCustomers'])
+
         router
           .group(() => {
             router.get('', [CategoryTypesController, 'get'])
@@ -108,6 +115,7 @@ router
           })
           .use(middleware.roleAdmin())
           .prefix('/category-types')
+
         router
           .group(() => {
             router.get('', [SettingCmsController, 'get'])
@@ -117,6 +125,7 @@ router
           })
           .use(middleware.roleAdmin())
           .prefix('/settings')
+
         router
           .group(() => {
             router.get('/term-and-conditions', [SettingsController, 'getTermAndCondition'])
@@ -219,6 +228,7 @@ router
           .use(middleware.roleAdmin())
           .prefix('/support-tickets')
 
+        // ✅ FIX: .middleware -> .use
         router
           .group(() => {
             router.get('', [CmsTagController, 'get'])
@@ -227,7 +237,7 @@ router
             router.put('/:slug', [CmsTagController, 'update'])
             router.delete('/:slug', [CmsTagController, 'delete'])
           })
-.middleware([middleware.auth(), middleware.rolePermission([Role.GUDANG])])
+          .use([middleware.auth(), middleware.rolePermission([Role.GUDANG])])
           .prefix('/tags')
 
         router
@@ -242,6 +252,7 @@ router
           .use(middleware.roleAdmin())
           .prefix('/brands')
 
+        // ✅ FIX: .middleware -> .use
         router
           .group(() => {
             router.get('', [CmsPersonaController, 'get'])
@@ -250,7 +261,7 @@ router
             router.put('/:slug', [CmsPersonaController, 'update'])
             router.delete('/:slug', [CmsPersonaController, 'delete'])
           })
-.middleware([middleware.auth(), middleware.rolePermission([Role.GUDANG])])
+          .use([middleware.auth(), middleware.rolePermission([Role.GUDANG])])
           .prefix('/personas')
 
         router
@@ -325,6 +336,7 @@ router
           })
           .use(middleware.roleAdmin())
           .prefix('/transactions')
+
         router.get('/total-user', [CmsHomeController, 'getTotalRegisterUser'])
         router.get('/total-transaction', [CmsHomeController, 'getTotalTransaction'])
         router.get('/total-transaction-month', [CmsHomeController, 'getTotalTransactionByMonth'])
@@ -342,11 +354,17 @@ router
       })
       .prefix('/admin')
 
-    // User frontend Routes
+    // =========================
+    // FRONTEND PUBLIC ROUTES
+    // =========================
     router.get('/category-types', [FeCategoryTypesController, 'list'])
     router.get('/category-types/:slug', [FeCategoryTypesController, 'show'])
     router.get('/products', [FeProductController, 'get'])
     router.get('/products/*', [FeProductController, 'show'])
+
+    // =========================
+    // FRONTEND AUTH ROUTES
+    // =========================
     router
       .group(() => {
         router.post('/auth/logout', [AuthController, 'logout'])
@@ -417,6 +435,9 @@ router
     router.get('/about-us', [FeHomeController, 'getAboutUs'])
     router.get('/flashsale', [FeHomeController, 'getFlashSale'])
 
+    // =========================
+    // CART ROUTES (AUTH REQUIRED)
+    // =========================
     router
       .group(() => {
         router.get('/cart', [FeTransactionCartController, 'get'])
@@ -424,10 +445,22 @@ router
         router.post('/cart/update-selection', [FeTransactionCartController, 'updateSelection'])
         router.get('/cart/get-total', [FeTransactionCartController, 'getTotal'])
         router.get('/cart/mini', [FeTransactionCartController, 'miniCart'])
+
+        // ✅ NEW: support /cart/:id (FE sekarang pakai ini)
+        router.put('/cart/:id', [FeTransactionCartController, 'update'])
+        router.patch('/cart/:id', [FeTransactionCartController, 'update'])
+        router.delete('/cart/:id', [FeTransactionCartController, 'delete'])
+
+        // ✅ backward compatible (FE lama kirim body {id})
+        router.put('/cart', [FeTransactionCartController, 'update'])
+        router.patch('/cart', [FeTransactionCartController, 'update'])
         router.delete('/cart', [FeTransactionCartController, 'delete'])
       })
       .use(middleware.auth({ guards: ['api'] }))
 
+    // =========================
+    // TRANSACTION ROUTES (AUTH REQUIRED)
+    // =========================
     router
       .group(() => {
         router.get('/transaction', [FeTransactionEcommerceController, 'get'])
@@ -444,7 +477,9 @@ router
     ])
     router.post('/midtrans/callback', [FeTransactionEcommerceController, 'webhookMidtrans'])
 
-    // POS Cashier Routes
+    // =========================
+    // POS CASHIER ROUTES
+    // =========================
     router
       .group(() => {
         router.post('/scan-barcode', [PosProductsController, 'scanByBarcode'])
@@ -454,12 +489,3 @@ router
       .use(middleware.roleCashier())
   })
   .prefix('/api/v1')
-
-
-  router.put('/cart/:id', [FeTransactionCartController, 'update'])
-router.patch('/cart/:id', [FeTransactionCartController, 'update'])
-router.delete('/cart/:id', [FeTransactionCartController, 'delete'])
-
-// optional backward compatible
-router.put('/cart', [FeTransactionCartController, 'update'])
-router.patch('/cart', [FeTransactionCartController, 'update'])
