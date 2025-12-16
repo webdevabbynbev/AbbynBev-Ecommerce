@@ -36,10 +36,7 @@ const RATING_OPTIONS = [
 ];
 
 export default function ProductDetailClient({ product }) {
-  // variant list dari normalized product
   const variants = product.variantItems ?? []; // [{ id, label, price, stock }]
-
-  // kalau cuma 1 varian, auto pilih
   const [selectedVariant, setSelectedVariant] = useState(
     variants.length === 1 ? variants[0].label : null
   );
@@ -61,7 +58,6 @@ export default function ProductDetailClient({ product }) {
     setSelectedVariant((prev) => (prev === label ? null : label));
   };
 
-  // reviews dari DB (backend preload reviews + user)
   const reviews = Array.isArray(product.reviews) ? product.reviews : [];
 
   const averageRating = useMemo(() => {
@@ -70,7 +66,6 @@ export default function ProductDetailClient({ product }) {
     return sum / reviews.length;
   }, [reviews]);
 
-  // helper brand biar aman kalau object/string/null
   const brandObj =
     typeof product.brand === "object" && product.brand !== null
       ? product.brand
@@ -82,8 +77,6 @@ export default function ProductDetailClient({ product }) {
       : brandObj?.name || "-";
 
   const brandSlug = brandObj?.slug || product.brandSlug || "";
-
-  // handler tambah ke keranjang
   const handleAddToCart = async () => {
     try {
       if (!product?.id) {
@@ -94,12 +87,10 @@ export default function ProductDetailClient({ product }) {
       const variantItems = product.variantItems ?? [];
       let variant = selectedVariantObj;
 
-      // auto pilih kalau cuma 1 varian
       if (!variant && variantItems.length === 1) {
         variant = variantItems[0];
       }
 
-      // kalau ada banyak varian tapi belum dipilih
       if (variantItems.length > 0 && !variant) {
         alert("Silakan pilih varian terlebih dahulu");
         return;
@@ -107,7 +98,7 @@ export default function ProductDetailClient({ product }) {
 
       const payload = {
         product_id: product.id,
-        variant_id: variantItems.length ? variant.id : 0, // ⬅️ sesuai controller
+        variant_id: variantItems.length ? variant.id : 0, 
         qty: Number(qty) || 1,
         attributes: [],
         is_buy_now: false,

@@ -1,5 +1,5 @@
 "use client";
-console.log("SHOP PAGE DB VERSION ✅");
+console.log("SHOP PAGE DB VERSION ");
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
