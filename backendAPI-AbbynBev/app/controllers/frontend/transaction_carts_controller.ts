@@ -1,4 +1,4 @@
-import ProductDiscountModel from '#models/product_discount'   // alias aman
+import ProductDiscountModel from '#models/product_discount'
 import ProductVariant from '#models/product_variant'
 import TransactionCart from '#models/transaction_cart'
 import type { HttpContext } from '@adonisjs/core/http'
@@ -77,29 +77,55 @@ export default class TransactionCartsController {
 
       const { meta, data } = cartQuery.toJSON() as { meta: any; data: any[] }
 
+      // base url untuk bikin URL gambar full (biar match dengan endpoint shop)
+      const baseUrl =
+        process.env.APP_URL || `${request.protocol()}://${request.host()}`
+
+      const toFullUrl = (value: any) => {
+        if (!value) return null
+        const s = String(value)
+        if (s.startsWith('http://') || s.startsWith('https://')) return s
+        if (s === '/placeholder.png') return s
+        if (s.startsWith('/')) return `${baseUrl}${s}`
+        return `${baseUrl}/${s}`
+      }
+
       // Normalisasi supaya frontend enak pakainya
-      const items = data.map((row) => {
+      const items = data.map((row: any) => {
         const product = row.product || {}
         const medias = Array.isArray(product.medias) ? product.medias : []
 
-        // qty yang dipakai di frontend
+        const id = Number(row.id) // id cart item untuk FE
         const quantity = Number(row.qtyCheckout ?? row.qty ?? 0)
 
         // harga per unit
-        const price = Number(
-          row.price ??
-            product.price ??
-            product.realprice ??
-            product.basePrice ??
-            0,
-        )
+        const price = Number(row.price ?? product.price ?? product.realprice ?? product.basePrice ?? 0)
 
-        const thumbnail =
+        const productName =
+          product.name ||
+          product.title ||
+          row.product_name ||
+          row.productName ||
+          product.product_name ||
+          '-'
+
+        // ambil gambar dari berbagai kemungkinan field
+        const media0 = medias[0] || {}
+        const rawThumb =
           product.thumbnail ||
+          product.thumbnail_url ||
           product.thumbnailUrl ||
           product.image ||
-          (medias[0] ? medias[0].url || medias[0].path || medias[0].file_path : null) ||
-          '/placeholder.png'
+          product.image_url ||
+          media0.url ||
+          media0.original_url ||
+          media0.file_url ||
+          media0.path ||
+          media0.file_path ||
+          media0.filePath ||
+          null
+
+        const thumbnail = toFullUrl(rawThumb) || '/placeholder.png'
 
         // nama variant
         let variantName = '-'
@@ -108,41 +134,44 @@ export default class TransactionCartsController {
           variantName = v.name || v.sku || v.code || ''
           if (!variantName && Array.isArray(v.attributes)) {
             const parts = v.attributes
-              .map(
-                (a: any) =>
-                  a?.attribute_value ||
-                  a?.label ||
-                  a?.value ||
-                  '',
-              )
+              .map((a: any) => a?.attribute_value || a?.label || a?.value || '')
               .filter(Boolean)
             if (parts.length) variantName = parts.join(' / ')
           }
           if (!variantName) variantName = '-'
         }
 
-        // kalau di DB sudah punya amount, pakai itu; kalau tidak, fallback hitung
+        // line amount
         const lineAmount = Number(row.amount ?? price * quantity)
 
         return {
           ...row,
-          amount: lineAmount,
+
+          // id & alias
+          id,
+          cart_id: id,
+          cartId: id,
+
+          // field tambahan FE
           quantity,
+          amount: lineAmount,
+          product_name: productName,
+          variant_name: variantName,
+
           product: {
             ...product,
+            name: productName,
             price,
-            thumbnail,
+            thumbnail,         // ✅ FE cart pakai ini
             variant_name: variantName,
           },
+
+          variant: row.variant ? { ...(row.variant as any), name: variantName } : row.variant,
         }
       })
 
-      const subtotal = items.reduce(
-        (acc, item) => acc + Number(item.amount ?? 0),
-        0,
-      )
+      const subtotal = items.reduce((acc: number, item: any) => acc + Number(item.amount ?? 0), 0)
 
-      // frontend: axios.get("/cart") → res.data.data (array)
       return response.status(200).send({
         message: 'success',
         data: items,
@@ -157,7 +186,7 @@ export default class TransactionCartsController {
     }
   }
 
-  // tambah ke keranjang
+  // tambah ke keranjang (MERGE jika produk/variant sama)
   public async create({ response, request, auth }: HttpContext) {
     const trx = await db.transaction()
 
@@ -165,10 +194,7 @@ export default class TransactionCartsController {
       const user = auth.user
       if (!user) {
         await trx.rollback()
-        return response.status(401).send({
-          message: 'Unauthenticated',
-          serve: null,
-        })
+        return response.status(401).send({ message: 'Unauthenticated', serve: null })
       }
 
       const productId = Number(request.input('product_id'))
@@ -196,21 +222,9 @@ export default class TransactionCartsController {
         .preload('product')
         .first()
 
-      if (!productOnline) {
+      if (!productOnline || !productOnline.product) {
         await trx.rollback()
-        return response.status(400).send({
-          message: 'Product not available online',
-          serve: null,
-        })
-      }
-
-      const dataProduct = productOnline.product
-      if (!dataProduct) {
-        await trx.rollback()
-        return response.status(400).send({
-          message: 'Product not found',
-          serve: null,
-        })
+        return response.status(400).send({ message: 'Product not available online', serve: null })
       }
 
       // variant?
@@ -220,25 +234,11 @@ export default class TransactionCartsController {
 
       if (!dataProductVariant) {
         await trx.rollback()
-        return response.status(400).send({
-          message: 'Product variant not found',
-          serve: null,
-        })
+        return response.status(400).send({ message: 'Product variant not found', serve: null })
       }
 
-      // stok cukup?
-      if (dataProductVariant.stock < qty) {
-        await trx.rollback()
-        return response.status(400).send({
-          message: 'Stock not enough',
-          serve: null,
-        })
-      }
-
-      // harga & diskon per unit
-      let finalPrice = Number(dataProductVariant.price)
+      // diskon per unit
       let discount = 0
-
       const dataProductDisc = await ProductDiscountModel.query({ client: trx })
         .where('product_id', productId)
         .where('start_date', '<=', dateString)
@@ -252,10 +252,56 @@ export default class TransactionCartsController {
           value: Number(dataProductDisc.value),
           maxValue: Number(dataProductDisc.maxValue),
         })
-        finalPrice = calc.price
         discount = calc.disc
       }
 
+      const pricePerUnit = Number(dataProductVariant.price)
+      const finalPerUnit = Math.max(0, pricePerUnit - discount)
+
+      // ✅ cari cart existing (produk + variant sama)
+      const existing = await TransactionCart.query({ client: trx })
+        .where('user_id', user.id)
+        .where('product_id', productId)
+        .where('product_variant_id', variantId)
+        .where('is_checkout', '!=', 2)
+        .first()
+
+      if (existing) {
+        const newQty = Number(existing.qty ?? 0) + qty
+
+        // cek stok untuk qty gabungan
+        if (dataProductVariant.stock < newQty) {
+          await trx.rollback()
+          return response.status(400).send({ message: 'Stock not enough', serve: null })
+        }
+
+        existing.qty = newQty
+        existing.qtyCheckout = newQty
+        existing.isCheckout = isBuyNow ? 1 : 1
+
+        // update price/discount biar konsisten
+        existing.price = pricePerUnit
+        existing.discount = discount
+        existing.amount = finalPerUnit * newQty
+
+        existing.attributes = JSON.stringify(attributes)
+
+        await existing.save()
+        await trx.commit()
+
+        return response.status(200).send({
+          message: 'Cart updated (merged)',
+          serve: existing,
+        })
+      }
+
+      // stok cukup?
+      if (dataProductVariant.stock < qty) {
+        await trx.rollback()
+        return response.status(400).send({ message: 'Stock not enough', serve: null })
+      }
+
+      // create baru
       const dataCart = new TransactionCart()
       dataCart.useTransaction(trx)
 
@@ -265,11 +311,11 @@ export default class TransactionCartsController {
 
       dataCart.qty = qty
       dataCart.qtyCheckout = qty
-      dataCart.isCheckout = isBuyNow ? 1 : 1 // sekarang semua dianggap ter-pilih
+      dataCart.isCheckout = isBuyNow ? 1 : 1
 
-      dataCart.price = Number(dataProductVariant.price) // harga normal per unit
-      dataCart.discount = discount                     // diskon per unit
-      dataCart.amount = finalPrice * dataCart.qty      // total setelah diskon
+      dataCart.price = pricePerUnit
+      dataCart.discount = discount
+      dataCart.amount = finalPerUnit * qty
       dataCart.attributes = JSON.stringify(attributes)
 
       await dataCart.save()
@@ -288,71 +334,63 @@ export default class TransactionCartsController {
     }
   }
 
-  // 🔥 update qty cart (dipakai tombol + / - di frontend)
-  public async update({ response, request, auth }: HttpContext) {
+  // update qty cart (support /cart/:id atau body {id})
+  public async update({ response, request, auth, params }: HttpContext) {
     const trx = await db.transaction()
 
     try {
       const user = auth.user
       if (!user) {
         await trx.rollback()
-        return response.status(401).send({
-          message: 'Unauthenticated',
-          serve: null,
-        })
+        return response.status(401).send({ message: 'Unauthenticated', serve: null })
       }
 
-      const id = Number(request.input('id'))
+      const id = Number(params?.id ?? request.input('id'))
       const qty = Number(request.input('qty'))
 
-      if (!id || Number.isNaN(qty)) {
+      if (!id || !Number.isFinite(qty)) {
         await trx.rollback()
-        return response.status(400).send({
-          message: 'Invalid payload',
-          serve: null,
-        })
+        return response.status(400).send({ message: 'Invalid payload', serve: null })
       }
 
       const cart = await TransactionCart.query({ client: trx })
         .where('id', id)
         .where('user_id', user.id)
+        .preload('variant')
         .first()
 
       if (!cart) {
         await trx.rollback()
-        return response.status(404).send({
-          message: 'Cart item not found',
-          serve: null,
-        })
+        return response.status(404).send({ message: 'Cart item not found', serve: null })
       }
 
-      // kalau qty <= 0 → anggap delete
+      // cek stock dari variant
+      const variant: any = (cart as any).variant
+      if (variant && typeof variant.stock === 'number' && variant.stock < qty) {
+        await trx.rollback()
+        return response.status(400).send({ message: 'Stock not enough', serve: null })
+      }
+
+      // qty <= 0 → delete
       if (qty <= 0) {
         await cart.delete()
         await trx.commit()
-        return response.status(200).send({
-          message: 'Deleted successfully',
-          serve: [],
-        })
+        return response.status(200).send({ message: 'Deleted successfully', serve: [] })
       }
 
       cart.qty = qty
       cart.qtyCheckout = qty
 
-      // hitung ulang amount berdasarkan price & discount per unit
       const pricePerUnit = Number(cart.price || 0)
       const discPerUnit = Number(cart.discount || 0)
-      const finalPerUnit = pricePerUnit - discPerUnit
+      const finalPerUnit = Math.max(0, pricePerUnit - discPerUnit)
 
       cart.amount = finalPerUnit * qty
 
       await cart.save()
       await trx.commit()
 
-      return response.status(200).send({
-        message: 'Cart updated',
-        serve: cart,
-      })
+      return response.status(200).send({ message: 'Cart updated', serve: cart })
     } catch (error) {
       await trx.rollback()
       return response.status(500).send({
@@ -362,7 +400,6 @@ export default class TransactionCartsController {
     }
   }
 
-  // update centang item yang mau di-checkout
   public async updateSelection({ response, request, auth }: HttpContext) {
     try {
       const ids = request.input('cart_ids') || []
@@ -375,10 +412,7 @@ export default class TransactionCartsController {
           .update({ isCheckout })
       }
 
-      return response.status(200).send({
-        message: 'Cart selection updated',
-        serve: [],
-      })
+      return response.status(200).send({ message: 'Cart selection updated', serve: [] })
     } catch (error) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
@@ -387,7 +421,6 @@ export default class TransactionCartsController {
     }
   }
 
-  // mini-cart (dropdown di header)
   public async miniCart({ response, auth }: HttpContext) {
     try {
       const carts = await TransactionCart.query()
@@ -398,7 +431,7 @@ export default class TransactionCartsController {
         .orderBy('created_at', 'desc')
         .limit(10)
 
-      const subtotal = carts.reduce((acc, item) => acc + Number(item.amount), 0)
+      const subtotal = carts.reduce((acc, item) => acc + Number(item.amount ?? 0), 0)
 
       return response.status(200).send({
         message: 'success',
@@ -412,20 +445,22 @@ export default class TransactionCartsController {
     }
   }
 
-  // hapus item dari cart
-  public async delete({ response, request, auth }: HttpContext) {
+  // hapus item dari cart (support /cart/:id atau body {id})
+  public async delete({ response, request, auth, params }: HttpContext) {
     const trx = await db.transaction()
+
     try {
       const user = auth.user
       if (!user) {
         await trx.rollback()
-        return response.status(401).send({
-          message: 'Unauthenticated',
-          serve: null,
-        })
+        return response.status(401).send({ message: 'Unauthenticated', serve: null })
       }
 
-      const id = Number(request.input('id'))
+      const id = Number(params?.id ?? request.input('id'))
+      if (!id) {
+        await trx.rollback()
+        return response.status(400).send({ message: 'Invalid id', serve: [] })
+      }
 
       const dataCart = await TransactionCart.query({ client: trx })
         .where('id', id)
@@ -434,14 +469,13 @@ export default class TransactionCartsController {
 
       if (!dataCart) {
         await trx.rollback()
-        return response.status(400).send({ message: 'Delete cart failed', serve: [] })
+        return response.status(404).send({ message: 'Cart item not found', serve: [] })
       }
 
       await dataCart.delete()
       await trx.commit()
-      return response
-        .status(200)
-        .send({ message: 'Deleted successfully', serve: [] })
+
+      return response.status(200).send({ message: 'Deleted successfully', serve: [] })
     } catch (error) {
       await trx.rollback()
       return response.status(500).send({
