@@ -456,4 +456,13 @@ router
   .prefix('/api/v1')
 
 
-  
+  router.get('/cart', [FeTransactionCartController, 'get'])
+router.post('/cart', [FeTransactionCartController, 'create'])
+
+router.put('/cart', [FeTransactionCartController, 'update'])
+router.patch('/cart', [FeTransactionCartController, 'update'])
+router.put('/cart/:id', [FeTransactionCartController, 'update'])
+router.patch('/cart/:id', [FeTransactionCartController, 'update'])
+
+router.delete('/cart/:id', [FeTransactionCartController, 'delete'])
+router.delete('/cart', [FeTransactionCartController, 'delete'])
