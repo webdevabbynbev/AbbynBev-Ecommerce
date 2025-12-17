@@ -1,7 +1,6 @@
 import { Plus_Jakarta_Sans, Damion } from "next/font/google";
 import "./globals.css";
 import { Navbar, Footer } from "../components";
-import clsx from "clsx";
 import GoogleProvider from "@/components/GoogleProvider";
 import { AuthProvider } from "@/context/AuthContext";
 

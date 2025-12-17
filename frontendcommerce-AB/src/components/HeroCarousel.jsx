@@ -14,6 +14,7 @@ import {
   CarouselIndicators,
 } from "@/components";
 import { getImageUrl } from "@/utils/getImageUrl";
+import { getBanners } from "@/services";
 
 export function HeroCarousel() {
   const autoplay = React.useRef(
@@ -23,30 +24,28 @@ export function HeroCarousel() {
   const [banners, setBanners] = useState([]);
 
   useEffect(() => {
-    async function fetchBanners() {
+    (async () => {
       try {
-        const { data } = await api.get("/banners");
-        const serve = data?.serve;
+        const resData = await getBanners();
+        const serve = resData?.serve;
         const normalized = Array.isArray(serve) ? serve : serve?.data || [];
         setBanners(normalized);
-      } catch (error) {
-        console.error("error fetching banner", error);
+      } catch (e) {
+        console.error("gagal fetch banner", e);
       } finally {
         setLoading(false);
       }
-    }
-    fetchBanners();
+    })();
   }, []);
 
-
-  if (isloading|| !banners.length) {
+  if (isloading || !banners.length) {
     // 🔹 SKELETON VIEW
     return (
-      <div className="w-full h-[220px] sm:h-[200px] md:h-[200px] lg:h-[200px] xl:h-[600px]">
+      <div className="w-full h-[300px]">
         <div className="flex">
-            <div className="w-full h-full">
-              <Skeleton className="w-full h-[220px] sm:h-[200px] md:h-[200px] lg:h-[200px] xl:h-[600px] rounded-lg" />
-            </div>
+          <div className="w-full h-full">
+            <Skeleton className="w-full h-[300px] rounded-lg" />
+          </div>
         </div>
       </div>
     );
@@ -66,18 +65,13 @@ export function HeroCarousel() {
             const src = getImageUrl(b.image_url || b.image);
             return (
               <CarouselItem key={b.id || idx}>
-                <div className="relative h-full">
+                <div className="relative h-[300px]">
                   <img
                     src={src}
                     alt={b.title || "Banner"}
-                    className="rounded-lg w-full h-auto object-cover"
+                    className="rounded-lg w-full h-full object-cover"
                     onError={(e) => (e.currentTarget.src = "/placeholder.png")}
                   />
-                  {/* {b.description && (
-                    <span className="absolute bottom-4 left-4 text-white text-sm bg-black/50 px-3 py-1 rounded-md">
-                      {b.description}
-                    </span>
-                  )} */}
                 </div>
               </CarouselItem>
             );
@@ -87,7 +81,7 @@ export function HeroCarousel() {
         {/* Default Controls */}
         <CarouselPrevious />
         <CarouselNext />
-        <CarouselIndicators />
+        <CarouselIndicators/>
       </Carousel>
     </div>
   );

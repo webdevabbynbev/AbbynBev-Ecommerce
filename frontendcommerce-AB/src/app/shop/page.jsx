@@ -4,6 +4,7 @@ console.log("SHOP PAGE DB VERSION ");
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useDebounce } from "../hook/useDebounce";
 
 const SORT_OPTIONS = [
   { key: "recommended", label: "Recommended" },
@@ -68,6 +69,7 @@ export default function ShopPage() {
   const [sortBy, setSortBy] = useState("recommended");
   const [minRating, setMinRating] = useState(0);
   const [search, setSearch] = useState("");
+  const debounceSearch = useDebounce(search, 500);
 
   const [dbProducts, setDbProducts] = useState([]);
   const [loadingDb, setLoadingDb] = useState(true);
@@ -158,7 +160,7 @@ export default function ShopPage() {
       products = products.filter((p) => (p.rating || 0) >= minRating);
     }
 
-    if (search.trim()) {
+    if (debounceSearch.trim()) {
       const q = search.toLowerCase();
       products = products.filter((p) => {
         const name = (p.name || "").toLowerCase();
@@ -180,7 +182,7 @@ export default function ShopPage() {
     }
 
     return products;
-  }, [activeCategory, sortBy, minRating, search, dbProducts]);
+  }, [activeCategory, sortBy, minRating, dbProducts, debounceSearch]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
