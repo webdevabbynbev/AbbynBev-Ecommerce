@@ -226,7 +226,7 @@ const CarouselIndicators = React.forwardRef(({ className }, ref) => {
     <div
       ref={ref}
       className={cn(
-        "absolute bottom-8 left-0 right-0 flex justify-center gap-2",
+        "absolute bottom-4 left-0 right-0 flex justify-center gap-2",
         className
       )}
     >

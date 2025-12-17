@@ -29,13 +29,11 @@ export default async function ProductDetail({ params }) {
   const json = await res.json();
   const p = json?.serve;
 
-  // 1) medias -> absolut url
   const medias = (p?.medias ?? []).map((m) => ({
     ...m,
     url: toBackendImageUrl(m.url),
   }));
 
-  // 2) variants -> bentuk yang client kamu butuhin
   const rawVariants = p?.variants ?? p?.productVariants ?? p?.product_variants ?? [];
   const variantItems = rawVariants.map((v, i) => ({
     id: v.id ?? i,
@@ -50,35 +48,29 @@ export default async function ProductDetail({ params }) {
     ? variantItems.reduce((s, v) => s + (Number(v.stock) || 0), 0)
     : Number(p?.stock ?? 0);
 
-  // 3) brand -> string + slug
   const brandName = p?.brand?.name ?? "";
   const brandSlug = p?.brand?.slug ?? "";
 
-  // 4) final shape yang cocok sama ProductDetailClient lama
   const normalized = {
     ...p,
-
-    // supaya React gak error render object
     brand: brandName,
     brandSlug,
 
-    // image fields yang dipakai client
     image: medias?.[0]?.url ?? "/images/sample-product.jpg",
     images: medias.map((m) => m.url),
 
     medias,
 
-    // pricing fields yang dipakai client kamu
+ 
     realprice: basePrice,
     price: basePrice, // belum ada discount → samain dulu
     sale: false,
 
-    // variant fields yang dipakai client kamu
     variant_value: variantItems.length ? "Variant" : "",
     variant: variantItems.map((v) => v.label),
     variantItems,
 
-    // stock untuk sidebar
+    
     stock: stockTotal,
   };
 

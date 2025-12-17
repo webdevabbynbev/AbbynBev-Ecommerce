@@ -305,7 +305,7 @@ export default function SalePage() {
             className="w-full rounded-full border border-gray-200 bg-white px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-1 focus:ring-pink-400"
           />
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
-            🔍
+          
           </span>
         </div>
 
