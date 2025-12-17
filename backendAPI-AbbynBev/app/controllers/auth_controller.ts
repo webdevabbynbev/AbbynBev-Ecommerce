@@ -7,10 +7,9 @@ import hash from '@adonisjs/core/services/hash'
 import mail from '@adonisjs/mail/services/main'
 import env from '#start/env'
 import {
-  login,
-  register,
-  verifyLoginOtp,
-  verifyRegisterOtp,
+  login as loginValidator,
+  register as registerValidator,
+  verifyRegisterOtp as verifyRegisterOtpValidator,
   requestForgotPassword,
   resetPassword,
   updateProfile,
@@ -122,14 +121,21 @@ export default class AuthController {
     }
   }
 
+  /**
+   * ✅ LOGIN CUSTOMER TANPA OTP
+   * - Hanya register yang pakai OTP.
+   * - Endpoint verify-login dinonaktifkan.
+   */
   public async login({ request, response }: HttpContext) {
     try {
-      const { email_or_phone, password } = await request.validateUsing(login)
+      const { email_or_phone, password } = await request.validateUsing(loginValidator)
+      const rememberMe = Boolean(request.input('remember_me'))
 
       const user = await User.query()
         .where((q) => {
           q.where('email', email_or_phone).orWhere('phone_number', email_or_phone)
         })
+        .where('role', Role.GUEST) // customer only (biar admin/cashier gak nyasar ke endpoint ini)
         .whereNull('deleted_at')
         .first()
 
@@ -162,94 +168,6 @@ export default class AuthController {
         })
       }
 
-      const otp = await this.generateUniqueOtp(user.email, OtpAction.LOGIN)
-      const hashedOtp = await hash.make(otp)
-
-      await Otp.updateOrCreate(
-        { email: user.email, action: OtpAction.LOGIN },
-        {
-          code: hashedOtp,
-          expiredAt: DateTime.now().plus({ minutes: 5 }),
-          action: OtpAction.LOGIN,
-        }
-      )
-
-      if (email_or_phone.includes('@')) {
-        await this.sendOtpEmail(user.email, otp, user.firstName ?? undefined)
-
-      } else {
-        const wa = new WhatsAppService()
-        await wa.sendOTP(this.normalizeWaNumber(user.phoneNumber!), otp)
-      }
-
-      return response.ok({
-        message: 'OTP sent successfully.',
-        serve: true,
-      })
-    } catch (error) {
-      console.error(error)
-      return response.status(500).send({
-        message: error.message || 'Internal Server Error',
-        serve: null,
-      })
-    }
-  }
-
-  public async verifyLoginOtp({ request, response }: HttpContext) {
-    try {
-      const { email_or_phone, otp } = await request.validateUsing(verifyLoginOtp)
-
-      const user = await User.query()
-        .where((q) => {
-          q.where('email', email_or_phone).orWhere('phone_number', email_or_phone)
-        })
-        .whereNull('deleted_at')
-        .first()
-
-      if (!user) {
-        return response.badRequest({
-          message: 'Account not found or has been deactivated.',
-          serve: null,
-        })
-      }
-
-      if (user.googleId) {
-        return response.badRequest({
-          message: 'Account registered with Google. Please use Google Login.',
-          serve: null,
-        })
-      }
-
-      if (user.isActive !== 1) {
-        return response.badRequest({
-          message: 'Account suspended.',
-          serve: null,
-        })
-      }
-
-      const otpExist = await Otp.query()
-        .where('email', user.email)
-        .where('action', OtpAction.LOGIN)
-        .where('expired_at', '>', new Date())
-        .first()
-
-      if (!otpExist) {
-        return response.badRequest({
-          message: 'Invalid or expired OTP',
-          serve: null,
-        })
-      }
-
-      const isValidOtp = await hash.verify(otpExist.code, otp)
-      if (!isValidOtp) {
-        return response.badRequest({
-          message: 'Invalid OTP',
-          serve: null,
-        })
-      }
-
-      await otpExist.delete()
-
       const userData = user.serialize({
         fields: [
           'id',
@@ -268,7 +186,7 @@ export default class AuthController {
       })
 
       const token = await User.accessTokens.create(user, ['*'], {
-        expiresIn: request.input('remember_me') ? '30 days' : '1 days',
+        expiresIn: rememberMe ? '30 days' : '1 days',
       })
 
       return response.ok({
@@ -284,11 +202,21 @@ export default class AuthController {
     }
   }
 
+  /**
+   * ❌ DISABLE: verify login OTP
+   * (Biar route lama tidak error, tapi flow OTP login udah dimatiin)
+   */
+  public async verifyLoginOtp({ response }: HttpContext) {
+    return response.badRequest({
+      message: 'OTP login is disabled. Please use /auth/login (no OTP).',
+      serve: null,
+    })
+  }
+
   public async register({ request, response }: HttpContext) {
     try {
       const { email, phone_number, first_name, last_name, gender, password: _password } =
-  await request.validateUsing(register)
-
+        await request.validateUsing(registerValidator)
 
       // ✅ lebih aman: kalau value aneh → fallback email
       const raw = String(request.input('send_via') || 'email').toLowerCase()
@@ -365,7 +293,7 @@ export default class AuthController {
 
   public async verifyRegisterOtp({ request, response }: HttpContext) {
     const { email, phone_number, first_name, last_name, otp, gender, password } =
-      await request.validateUsing(verifyRegisterOtp)
+      await request.validateUsing(verifyRegisterOtpValidator)
 
     const otpExist = await Otp.query()
       .where('email', email)
@@ -427,17 +355,7 @@ export default class AuthController {
       message: 'Register successful, OTP verified.',
       serve: {
         data: user.serialize({
-          fields: [
-            'id',
-            'firstName',
-            'lastName',
-            'email',
-            'phoneNumber',
-            'gender',
-            'dob',
-            'photoProfile',
-            'role',
-          ],
+          fields: ['id', 'firstName', 'lastName', 'email', 'phoneNumber', 'gender', 'dob', 'photoProfile', 'role'],
         }),
         token: token.value!.release(),
       },
@@ -612,17 +530,7 @@ export default class AuthController {
       return response.status(200).send({
         message: 'Account successfully updated.',
         serve: user?.serialize({
-          fields: [
-            'id',
-            'firstName',
-            'lastName',
-            'email',
-            'phoneNumber',
-            'address',
-            'gender',
-            'dob',
-            'photoProfile',
-          ],
+          fields: ['id', 'firstName', 'lastName', 'email', 'phoneNumber', 'address', 'gender', 'dob', 'photoProfile'],
         }),
       })
     } catch (error) {

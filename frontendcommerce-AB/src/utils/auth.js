@@ -1,11 +1,38 @@
 import api from "@/lib/axios";
 
+/** Helpers */
+function getToken() {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("token");
+}
+
+function setToken(token) {
+  if (typeof window === "undefined") return;
+  if (token) localStorage.setItem("token", token);
+}
+
+function authHeader() {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function s(v) {
+  return String(v ?? "").trim();
+}
+
+function n(v) {
+  const num = Number(v);
+  return Number.isFinite(num) ? num : NaN;
+}
+
+/** =========================
+ *  PROFILE
+ *  ========================= */
 export async function updateProfile(payload) {
-  const token = localStorage.getItem("token");
   try {
     const res = await api.put("/profile", payload, {
       headers: {
-        Authorization: `Bearer ${token}`,
+        ...authHeader(),
         "Content-Type": "application/json",
       },
     });
@@ -17,31 +44,52 @@ export async function updateProfile(payload) {
 }
 
 export async function getUser() {
-  const token = localStorage.getItem("token");
-  const res = await api.get("/profile", {
-    headers: { Authorization: `Bearer ${token}` },
-    withCredentials: true,
-  });
+  try {
+    const res = await api.get("/profile", {
+      headers: { ...authHeader() },
+      withCredentials: true,
+    });
 
-  const payload = res.data;
-  const user =
-    payload?.user ??
-    payload?.serve ??
-    payload?.data?.user ??
-    payload?.data?.serve ??
-    null;
+    const payload = res.data;
 
-  return { user };
+    const user =
+      payload?.serve ??
+      payload?.user ??
+      payload?.data?.user ??
+      payload?.data?.serve ??
+      null;
+
+    return { user };
+  } catch (err) {
+    const msg = err?.response?.data?.message || "Failed to fetch user profile";
+    throw new Error(msg);
+  }
 }
 
+/** =========================
+ *  ADDRESS
+ *  ========================= */
 export async function getAddressByQuery(userId) {
-  const res = await api.get("/addresses", { params: { user_id: userId } });
-  return res.data?.serve ?? [];
+  try {
+    const res = await api.get("/addresses", {
+      params: { user_id: userId },
+      headers: { ...authHeader() },
+    });
+
+    return res.data?.serve ?? res.data?.data ?? [];
+  } catch (err) {
+    const msg = err?.response?.data?.message || "Failed to fetch addresses";
+    throw new Error(msg);
+  }
 }
+
+/** =========================
+ *  REGISTER (OTP)
+ *  ========================= */
 
 /**
- * ✅ REGISTER STEP 1: kirim OTP
- * endpoint: POST /auth/register
+ * REGISTER STEP 1: kirim OTP
+ * POST /auth/register
  */
 export async function regis(
   email,
@@ -53,24 +101,35 @@ export async function regis(
   send_via = "email"
 ) {
   try {
-    const res = await api.post("/auth/register", {
-      email,
-      phone_number,
-      first_name,
-      last_name,
-      gender: Number(gender),
-      password, // tetap dikirim supaya validator lolos
-      send_via,
-    });
+    const payload = {
+      email: s(email).toLowerCase(),
+      phone_number: s(phone_number),
+      first_name: s(first_name),
+      last_name: s(last_name),
+      gender: n(gender),
+      password: String(password ?? ""), // jangan trim password
+      send_via: s(send_via) || "email",
+    };
+
+    // ✅ cegah field required hilang/kosong sebelum ke backend
+    if (!payload.email) throw new Error("Email wajib diisi");
+    if (!payload.phone_number) throw new Error("Nomor HP wajib diisi");
+    if (!payload.first_name) throw new Error("First name wajib diisi");
+    if (!payload.last_name) throw new Error("Last name wajib diisi");
+    if (![1, 2].includes(payload.gender)) throw new Error("Gender wajib dipilih");
+    if (!payload.password) throw new Error("Password wajib diisi");
+
+    const res = await api.post("/auth/register", payload);
     return res.data;
   } catch (err) {
-    throw new Error(err.response?.data?.message || "Register gagal");
+    const msg = err?.response?.data?.message || err?.message || "Register gagal";
+    throw new Error(msg);
   }
 }
 
 /**
- * ✅ REGISTER STEP 2: verify OTP + create user + auto login (token)
- * endpoint: POST /auth/verify-register
+ * REGISTER STEP 2: verify OTP + create user + auto login (token)
+ * POST /auth/verify-register
  */
 export async function OtpRegis(
   email,
@@ -82,93 +141,107 @@ export async function OtpRegis(
   otp
 ) {
   try {
-    const res = await api.post("/auth/verify-register", {
-      email,
-      phone_number,
-      first_name,
-      last_name,
-      gender: Number(gender),
-      password,
-      otp: String(otp),
-    });
+    const payload = {
+      email: s(email).toLowerCase(),
+      phone_number: s(phone_number),
+      first_name: s(first_name),
+      last_name: s(last_name),
+      gender: n(gender),
+      password: String(password ?? ""),
+      otp: s(otp),
+    };
 
-    if (res.data?.serve?.token) {
-      localStorage.setItem("token", res.data.serve.token);
-    }
+    if (!payload.email) throw new Error("Email wajib diisi");
+    if (!payload.otp) throw new Error("OTP wajib diisi");
 
-    return res.data;
-  } catch (err) {
-    throw new Error(err.response?.data?.message || "OTP Salah");
-  }
-}
-
-/**
- * ✅ LOGIN TANPA OTP
- * endpoint: POST /auth/login
- */
-export async function loginUser(email_or_phone, password, remember_me = false) {
-  try {
-    const res = await api.post("/auth/login", {
-      email_or_phone,
-      password,
-      remember_me,
-    });
+    const res = await api.post("/auth/verify-register", payload);
 
     const data = res.data;
-
-    if (data?.serve?.token) {
-      localStorage.setItem("token", data.serve.token);
-    }
+    const token = data?.serve?.token;
+    if (token) setToken(token);
 
     return data;
   } catch (err) {
-    throw new Error(err.response?.data?.message || "Login gagal");
+    const msg = err?.response?.data?.message || err?.message || "OTP Salah";
+    throw new Error(msg);
+  }
+}
+
+/** =========================
+ *  LOGIN (NO OTP)
+ *  ========================= */
+
+/**
+ * LOGIN TANPA OTP
+ * POST /auth/login
+ */
+export async function loginUser(email_or_phone, password, remember_me = false) {
+  try {
+    const payload = {
+      email_or_phone: s(email_or_phone),
+      password: String(password ?? ""),
+      remember_me: Boolean(remember_me),
+    };
+
+    if (!payload.email_or_phone) throw new Error("Email/Phone wajib diisi");
+    if (!payload.password) throw new Error("Password wajib diisi");
+
+    const res = await api.post("/auth/login", payload);
+
+    const data = res.data;
+    const token = data?.serve?.token;
+    if (token) setToken(token);
+
+    return data;
+  } catch (err) {
+    const msg = err?.response?.data?.message || err?.message || "Login gagal";
+    throw new Error(msg);
   }
 }
 
 /**
- * (Optional) kalau masih ada fitur OTP login, ini bisa dipakai.
- * Kalau kamu gak mau OTP login sama sekali, function ini boleh dihapus.
+ * ❌ OTP login sudah dimatikan di backend.
  */
-export async function verifyOtp(email_or_phone, otp) {
+export async function verifyOtp() {
+  throw new Error("OTP login is disabled. Use loginUser() instead.");
+}
+
+/** =========================
+ *  GOOGLE LOGIN
+ *  ========================= */
+export async function LoginGoogle(token) {
   try {
-    const res = await api.post("/auth/verify-login", {
-      email_or_phone,
-      otp: String(otp),
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login-google`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ token }),
     });
 
-    if (res.data?.serve?.token) {
-      localStorage.setItem("token", res.data.serve.token);
+    let payload = null;
+    try {
+      payload = await res.json();
+    } catch {
+      payload = null;
     }
 
-    return res.data;
+    if (!res.ok) {
+      throw new Error(payload?.message || `LoginGoogle gagal (HTTP ${res.status})`);
+    }
+
+    const accessToken = payload?.serve?.token;
+    if (accessToken) setToken(accessToken);
+
+    return payload;
   } catch (err) {
-    throw new Error(err.response?.data?.message || "Verifikasi OTP gagal");
+    throw new Error(err?.message || "Login Google gagal");
   }
 }
 
-export async function LoginGoogle(token) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login-google`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ token }),
-  });
-
-  let payload;
-  try {
-    payload = await res.json();
-  } catch {
-    payload = null;
-  }
-
-  if (!res.ok) {
-    throw new Error(payload?.message || `LoginGoogle gagal (HTTP ${res.status})`);
-  }
-
-  if (payload?.serve?.token) {
-    localStorage.setItem("token", payload.serve.token);
-  }
-
-  return payload;
+/** =========================
+ *  LOGOUT
+ *  ========================= */
+export function logoutLocal() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("token");
 }
