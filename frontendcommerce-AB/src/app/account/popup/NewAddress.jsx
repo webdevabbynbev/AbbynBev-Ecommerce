@@ -1,6 +1,6 @@
 import React from "react";
 import { useState, useEffect } from "react";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@/components/Textarea";
 import {
   Select,
   SelectTrigger,
