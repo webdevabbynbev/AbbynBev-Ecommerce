@@ -3,9 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>
-      OTP Verification
-    </title>
+    <title>OTP Verification</title>
     <link
       href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700&display=swap"
       rel="stylesheet"
@@ -17,7 +15,7 @@
         margin: 0;
         padding: 0;
       }
-      
+
       .email-container {
         max-width: 600px;
         margin: 50px auto;
@@ -26,43 +24,43 @@
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         overflow: hidden;
       }
-      
+
       .email-header {
         background-color: #ae2d68;
         color: #ffffff;
         text-align: center;
         padding: 20px;
       }
-      
+
       .email-header h1 {
         font-size: 24px;
         margin: 0;
       }
-      
+
       .email-logo {
         display: block;
         margin: 20px auto;
         width: 100px;
         max-width: 150px;
       }
-      
+
       .email-body {
         padding: 28px;
         text-align: center;
       }
-      
+
       .email-body h2 {
         color: #333333;
         font-size: 20px;
         margin: 20px 0;
       }
-      
+
       .email-body p {
         color: #1e1e1e;
         font-size: 16px;
         margin: 10px 0 30px;
       }
-      
+
       .otp-code {
         display: inline-block;
         font-size: 20px;
@@ -73,7 +71,7 @@
         margin: 20px 0;
         font-weight: bold;
       }
-      
+
       .email-footer {
         background-color: #ae2d68;
         color: #ffffff;
@@ -85,38 +83,28 @@
   </head>
   <body>
     <div class="email-container">
-      <!-- Header -->
       <div class="email-header">
-        <h1>
-          OTP Verification
-        </h1>
+        <h1>OTP Verification</h1>
       </div>
 
-      <!-- Logo -->
-      <img src="https://i.imgur.com/n74d9Fm.png" alt="Abby n Bev Logo" class="email-logo" />
+      <img
+        src="https://i.imgur.com/n74d9Fm.png"
+        alt="Abby n Bev Logo"
+        class="email-logo"
+      />
 
-      <!-- Body -->
       <div class="email-body">
-        <h2>
-          Hi, {{ name }}
-        </h2>
+        <h2>Hi, {{ name ?? email ?? 'there' }}</h2>
         <p>
           Use the following OTP to verify your account. The OTP is valid for 2
           minutes.
         </p>
-        <div class="otp-code">
-          {{ otp }}
-        </div>
-        <p>
-          If you didn't request this, please ignore this email.
-        </p>
+        <div class="otp-code">{{ otp }}</div>
+        <p>If you didn't request this, please ignore this email.</p>
       </div>
 
-      <!-- Footer -->
       <div class="email-footer">
-        <p>
-          &copy; {{ currentYear }} CV. Gaya Beauty Utama, All Rights Reserved.
-        </p>
+        <p>&copy; {{ currentYear ?? 2025 }} CV. Gaya Beauty Utama, All Rights Reserved.</p>
       </div>
     </div>
   </body>
