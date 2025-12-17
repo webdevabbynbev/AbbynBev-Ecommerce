@@ -81,21 +81,11 @@ export default class AuthController {
   public async loginAdmin({ request, response }: HttpContext) {
     try {
       const { email, password } = request.only(['email', 'password'])
-      const user = await User.query()
-        .where('email', email)
-        .whereNull('deleted_at')
-        .first()
+      const user = await User.query().where('email', email).whereNull('deleted_at').first()
 
       if (!user) {
         return response.badRequest({
           message: 'Account not found or has been deactivated.',
-          serve: null,
-        })
-      }
-
-      if (!user) {
-        return response.status(400).send({
-          message: 'Invalid credentials.',
           serve: null,
         })
       }
@@ -135,6 +125,7 @@ export default class AuthController {
   public async login({ request, response }: HttpContext) {
     try {
       const { email_or_phone, password } = await request.validateUsing(login)
+
       const user = await User.query()
         .where((q) => {
           q.where('email', email_or_phone).orWhere('phone_number', email_or_phone)
@@ -162,6 +153,7 @@ export default class AuthController {
           serve: null,
         })
       }
+
       const isPasswordValid = await hash.verify(user.password, password)
       if (!isPasswordValid) {
         return response.badRequest({
@@ -169,8 +161,10 @@ export default class AuthController {
           serve: null,
         })
       }
+
       const otp = await this.generateUniqueOtp(user.email, OtpAction.LOGIN)
       const hashedOtp = await hash.make(otp)
+
       await Otp.updateOrCreate(
         { email: user.email, action: OtpAction.LOGIN },
         {
@@ -179,23 +173,13 @@ export default class AuthController {
           action: OtpAction.LOGIN,
         }
       )
-      if (email_or_phone.includes('@')) {
-        const from = env.get('DEFAULT_FROM_EMAIL')
-        if (!from) throw new Error('DEFAULT_FROM_EMAIL is not set in .env')
 
-        await mail.send((message) => {
-          message
-            .from(from)
-            .to(user.email)
-            .subject('[Abby n Bev] OTP Verification')
-            .htmlView('emails/otp', {
-              otp,
-              email: user.email,
-            })
-        })
+      if (email_or_phone.includes('@')) {
+        await this.sendOtpEmail(user.email, otp, user.firstName ?? undefined)
+
       } else {
         const wa = new WhatsAppService()
-        await wa.sendOTP(user.phoneNumber!, otp)
+        await wa.sendOTP(this.normalizeWaNumber(user.phoneNumber!), otp)
       }
 
       return response.ok({
@@ -214,6 +198,7 @@ export default class AuthController {
   public async verifyLoginOtp({ request, response }: HttpContext) {
     try {
       const { email_or_phone, otp } = await request.validateUsing(verifyLoginOtp)
+
       const user = await User.query()
         .where((q) => {
           q.where('email', email_or_phone).orWhere('phone_number', email_or_phone)
@@ -245,7 +230,7 @@ export default class AuthController {
       const otpExist = await Otp.query()
         .where('email', user.email)
         .where('action', OtpAction.LOGIN)
-        .where('expiredAt', '>', new Date())
+        .where('expired_at', '>', new Date())
         .first()
 
       if (!otpExist) {
@@ -262,6 +247,7 @@ export default class AuthController {
           serve: null,
         })
       }
+
       await otpExist.delete()
 
       const userData = user.serialize({
@@ -300,8 +286,14 @@ export default class AuthController {
 
   public async register({ request, response }: HttpContext) {
     try {
-      const { email, phone_number, first_name, last_name, gender, password } =
-        await request.validateUsing(register)
+      const { email, phone_number, first_name, last_name, gender, password: _password } =
+  await request.validateUsing(register)
+
+
+      // ✅ lebih aman: kalau value aneh → fallback email
+      const raw = String(request.input('send_via') || 'email').toLowerCase()
+      const sendVia: 'email' | 'whatsapp' = raw === 'whatsapp' ? 'whatsapp' : 'email'
+
       const otp = await this.generateUniqueOtp(email, OtpAction.REGISTER)
       const hashedOtp = await hash.make(otp)
 
@@ -314,13 +306,54 @@ export default class AuthController {
         }
       )
 
-      const wa = new WhatsAppService()
-      await wa.sendOTP(phone_number, otp)
+      if (sendVia === 'email') {
+        await this.sendOtpEmail(email, otp, first_name)
 
-      return response.status(200).send({
-        message: 'OTP sent via WhatsApp.',
-        serve: { email, phone_number, first_name, last_name, gender, password },
-      })
+        return response.status(200).send({
+          message: 'OTP sent via Email.',
+          serve: {
+            otp_sent_via: 'email',
+            email,
+            phone_number,
+            first_name,
+            last_name,
+            gender,
+          },
+        })
+      }
+
+      // sendVia === 'whatsapp'
+      try {
+        const wa = new WhatsAppService()
+        await wa.sendOTP(this.normalizeWaNumber(phone_number), otp)
+
+        return response.status(200).send({
+          message: 'OTP sent via WhatsApp.',
+          serve: {
+            otp_sent_via: 'whatsapp',
+            email,
+            phone_number,
+            first_name,
+            last_name,
+            gender,
+          },
+        })
+      } catch (e) {
+        // ✅ fallback: WA gagal → kirim email supaya register tetap bisa jalan
+        await this.sendOtpEmail(email, otp, first_name)
+
+        return response.status(200).send({
+          message: 'WhatsApp failed, OTP sent via Email.',
+          serve: {
+            otp_sent_via: 'email',
+            email,
+            phone_number,
+            first_name,
+            last_name,
+            gender,
+          },
+        })
+      }
     } catch (error) {
       console.error(error)
       return response.status(error.status || 500).send({
@@ -333,10 +366,11 @@ export default class AuthController {
   public async verifyRegisterOtp({ request, response }: HttpContext) {
     const { email, phone_number, first_name, last_name, otp, gender, password } =
       await request.validateUsing(verifyRegisterOtp)
+
     const otpExist = await Otp.query()
       .where('email', email)
       .where('action', OtpAction.REGISTER)
-      .where('expiredAt', '>', new Date())
+      .where('expired_at', '>', new Date())
       .first()
 
     if (!otpExist) {
@@ -380,6 +414,7 @@ export default class AuthController {
       isActive: 1,
       role: Role.GUEST,
     })
+
     try {
       await user.sendWelcomeLetter()
     } catch (e) {
@@ -411,11 +446,11 @@ export default class AuthController {
 
   public async logout({ auth, response }: HttpContext) {
     const user = auth.user
-    if (!user) {
-      return response.status(401).send('Unauthorized')
-    }
+    if (!user) return response.status(401).send('Unauthorized')
+
     const token = await user.currentAccessToken
     await User.accessTokens.delete(user, token.identifier)
+
     return response.status(200).send({
       message: 'Logged out successfully.',
       serve: true,
@@ -476,6 +511,7 @@ export default class AuthController {
             .where('email', params.email)
             .where('token', queryString.signature)
             .first()
+
           if (passwordReset) {
             response
               .redirect()
@@ -491,16 +527,12 @@ export default class AuthController {
         }
       } else {
         const queryString = request.qs()
-        const passwordReset = await PasswordReset.query()
-          .where('token', queryString.signature)
-          .first()
+        const passwordReset = await PasswordReset.query().where('token', queryString.signature).first()
         if (passwordReset) {
           await PasswordReset.query().where('token', queryString.signature).delete()
         }
         return response.status(403).send({
-          error: {
-            message: 'Invalid token',
-          },
+          error: { message: 'Invalid token' },
         })
       }
     } catch (error) {
@@ -532,6 +564,7 @@ export default class AuthController {
         .where('email', request.input('email'))
         .where('token', request.input('token'))
         .first()
+
       if (passwordReset) {
         await PasswordReset.query()
           .where('email', request.input('email'))
@@ -548,12 +581,13 @@ export default class AuthController {
       const dataUser = await User.query().where('email', request.input('email')).first()
 
       if (dataUser) {
+        dataUser.password = request.input('password')
         await dataUser.save()
 
         await trx.commit()
         return response.status(200).send({
           message: 'Sucessfully change password.',
-          serve: dataUser,
+          serve: true,
         })
       } else {
         await trx.commit()
@@ -612,13 +646,10 @@ export default class AuthController {
   public async updateProfilePicture({ request, response, auth }: HttpContext) {
     try {
       const payload = await request.validateUsing(updateProfilePicture)
-
       const user: User = auth?.user as User
 
-      let image = await uploadFile(payload.image, { folder: 'profile', type: 'image' })
-
+      const image = await uploadFile(payload.image, { folder: 'profile', type: 'image' })
       user.photoProfile = image
-
       await user.save()
 
       return response.status(200).send({
@@ -646,19 +677,14 @@ export default class AuthController {
   public async updateProfile({ request, response, auth }: HttpContext) {
     try {
       const payload = await request.validateUsing(updateProfile)
-
       const user: User = auth?.user as User
 
       if (payload.image) {
-        let image = await uploadFile(request.file('image'), { folder: 'profile', type: 'image' })
-
-        Object.assign(payload, {
-          photoProfile: image,
-        })
+        const image = await uploadFile(request.file('image'), { folder: 'profile', type: 'image' })
+        Object.assign(payload, { photoProfile: image })
       }
 
       user.merge(payload)
-
       await user.save()
 
       return response.status(200).send({
@@ -693,10 +719,12 @@ export default class AuthController {
 
     try {
       const { token } = await request.validateUsing(validator)
+
       const ticket = await googleClient.verifyIdToken({
         idToken: token,
-        audience: env.get('NEXT_PUBLIC_GOOGLE_CLIENT_ID'),
+        audience: env.get('GOOGLE_CLIENT_ID'),
       })
+
       const googlePayload = ticket.getPayload()
 
       const email = googlePayload?.email?.toLowerCase()
@@ -707,27 +735,25 @@ export default class AuthController {
         return response.badRequest({ message: 'Bad Request', serve: null })
       }
 
-      let firstName = name.split(' ')[0] || ''
-      let lastName = name.split(' ').slice(1).join(' ') || ''
+      const firstName = name.split(' ')[0] || ''
+      const lastName = name.split(' ').slice(1).join(' ') || ''
 
       let user = await User.findColumnWithSoftDelete('email', email)
 
       if (!user) {
         user = await User.create({
-          email: email,
-          firstName: firstName,
-          lastName: lastName,
-          googleId: googleId,
+          email,
+          firstName,
+          lastName,
+          googleId,
           isActive: 1,
           role: Role.GUEST,
-          password: 'randomPassword', 
+          password: 'randomPassword',
         })
       }
 
       if (user) {
-        if (!user.googleId) {
-          user.googleId = googleId
-        }
+        if (!user.googleId) user.googleId = googleId
         await user.save()
       }
 
@@ -775,18 +801,15 @@ export default class AuthController {
       const user = auth.user!
       const payload = await request.validateUsing(updatePasswordValidator)
 
-      console.log('Old password input:', payload.old_password)
-      console.log('Password in DB:', user.password)
-
-      const isOldPasswordValid = await hash
-        .use('scrypt')
-        .verify(user.password, payload.old_password)
+      const isOldPasswordValid = await hash.verify(user.password, payload.old_password)
       if (!isOldPasswordValid) {
         return response.badRequest({ message: 'Old password is incorrect' })
       }
+
       if (payload.new_password !== payload.confirm_password) {
         return response.badRequest({ message: 'New password and confirmation do not match' })
       }
+
       user.password = payload.new_password
       await user.save()
 
@@ -818,6 +841,7 @@ export default class AuthController {
           serve: null,
         })
       }
+
       await user.delete()
 
       const tokens = await User.accessTokens.all(user)
@@ -843,18 +867,45 @@ export default class AuthController {
     return token.value!.release()
   }
 
+  private async sendOtpEmail(toEmail: string, otp: string, name?: string) {
+    const from = env.get('DEFAULT_FROM_EMAIL')
+    if (!from) throw new Error('DEFAULT_FROM_EMAIL is not set in .env')
+
+    await mail.send((message) => {
+      message
+        .from(from)
+        .to(toEmail)
+        .subject('[Abby n Bev] OTP Verification')
+        .htmlView('emails/otp', {
+          otp,
+          email: toEmail,
+          name: name || null,
+        })
+    })
+  }
+
   private async generateUniqueOtp(email: string, action: OtpAction): Promise<string> {
     while (true) {
       const otp = generateOtp()
+
       const existingOtp = await Otp.query()
         .where('email', email)
         .where('action', action)
-        .where('code', otp)
         .where('expired_at', '>=', new Date())
         .first()
-      if (!existingOtp) {
-        return otp
-      }
+
+      if (!existingOtp) return otp
+
+      const same = await hash.verify(existingOtp.code, otp)
+      if (!same) return otp
     }
+  }
+
+  private normalizeWaNumber(input: string) {
+    let n = (input || '').replace(/\s+/g, '').replace(/-/g, '')
+    if (n.startsWith('+')) n = n.slice(1)
+    if (n.startsWith('0')) n = '62' + n.slice(1)
+    if (n.startsWith('8')) n = '62' + n
+    return n
   }
 }
