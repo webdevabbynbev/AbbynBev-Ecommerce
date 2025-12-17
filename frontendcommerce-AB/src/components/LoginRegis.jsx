@@ -75,30 +75,34 @@ export function LoginRegisModalForm() {
     }
   };
 
-  const handleOtpRegis = async () => {
-    setLoading(true);
-    try {
-      const data = await OtpRegis(
-        email,
-        phone_number,
-        first_name,
-        last_name,
-        gender,
-        password,
-        otp
-      );
-      if (data.success) {
-        setMessage("Register berhasil!");
-        router.push("/dashboard"); // ✅ call, not assignment
-      } else {
-        setMessage("OTP salah, coba lagi.");
-      }
-    } catch (err) {
-      setMessage(err.message);
-    } finally {
-      setLoading(false); // ✅ add finally
-    }
-  };
+ const handleOtpRegis = async () => {
+  setLoading(true);
+  try {
+    const data = await OtpRegis(email, phone_number, first_name, last_name, gender, password, otp);
+
+ if (data.success) {
+     setMessage("Register berhasil!");     router.push("/dashboard");
+   } else {
+     setMessage("OTP salah, coba lagi.");
+   }
+
+   const token = data?.serve?.token;
+   const user = data?.serve?.data;
+   if (token && user) {
+     login({ user, token });
+     setMessage("Register berhasil!");
+     router.push("/account/profile");
+   } else {
+     setMessage(data?.message || "Register gagal.");
+   }
+
+  } catch (err) {
+    setMessage(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleSuccess = async (credentialResponse) => {
   try {

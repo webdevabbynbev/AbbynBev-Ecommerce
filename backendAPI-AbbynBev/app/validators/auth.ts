@@ -33,6 +33,9 @@ export const register = vine.compile(
       .minLength(8)
       .maxLength(16)
       .regex(/(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*\W)/),
+
+         // ✅ baru
+    send_via: vine.enum(['email', 'whatsapp']).optional(),
   })
 )
 
@@ -138,3 +141,5 @@ export const deactivateAccountValidator = vine.compile(
     confirm: vine.boolean(),
   })
 )
+
+

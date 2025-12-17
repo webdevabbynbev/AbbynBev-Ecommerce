@@ -6,10 +6,10 @@ export async function updateProfile(payload) {
     const res = await api.put("/profile", payload, {
       headers: {
         Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json", // kirim JSON
+        "Content-Type": "application/json",
       },
     });
-    return res.data; // kemungkinan { message, serve: true }
+    return res.data;
   } catch (err) {
     const msg = err?.response?.data?.message || "Failed to update profile";
     throw new Error(msg);
@@ -20,8 +20,9 @@ export async function getUser() {
   const token = localStorage.getItem("token");
   const res = await api.get("/profile", {
     headers: { Authorization: `Bearer ${token}` },
-    withCredentials: true, // kalau perlu
+    withCredentials: true,
   });
+
   const payload = res.data;
   const user =
     payload?.user ??
@@ -29,6 +30,7 @@ export async function getUser() {
     payload?.data?.user ??
     payload?.data?.serve ??
     null;
+
   return { user };
 }
 
@@ -37,6 +39,39 @@ export async function getAddressByQuery(userId) {
   return res.data?.serve ?? [];
 }
 
+/**
+ * ✅ REGISTER STEP 1: kirim OTP
+ * endpoint: POST /auth/register
+ */
+export async function regis(
+  email,
+  phone_number,
+  first_name,
+  last_name,
+  gender,
+  password,
+  send_via = "email"
+) {
+  try {
+    const res = await api.post("/auth/register", {
+      email,
+      phone_number,
+      first_name,
+      last_name,
+      gender: Number(gender),
+      password, // tetap dikirim supaya validator lolos
+      send_via,
+    });
+    return res.data;
+  } catch (err) {
+    throw new Error(err.response?.data?.message || "Register gagal");
+  }
+}
+
+/**
+ * ✅ REGISTER STEP 2: verify OTP + create user + auto login (token)
+ * endpoint: POST /auth/verify-register
+ */
 export async function OtpRegis(
   email,
   phone_number,
@@ -47,101 +82,91 @@ export async function OtpRegis(
   otp
 ) {
   try {
-    const res = await api.post("/auth/register", {
+    const res = await api.post("/auth/verify-register", {
       email,
       phone_number,
       first_name,
       last_name,
       gender: Number(gender),
       password,
-      otp,
+      otp: String(otp),
     });
-    return res.data; // {message, serve: true/false}
+
+    if (res.data?.serve?.token) {
+      localStorage.setItem("token", res.data.serve.token);
+    }
+
+    return res.data;
   } catch (err) {
     throw new Error(err.response?.data?.message || "OTP Salah");
   }
 }
 
-export async function regis(
-  email,
-  phone_number,
-  first_name,
-  last_name,
-  gender,
-  password
-) {
+/**
+ * ✅ LOGIN TANPA OTP
+ * endpoint: POST /auth/login
+ */
+export async function loginUser(email_or_phone, password, remember_me = false) {
   try {
-    const res = await api.post("/auth/register", {
-      email,
-      phone_number,
-      first_name,
-      last_name,
-      gender: Number(gender),
+    const res = await api.post("/auth/login", {
+      email_or_phone,
       password,
+      remember_me,
     });
-    return res.data; // {message, serve: true/false}
-  } catch (err) {
-    throw new Error(err.response?.data?.message || "Register gagal");
-  }
-}
 
-export async function verifyOtp(email_or_phone, otp) {
-  try {
-    const res = await api.post("/auth/verify-login", { email_or_phone, otp });
-    return res.data; // {success: true/false}
-  } catch (err) {
-    throw new Error(err.response?.data?.message || "Verifikasi OTP gagal");
-  }
-}
-
-export async function loginUser(email_or_phone, password) {
-  try {
-    const res = await api.post("/auth/login", { email_or_phone, password });
-    console.log("DEBUG LOGIN RESPONSE:", res.data);
     const data = res.data;
 
-    // cek apakah ada token di response
-    if (data.serve?.token) {
+    if (data?.serve?.token) {
       localStorage.setItem("token", data.serve.token);
     }
 
     return data;
   } catch (err) {
-    console.error("DEBUG LOGIN ERROR:", err.response?.data);
     throw new Error(err.response?.data?.message || "Login gagal");
   }
 }
 
-export async function LoginGoogle(token) {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/auth/login-google`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include", // kalau server set HTTP-only cookie
-      body: JSON.stringify({ token }), // ← field yang diharapkan backend
+/**
+ * (Optional) kalau masih ada fitur OTP login, ini bisa dipakai.
+ * Kalau kamu gak mau OTP login sama sekali, function ini boleh dihapus.
+ */
+export async function verifyOtp(email_or_phone, otp) {
+  try {
+    const res = await api.post("/auth/verify-login", {
+      email_or_phone,
+      otp: String(otp),
+    });
+
+    if (res.data?.serve?.token) {
+      localStorage.setItem("token", res.data.serve.token);
     }
-  );
+
+    return res.data;
+  } catch (err) {
+    throw new Error(err.response?.data?.message || "Verifikasi OTP gagal");
+  }
+}
+
+export async function LoginGoogle(token) {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login-google`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ token }),
+  });
 
   let payload;
   try {
-    payload = await res.json(); // coba parse JSON langsung
+    payload = await res.json();
   } catch {
     payload = null;
   }
 
   if (!res.ok) {
-    throw new Error(
-      payload?.message || `LoginGoogle gagal (HTTP ${res.status})`
-    );
+    throw new Error(payload?.message || `LoginGoogle gagal (HTTP ${res.status})`);
   }
 
-  if (payload.serve?.token) {
-    console.log(
-      "Google token:",
-      payload.serve.token,
-      typeof payload.serve.token
-    );
+  if (payload?.serve?.token) {
     localStorage.setItem("token", payload.serve.token);
   }
 
