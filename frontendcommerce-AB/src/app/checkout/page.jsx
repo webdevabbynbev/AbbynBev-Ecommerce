@@ -7,7 +7,7 @@ import Image from "next/image";
 
 const STORAGE_KEY = "checkout_selected_ids";
 
-const unwrap = (res) => res?.data?.data ?? res?.data?.serve ?? res?.data ?? null;
+const unwrap = (res) => res?.data?.data ?? res?.data ?? null;
 const n = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 
 export default function CheckoutPage() {
@@ -43,7 +43,7 @@ export default function CheckoutPage() {
     province: "",
     city: "",
     district: "",
-    subdistrict: "",
+    sub_district: "", // ✅ pakai snake_case sesuai DB
     postal_code: "",
     is_active: 2,
   });
@@ -89,7 +89,7 @@ export default function CheckoutPage() {
 
       const getIsActive = (a) => n(a?.is_active ?? a?.isActive ?? 0, 0);
 
-      let pick =
+      const pick =
         (preferSelectId ? arr.find((x) => x?.id === preferSelectId) : null) ||
         arr.find((x) => getIsActive(x) === 2) ||
         arr[0] ||
@@ -135,14 +135,24 @@ export default function CheckoutPage() {
     return addresses.find((a) => a?.id === selectedAddressId) || null;
   }, [addresses, selectedAddressId]);
 
+  // ✅ FIX: berat jangan 1 gram. fallback 200g/item kalau weight kosong.
+  // Kalau weight di DB ternyata kg (<1), konversi ke gram.
   const weightGrams = useMemo(() => {
-    // weight produk kamu ada di item.product.weight (lihat model Product)
     const w = checkoutItems.reduce((sum, item) => {
       const qty = n(item?.qtyCheckout ?? item?.qty ?? item?.quantity ?? 1, 1);
       const pw = n(item?.product?.weight ?? 0, 0);
-      return sum + qty * (pw > 0 ? pw : 1);
+
+      // heuristik:
+      // - pw <= 0 => fallback 200g
+      // - 0 < pw < 1 => anggap kg, konversi ke gram
+      // - pw >= 1 => anggap gram
+      const grams =
+        pw <= 0 ? 200 : pw > 0 && pw < 1 ? Math.round(pw * 1000) : Math.round(pw);
+
+      return sum + qty * grams;
     }, 0);
-    return Math.max(1, w);
+
+    return Math.max(1, Math.round(w));
   }, [checkoutItems]);
 
   const total = subtotal + (selectedShipping?.price || 0);
@@ -188,16 +198,14 @@ export default function CheckoutPage() {
     }
   };
 
-  // ===== Select main address (optional: sekalian set main di backend) =====
+  // ===== Select main address =====
   const setMainAddress = async (id) => {
     setSelectedAddressId(id);
     try {
       await axios.put("/addresses", { id, is_active: 2 });
-      // refresh biar konsisten
       await loadAddresses(id);
     } catch (err) {
       console.error("Failed set main address:", err?.response?.data || err);
-      // kalau gagal, tetap biarkan user memilih lokal dulu
     }
   };
 
@@ -209,9 +217,12 @@ export default function CheckoutPage() {
       return;
     }
 
-    // destination idealnya subdistrict id (yang kamu simpan di user_addresses.sub_district)
+    // ✅ destination harus sub_district (id kelurahan) biar ongkir akurat
     const destination = n(
-      selectedAddress?.sub_district ?? selectedAddress?.subDistrict ?? selectedAddress?.district ?? 0,
+      selectedAddress?.sub_district ??
+        selectedAddress?.subDistrict ??
+        selectedAddress?.subdistrict ??
+        0,
       0
     );
 
@@ -222,28 +233,28 @@ export default function CheckoutPage() {
     }
 
     setLoadingShip(true);
-    setSelectedShipping(null);
 
     try {
-      const couriers = ["jne", "jnt", "tiki"]; // kamu bisa tambah "pos", dll kalau Komerce support
+      const couriers = ["jne", "jnt", "tiki"];
       const all = [];
 
-      for (const c of couriers) {
-        try {
-          const res = await axios.post("/get-cost", {
-            destination,
-            weight: weightGrams,
-            courier: c,
-            price: "lowest",
-          });
-          const payload = unwrap(res);
-          const arr = Array.isArray(payload) ? payload : [];
-          arr.forEach((x) => all.push(x));
-        } catch (e) {
-          // ignore courier yang gagal, tetap lanjut
-          console.warn("Courier failed:", c, e?.response?.data || e?.message || e);
-        }
-      }
+      await Promise.all(
+        couriers.map(async (c) => {
+          try {
+            const res = await axios.post("/get-cost", {
+              destination,
+              weight: weightGrams,
+              courier: c,
+              price: "lowest",
+            });
+            const payload = unwrap(res);
+            const arr = Array.isArray(payload) ? payload : [];
+            arr.forEach((x) => all.push(x));
+          } catch (e) {
+            console.warn("Courier failed:", c, e?.response?.data || e?.message || e);
+          }
+        })
+      );
 
       const normalized = all
         .map((x) => {
@@ -253,29 +264,56 @@ export default function CheckoutPage() {
               ? costRaw
               : n(costRaw?.value ?? costRaw?.amount ?? 0, 0);
 
-          const name = x?.name || x?.code?.toUpperCase() || "Courier";
-          const service = x?.service ? ` - ${x.service}` : "";
+          const courierName = x?.name || x?.code?.toUpperCase() || "Courier";
+          const service = (x?.service || "REG").toString().toUpperCase();
           const etd = x?.etd ? String(x.etd) : "";
 
           return {
-            id: `${x?.code || name}-${x?.service || "REG"}-${price}`,
-            courier: x?.code || "",
-            name: `${name}${service}`,
+            id: `${(x?.code || courierName)}-${service}-${price}`,
+            courier: (x?.code || "").toLowerCase(),
+            service,
+            name: `${courierName} - ${service}`,
             price,
-            estimate: etd ? `ETD ${etd}` : "-",
+            estimate: etd ? `ETD ${etd} day` : "-",
             raw: x,
           };
         })
-        .filter((m) => m.price > 0);
+        .filter((m) => m.price > 0)
+        // ✅ FIX: buang cargo/JTR/tier aneh (yang bikin jutaan + list rame)
+        .filter((m) => {
+          const s = m.service || "";
+          const isCargo =
+            /JTR|TRUCK|CARGO|KARGO/i.test(s) ||
+            /[<>]/.test(s) ||
+            /\d/.test(s); // biasanya tier: JTR<130, JTR>200, dll
+          return !isCargo;
+        })
+        // ✅ dedup by courier+service (ambil harga paling murah)
+        .reduce((acc, cur) => {
+          const key = `${cur.courier}-${cur.service}`;
+          const existIdx = acc.findIndex((x) => `${x.courier}-${x.service}` === key);
+          if (existIdx === -1) acc.push(cur);
+          else if (cur.price < acc[existIdx].price) acc[existIdx] = cur;
+          return acc;
+        }, [])
+        // ✅ sort termurah
+        .sort((a, b) => a.price - b.price);
 
       setShippingMethods(normalized);
+
+      // ✅ auto pilih termurah kalau belum ada pilihan / pilihan lama hilang
+      setSelectedShipping((prev) => {
+        if (!normalized.length) return null;
+        if (!prev) return normalized[0];
+        const still = normalized.find((x) => x.id === prev.id);
+        return still || normalized[0];
+      });
     } finally {
       setLoadingShip(false);
     }
   };
 
   useEffect(() => {
-    // refetch ongkir setiap alamat berubah / item berubah
     fetchShipping();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAddressId, weightGrams]);
@@ -307,17 +345,19 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (!openAdd) return;
+
     loadProvinces();
-    // reset dropdown saat buka modal
+
     setCities([]);
     setDistricts([]);
     setSubDistricts([]);
+
     setForm((f) => ({
       ...f,
       province: "",
       city: "",
       district: "",
-      subdistrict: "",
+      sub_district: "",
       postal_code: "",
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -326,11 +366,10 @@ export default function CheckoutPage() {
   const submitNewAddress = async () => {
     if (savingAddress) return;
 
-    // validasi minimal
     if (!form.pic_name.trim()) return alert("Nama penerima wajib diisi");
     if (!form.pic_phone.trim()) return alert("No HP wajib diisi");
     if (!form.address.trim()) return alert("Alamat jalan wajib diisi");
-    if (!form.province || !form.city || !form.district || !form.subdistrict)
+    if (!form.province || !form.city || !form.district || !form.sub_district)
       return alert("Provinsi/Kota/Kecamatan/Kelurahan wajib dipilih");
 
     setSavingAddress(true);
@@ -340,12 +379,13 @@ export default function CheckoutPage() {
         province: n(form.province),
         city: n(form.city),
         district: n(form.district),
-        subdistrict: n(form.subdistrict),
+        sub_district: n(form.sub_district), // ✅ FIX
+        postal_code: String(form.postal_code || ""), // ✅ FIX
         pic_name: form.pic_name,
         pic_phone: form.pic_phone,
         pic_label: form.pic_label,
         benchmark: form.benchmark,
-        is_active: 2, // bikin jadi alamat utama biar langsung kepilih di checkout
+        is_active: 2,
       });
 
       const created = unwrap(res);
@@ -363,13 +403,23 @@ export default function CheckoutPage() {
 
   const showAddressLine = (a) => {
     if (!a) return "-";
+
     const label = a.pic_label ?? a.picLabel ?? "";
     const addr = a.address ?? "";
     const postal = a.postal_code ?? a.postalCode ?? "";
-    // kalau city/province masih angka, minimal tetap tampil address + postal
-    const city = a.city ?? "";
-    const prov = a.province ?? "";
-    return `${label ? label + " — " : ""}${addr}${postal ? ", " + postal : ""} (city:${city}, prov:${prov})`;
+
+    // ✅ coba ambil nama kalau backend join table
+    const cityName = a.city_name ?? a.cityName ?? (typeof a.city === "string" ? a.city : "");
+    const provName =
+      a.province_name ?? a.provinceName ?? (typeof a.province === "string" ? a.province : "");
+
+    const place =
+      [cityName, provName].filter(Boolean).join(", ") ||
+      `city:${a.city ?? "-"}, prov:${a.province ?? "-"}`;
+
+    return `${label ? label + " — " : ""}${addr}${place ? ", " + place : ""}${
+      postal ? ", " + postal : ""
+    }`;
   };
 
   const handlePayNow = async () => {
@@ -415,9 +465,14 @@ export default function CheckoutPage() {
                 key={item.id ?? `tmp-${idx}`}
                 className="flex justify-between items-center border-b pb-4 mb-4"
               >
-                {/* left */}
                 <div className="flex gap-3 items-center">
-                  <Image src={image} width={60} height={60} alt={productName} className="rounded-md" />
+                  <Image
+                    src={image}
+                    width={60}
+                    height={60}
+                    alt={productName}
+                    className="rounded-md"
+                  />
                   <div>
                     <p className="font-medium">{productName}</p>
                     <p className="text-sm text-gray-500">Variant: {variantName}</p>
@@ -454,10 +509,8 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                {/* right */}
                 <p className="font-semibold text-pink-600 text-right">
-                  Rp{" "}
-                  {n(item.amount ?? item.price ?? product.price ?? 0, 0).toLocaleString("id-ID")}
+                  Rp {n(item.amount ?? item.price ?? product.price ?? 0, 0).toLocaleString("id-ID")}
                 </p>
               </div>
             );
@@ -499,9 +552,10 @@ export default function CheckoutPage() {
                   {addresses.map((a) => {
                     const label = a?.pic_label ?? a?.picLabel ?? "Address";
                     const line = a?.address ?? "";
+                    const cityName = a?.city_name ?? a?.cityName ?? "";
                     return (
                       <option key={a.id} value={a.id}>
-                        [{label}] {line}
+                        [{label}] {line} {cityName ? `- ${cityName}` : ""}
                       </option>
                     );
                   })}
@@ -511,7 +565,7 @@ export default function CheckoutPage() {
           )}
         </div>
 
-        {/* SHIPPING (FROM RAJAONGKIR) */}
+        {/* SHIPPING */}
         <div className="bg-white border rounded-xl p-6 shadow-sm">
           <h2 className="text-xl font-semibold mb-4">Shipping method</h2>
 
@@ -524,7 +578,9 @@ export default function CheckoutPage() {
           )}
 
           {selectedAddress && !loadingShip && shippingMethods.length === 0 && (
-            <p className="text-gray-400 italic">Ongkir belum tersedia (cek destination/weight).</p>
+            <p className="text-gray-400 italic">
+              Ongkir belum tersedia (cek sub_district & weight).
+            </p>
           )}
 
           <div className="space-y-3">
@@ -533,7 +589,9 @@ export default function CheckoutPage() {
                 key={m.id}
                 onClick={() => setSelectedShipping(m)}
                 className={`p-4 rounded-xl border cursor-pointer transition ${
-                  selectedShipping?.id === m.id ? "border-pink-600 bg-pink-50" : "hover:border-gray-400"
+                  selectedShipping?.id === m.id
+                    ? "border-pink-600 bg-pink-50"
+                    : "hover:border-gray-400"
                 }`}
               >
                 <div className="flex justify-between">
@@ -589,7 +647,9 @@ export default function CheckoutPage() {
 
           <div className="flex justify-between">
             <span>Shipment:</span>
-            <span>{selectedShipping ? `Rp ${selectedShipping.price.toLocaleString("id-ID")}` : "-"}</span>
+            <span>
+              {selectedShipping ? `Rp ${selectedShipping.price.toLocaleString("id-ID")}` : "-"}
+            </span>
           </div>
 
           <div className="flex justify-between font-semibold text-lg">
@@ -612,7 +672,10 @@ export default function CheckoutPage() {
           <div className="w-full max-w-lg bg-white rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Add new address</h3>
-              <button onClick={() => setOpenAdd(false)} className="text-gray-500 hover:text-black">
+              <button
+                onClick={() => setOpenAdd(false)}
+                className="text-gray-500 hover:text-black"
+              >
                 ✕
               </button>
             </div>
@@ -666,7 +729,7 @@ export default function CheckoutPage() {
                     province: v,
                     city: "",
                     district: "",
-                    subdistrict: "",
+                    sub_district: "",
                     postal_code: "",
                   }));
                   setCities([]);
@@ -692,7 +755,7 @@ export default function CheckoutPage() {
                     ...f,
                     city: v,
                     district: "",
-                    subdistrict: "",
+                    sub_district: "",
                     postal_code: "",
                   }));
                   setDistricts([]);
@@ -717,7 +780,7 @@ export default function CheckoutPage() {
                   setForm((f) => ({
                     ...f,
                     district: v,
-                    subdistrict: "",
+                    sub_district: "",
                     postal_code: "",
                   }));
                   setSubDistricts([]);
@@ -735,13 +798,13 @@ export default function CheckoutPage() {
 
               <select
                 className="border rounded-lg px-3 py-2"
-                value={form.subdistrict}
+                value={form.sub_district}
                 onChange={(e) => {
                   const v = e.target.value;
                   const sd = subDistricts.find((x) => String(x.id) === String(v));
                   setForm((f) => ({
                     ...f,
-                    subdistrict: v,
+                    sub_district: v,
                     postal_code: sd?.zip_code ?? "",
                   }));
                 }}
