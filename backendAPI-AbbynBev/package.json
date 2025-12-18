@@ -63,7 +63,7 @@
     "@types/lodash": "^4.17.20",
     "@vinejs/vine": "^3.0.1",
     "adonis-captcha-guard": "^1.0.1",
-    "axios": "^1.11.0",
+    "axios": "^1.13.2",
     "edge.js": "^6.3.0",
     "exceljs": "^4.4.0",
     "google-auth-library": "^10.2.1",
