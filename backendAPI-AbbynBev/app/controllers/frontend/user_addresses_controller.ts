@@ -304,7 +304,7 @@ export default class UserAddressesController {
         price,
       })
 
-      const { data } = await axios.post(`${BASE_URL}/calculate/district/domestic-cost`, body, {
+      const { data } = await axios.post(`${BASE_URL}/calculate/domestic-cost`, body, {
         headers: {
           'key': API_KEY,
           'Content-Type': 'application/x-www-form-urlencoded',
