@@ -12,29 +12,49 @@ import UserAddress from '#models/user_address'
 import axios from 'axios'
 import env from '#start/env'
 import { TransactionStatus } from '../../enums/transaction_status.js'
-import _ from 'lodash'
 import qs from 'qs'
 import PickupService from '#services/pickup_service'
+import { createHash } from 'node:crypto'
+
+function toNumber(v: any, fallback = 0) {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : fallback
+}
+
+function toSortDir(v: any): 'asc' | 'desc' {
+  const s = String(v || '').toLowerCase()
+  return s === 'asc' ? 'asc' : 'desc'
+}
 
 export default class TransactionEcommerceController {
   public async get({ response, request, auth }: HttpContext) {
     try {
-      const queryString = request.qs()
-      const sortBy = queryString.field || 'created_at'
-      const sortType = queryString.value || 'DESC'
-      const transactionNumber = queryString.transaction_number ?? ''
-      const status = queryString.status ?? ''
-      const startDate = queryString.start_date ?? ''
-      const endDate = queryString.end_date ?? ''
-      const page = isNaN(parseInt(queryString.page)) ? 1 : parseInt(queryString.page)
-      const per_page = isNaN(parseInt(queryString.per_page)) ? 10 : parseInt(queryString.per_page)
+      const q = request.qs()
+      const page = toNumber(q.page, 1) || 1
+      const perPage = toNumber(q.per_page, 10) || 10
+
+      // whitelist kolom biar aman
+      const allowedSort = new Set([
+        'created_at',
+        'updated_at',
+        'id',
+        'shipping_cost',
+        'user_address_id',
+      ])
+      const sortBy = allowedSort.has(String(q.field)) ? String(q.field) : 'created_at'
+      const sortDir = toSortDir(q.value)
+
+      const transactionNumber = q.transaction_number ?? ''
+      const status = q.status ?? ''
+      const startDate = q.start_date ?? ''
+      const endDate = q.end_date ?? ''
 
       const dataTransaction = await TransactionEcommerce.query()
         .whereHas('transaction', (trxQuery) => {
           trxQuery.where('user_id', auth.user?.id ?? 0)
 
           if (transactionNumber) trxQuery.where('transaction_number', transactionNumber)
-          if (status) trxQuery.where('status', status)
+          if (status) trxQuery.where('transaction_status', status) // ✅ FIX (bukan "status")
           if (startDate) trxQuery.where('created_at', '>=', startDate)
           if (endDate) trxQuery.where('created_at', '<=', endDate)
         })
@@ -46,17 +66,17 @@ export default class TransactionEcommerceController {
           })
         })
         .preload('shipments')
-        .orderBy(sortBy, sortType)
-        .paginate(page, per_page)
+        .orderBy(sortBy, sortDir)
+        .paginate(page, perPage)
 
       return response.status(200).send({
         message: 'success',
         serve: {
-          data: dataTransaction?.toJSON().data,
+          data: dataTransaction.toJSON().data,
           ...dataTransaction.toJSON().meta,
         },
       })
-    } catch (error) {
+    } catch (error: any) {
       console.log(error)
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
@@ -67,16 +87,52 @@ export default class TransactionEcommerceController {
 
   public async create({ response, request, auth }: HttpContext) {
     const trx = await db.transaction()
-    try {
-      const cartIds = request.input('cart_ids') || []
-      const shippingPrice = request.input('shipping_price') || '0'
-      const voucher = request.input('voucher')
-      const isProtected = request.input('is_protected') ? 1 : 0
-      const protectionFee = request.input('protection_fee') || '0'
 
-      const carts = await TransactionCart.query()
+    try {
+      const user = auth.user
+      if (!user) {
+        await trx.rollback()
+        return response.status(401).send({ message: 'Unauthorized', serve: null })
+      }
+
+      // ========= payload =========
+      const rawCartIds = request.input('cart_ids') ?? []
+      const cartIds: number[] = Array.isArray(rawCartIds)
+        ? rawCartIds.map((x) => toNumber(x)).filter((x) => x > 0)
+        : []
+
+      const voucher = request.input('voucher') // bisa null / object
+      const userAddressId = toNumber(request.input('user_address_id'), 0)
+
+      const courierName = String(request.input('shipping_service_type') || '')
+      const courierService = String(request.input('shipping_service') || '')
+
+      const shippingPrice = toNumber(request.input('shipping_price'), 0) // ✅ number
+      const isProtected = !!request.input('is_protected')
+      const protectionFee = toNumber(request.input('protection_fee'), 0) // ✅ number
+
+      if (!cartIds.length) {
+        await trx.rollback()
+        return response.status(400).send({ message: 'cart_ids wajib diisi', serve: null })
+      }
+
+      if (!userAddressId) {
+        await trx.rollback()
+        return response.status(400).send({ message: 'user_address_id wajib diisi', serve: null })
+      }
+
+      if (!courierName || !courierService) {
+        await trx.rollback()
+        return response.status(400).send({
+          message: 'shipping_service_type & shipping_service wajib diisi',
+          serve: null,
+        })
+      }
+
+      // ========= carts =========
+      const carts = await TransactionCart.query({ client: trx })
         .whereIn('id', cartIds)
-        .where('user_id', auth.user?.id ?? 0)
+        .where('user_id', user.id)
         .preload('product')
         .preload('variant')
 
@@ -90,127 +146,135 @@ export default class TransactionEcommerceController {
 
       const subTotal = carts.reduce((acc, cart) => {
         const qty = cart.qtyCheckout > 0 ? cart.qtyCheckout : cart.qty
-        return acc + (Number(cart.price) - Number(cart.discount || 0)) * qty
+        return acc + (toNumber(cart.price) - toNumber(cart.discount)) * qty
       }, 0)
 
-      const discount = this.calculateVoucher(voucher, subTotal.toString(), shippingPrice)
-      const amount =
-        this.generateGrandTotal(voucher, subTotal.toString(), shippingPrice) +
-        (isProtected ? parseInt(protectionFee || '0') : 0)
+      const discount = this.calculateVoucher(voucher, subTotal, shippingPrice)
+      const grandTotal = this.generateGrandTotal(voucher, subTotal, shippingPrice) + (isProtected ? protectionFee : 0)
+
+      // ========= transaction =========
       const transaction = new Transaction()
-      transaction.amount = amount
-      transaction.discount = discount
-      transaction.discountType = voucher?.type ?? 0
+      transaction.userId = user.id // ✅ FIX (bukan transaction.id)
+      transaction.amount = grandTotal // biar kompatibel sama midtrans
       transaction.subTotal = subTotal
-      transaction.id = auth.user?.id ?? 0
+      transaction.grandTotal = grandTotal
+      transaction.discount = discount
+      transaction.discountType = toNumber(voucher?.type, 0)
       transaction.transactionNumber = this.generateTransactionNumber()
+      transaction.transactionStatus = TransactionStatus.WAITING_PAYMENT.toString()
       transaction.channel = 'ecommerce'
       await transaction.useTransaction(trx).save()
 
+      // ========= MIDTRANS SNAP =========
       const parameter = {
         transaction_details: {
           order_id: transaction.transactionNumber,
-          gross_amount: transaction.amount,
+          gross_amount: transaction.grandTotal,
         },
         customer_details: {
-          first_name: auth.user?.name,
-          last_name: auth.user?.name,
-          email: auth.user?.email,
+          first_name: user.firstName || user.email,
+          last_name: user.lastName || '',
+          email: user.email,
+          phone: user.phoneNumber || '',
         },
       }
 
       const serverKey = env.get('MIDTRANS_SERVER_KEY')
       const authString = Buffer.from(serverKey + ':').toString('base64')
 
-      const { data } = await axios.post(
+      const snapUrl =
         env.get('MIDTRANS_ENV') === 'production'
           ? 'https://app.midtrans.com/snap/v1/transactions'
-          : 'https://app.sandbox.midtrans.com/snap/v1/transactions',
-        parameter,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': `Basic ${authString}`,
-          },
-        }
-      )
+          : 'https://app.sandbox.midtrans.com/snap/v1/transactions'
 
+      const { data: snap } = await axios.post(snapUrl, parameter, {
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: `Basic ${authString}`,
+        },
+      })
+
+      // ========= ecommerce record =========
       const transactionEcommerce = new TransactionEcommerce()
       transactionEcommerce.transactionId = transaction.id
       transactionEcommerce.voucherId = voucher?.id ?? null
-      transactionEcommerce.tokenMidtrans = data.token
-      transactionEcommerce.redirectUrl = data.redirect_url
-      transactionEcommerce.id = auth.user?.id ?? 0
-      transactionEcommerce.shippingCost = shippingPrice
-      transactionEcommerce.userAddressId = request.input('user_address_id')
-      transactionEcommerce.courierName = request.input('shipping_service_type')
-      transactionEcommerce.courierService = request.input('shipping_service')
+      transactionEcommerce.tokenMidtrans = snap.token
+      transactionEcommerce.redirectUrl = snap.redirect_url
+      transactionEcommerce.userId = user.id // ✅ FIX (bukan id)
+      transactionEcommerce.shippingCost = shippingPrice // ✅ number
+      transactionEcommerce.userAddressId = userAddressId
+      transactionEcommerce.courierName = courierName
+      transactionEcommerce.courierService = courierService
       await transactionEcommerce.useTransaction(trx).save()
 
-      if (voucher) {
-        const voucherDb = await Voucher.query().where('id', voucher.id).first()
+      // ========= voucher reduce (opsional) =========
+      // NOTE: idealnya voucher dipotong saat settlement, tapi untuk sekarang kita ikutin pola kamu dulu
+      if (voucher?.id) {
+        const voucherDb = await Voucher.query({ client: trx }).where('id', voucher.id).first()
         if (voucherDb) {
-          voucherDb.qty = voucherDb.qty - 1
+          voucherDb.qty = Math.max(0, toNumber(voucherDb.qty) - 1)
           await voucherDb.useTransaction(trx).save()
         }
       }
 
+      // ========= stock reduce + details + delete cart =========
       for (const cart of carts) {
         const qty = cart.qtyCheckout > 0 ? cart.qtyCheckout : cart.qty
         if (!cart.productVariantId) continue
-        const productVariant = await ProductVariant.query()
+
+        // lock row biar aman race condition
+        const productVariant = await ProductVariant.query({ client: trx })
           .preload('product')
           .where('id', cart.productVariantId)
+          .forUpdate()
           .first()
 
-        if (productVariant && productVariant.stock < qty) {
+        if (!productVariant) {
+          await trx.rollback()
+          return response.status(400).send({ message: 'Variant not found', serve: [] })
+        }
+
+        if (productVariant.stock < qty) {
           await trx.rollback()
           return response.status(400).send({
-            message: `Stock not enough for ${productVariant.product.name}`,
+            message: `Stock not enough for ${productVariant.product?.name || 'product'}`,
             serve: [],
           })
         }
 
-        if (productVariant) {
-          productVariant.stock = productVariant.stock - qty
-          await productVariant.useTransaction(trx).save()
-        }
-
-        await cart.useTransaction(trx).delete()
+        productVariant.stock = productVariant.stock - qty
+        await productVariant.useTransaction(trx).save()
 
         const transactionDetail = new TransactionDetail()
         transactionDetail.qty = qty
-        transactionDetail.price = cart.price
-        transactionDetail.amount = (
-          (Number(cart.price) - Number(cart.discount || 0)) *
-          qty
-        ).toString()
-        transactionDetail.discount = cart.discount
+        transactionDetail.price = toNumber(cart.price)
+        transactionDetail.amount = ((toNumber(cart.price) - toNumber(cart.discount)) * qty).toString()
+        transactionDetail.discount = toNumber(cart.discount)
         transactionDetail.attributes = cart.attributes ?? ''
         transactionDetail.transactionId = transaction.id
         transactionDetail.productId = cart.productId ?? 0
         transactionDetail.productVariantId = cart.productVariantId
         await transactionDetail.useTransaction(trx).save()
 
-        if (cart.productId !== null && cart.productId !== undefined) {
-          const product = await Product.query().where('id', cart.productId).first()
+        // popularity
+        if (cart.productId) {
+          const product = await Product.query({ client: trx }).where('id', cart.productId).first()
           if (product) {
-            product.popularity = Number(product.popularity || 0) + 1
+            product.popularity = toNumber(product.popularity) + 1
             await product.useTransaction(trx).save()
           }
         }
+
+        await cart.useTransaction(trx).delete()
       }
 
-      const userAddress = await UserAddress.query()
-        .where('id', request.input('user_address_id'))
-        .first()
-
+      // ========= shipment =========
+      const userAddress = await UserAddress.query({ client: trx }).where('id', userAddressId).first()
       if (!userAddress) {
         await trx.rollback()
         return response.status(400).send({ message: 'Address not found.', serve: [] })
       }
-
       if (!userAddress.postalCode) {
         await trx.rollback()
         return response
@@ -218,11 +282,10 @@ export default class TransactionEcommerceController {
           .send({ message: 'Postal code not found. Please update your address.', serve: [] })
       }
 
+      // komerce etd
       const komerceClient = axios.create({
         baseURL: env.get('KOMERCE_COST_BASE_URL'),
-        headers: {
-          key: env.get('KOMERCE_COST_API_KEY'),
-        },
+        headers: { key: env.get('KOMERCE_COST_API_KEY') },
       })
 
       const body = qs.stringify({
@@ -231,20 +294,13 @@ export default class TransactionEcommerceController {
         destination: userAddress.subDistrict,
         destinationType: 'subdistrict',
         weight: 1000,
-        courier: request.input('shipping_service_type'),
+        courier: courierName,
         price: 'lowest',
       })
 
-      const { data: komerceResp } = await komerceClient.post(
-        '/calculate/district/domestic-cost',
-        body,
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'application/json',
-          },
-        }
-      )
+      const { data: komerceResp } = await komerceClient.post('/calculate/district/domestic-cost', body, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+      })
 
       if (!komerceResp?.data) {
         await trx.rollback()
@@ -255,9 +311,9 @@ export default class TransactionEcommerceController {
 
       const transactionShipment = new TransactionShipment()
       transactionShipment.transactionId = transaction.id
-      transactionShipment.service = request.input('shipping_service_type')
-      transactionShipment.serviceType = request.input('shipping_service')
-      transactionShipment.price = shippingPrice
+      transactionShipment.service = courierName
+      transactionShipment.serviceType = courierService
+      transactionShipment.price = shippingPrice // ✅ number
       transactionShipment.address = `${userAddress.address}, ${userAddress.subDistrict}, ${userAddress.district}, ${userAddress.city}, ${userAddress.province}, ${userAddress.postalCode}`
       transactionShipment.provinceId = userAddress.province
       transactionShipment.cityId = userAddress.city
@@ -267,8 +323,8 @@ export default class TransactionEcommerceController {
       transactionShipment.pic = userAddress.picName
       transactionShipment.pic_phone = userAddress.picPhone
       transactionShipment.estimationArrival = komerceResp.data[0]?.etd || null
-      transactionShipment.isProtected = isProtected
       transactionShipment.protectionFee = protectionFee
+      transactionShipment.protectionFee = protectionFee // ✅ number
       await transactionShipment.useTransaction(trx).save()
 
       await trx.commit()
@@ -281,7 +337,7 @@ export default class TransactionEcommerceController {
           shipment: transactionShipment.toJSON(),
         },
       })
-    } catch (e) {
+    } catch (e: any) {
       console.log(e)
       await trx.rollback()
       return response.status(500).send({
@@ -291,34 +347,30 @@ export default class TransactionEcommerceController {
     }
   }
 
-  private calculateVoucher(data: any, price: string, shippingPrice: string) {
-    if (!data) return 0
-    if (data.isPercentage === 1) {
-      if (data.type === 2) {
-        const disc = (parseInt(shippingPrice || '0') * (parseInt(data.percentage || '0') / 100)) | 0
-        if (disc > parseInt(data.maxDiscPrice || '0')) {
-          return Math.min(parseInt(data.maxDiscPrice || '0'), parseInt(shippingPrice || '0'))
-        }
-        return Math.min(disc, parseInt(shippingPrice || '0'))
-      } else {
-        const disc = (parseInt(price || '0') * (parseInt(data.percentage || '0') / 100)) | 0
-        return Math.min(disc, parseInt(data.maxDiscPrice || '0'))
+  private calculateVoucher(v: any, subTotal: number, shippingPrice: number) {
+    if (!v) return 0
+
+    const isPercentage = toNumber(v.isPercentage) === 1
+    const type = toNumber(v.type) // 2 = shipping?
+    const percentage = toNumber(v.percentage)
+    const maxDiscPrice = toNumber(v.maxDiscPrice)
+    const fixedPrice = toNumber(v.price)
+
+    if (isPercentage) {
+      if (type === 2) {
+        const disc = Math.floor(shippingPrice * (percentage / 100))
+        return Math.min(disc, maxDiscPrice || disc, shippingPrice)
       }
-    } else {
-      if (data.type === 2) {
-        return Math.min(parseInt(data.price || '0'), parseInt(shippingPrice || '0'))
-      } else {
-        return parseInt(data.price || '0')
-      }
+      const disc = Math.floor(subTotal * (percentage / 100))
+      return Math.min(disc, maxDiscPrice || disc)
     }
+
+    if (type === 2) return Math.min(fixedPrice, shippingPrice)
+    return fixedPrice
   }
 
-  private generateGrandTotal(data: any, price: string, shippingPrice: string) {
-    return (
-      parseInt(price || '0') +
-      parseInt(shippingPrice || '0') -
-      (this.calculateVoucher(data, price, shippingPrice) || 0)
-    )
+  private generateGrandTotal(v: any, subTotal: number, shippingPrice: number) {
+    return subTotal + shippingPrice - (this.calculateVoucher(v, subTotal, shippingPrice) || 0)
   }
 
   private generateTransactionNumber() {
@@ -329,16 +381,29 @@ export default class TransactionEcommerceController {
     const random = Math.floor(Math.random() * 10000)
       .toString()
       .padStart(4, '0')
-
     return `AB${tahun}${bulan}${tanggal}${random}`
   }
 
   public async webhookMidtrans({ request, response }: HttpContext) {
     const trx = await db.transaction()
+
     try {
-      const transactionNumber = request.input('order_id')
-      const transaction = await Transaction.query()
-        .where('transaction_number', transactionNumber)
+      const orderId = request.input('order_id')
+      const statusCode = request.input('status_code')
+      const grossAmount = request.input('gross_amount')
+      const signatureKey = request.input('signature_key')
+
+      // ✅ signature verify (anti spoof)
+      const serverKey = env.get('MIDTRANS_SERVER_KEY')
+      const raw = `${orderId}${statusCode}${grossAmount}${serverKey}`
+      const expected = createHash('sha512').update(raw).digest('hex')
+      if (signatureKey && signatureKey !== expected) {
+        await trx.rollback()
+        return response.status(401).json({ message: 'Invalid signature', serve: [] })
+      }
+
+      const transaction = await Transaction.query({ client: trx })
+        .where('transaction_number', orderId)
         .first()
 
       if (!transaction) {
@@ -346,29 +411,36 @@ export default class TransactionEcommerceController {
         return response.status(400).json({ message: 'Order not valid.', serve: [] })
       }
 
-      const transactionEcommerce = await TransactionEcommerce.query()
+      const transactionEcommerce = await TransactionEcommerce.query({ client: trx })
         .where('transaction_id', transaction.id)
         .first()
 
       const transactionStatus = request.input('transaction_status')
       const fraudStatus = request.input('fraud_status')
+
       if (transactionEcommerce) {
         transactionEcommerce.paymentMethod = request.input('payment_type') || null
         transactionEcommerce.receipt =
           request.input('transaction_id') || request.input('va_numbers')?.[0]?.va_number || null
         await transactionEcommerce.useTransaction(trx).save()
       }
+
+      // mapping status midtrans -> status internal
       if (transactionStatus === 'capture' && fraudStatus === 'accept') {
         transaction.transactionStatus = TransactionStatus.ON_PROCESS.toString()
-        await transaction.useTransaction(trx).save()
-      }
-      if (transactionStatus === 'settlement') {
+      } else if (transactionStatus === 'settlement') {
         transaction.transactionStatus = TransactionStatus.ON_PROCESS.toString()
-        await transaction.useTransaction(trx).save()
+      } else if (transactionStatus === 'pending') {
+        transaction.transactionStatus = TransactionStatus.WAITING_PAYMENT.toString()
+      } else if (['deny', 'cancel', 'expire'].includes(transactionStatus)) {
+        transaction.transactionStatus = TransactionStatus.FAILED.toString()
       }
+
+      await transaction.useTransaction(trx).save()
       await trx.commit()
+
       return response.status(200).json({ message: 'ok', serve: [] })
-    } catch (error) {
+    } catch (error: any) {
       await trx.rollback()
       return response.status(500).json({ message: error.message, serve: [] })
     }
@@ -411,17 +483,14 @@ export default class TransactionEcommerceController {
             },
           })
 
-          const res = await client.get(
-            `/order/api/v1/orders/detail?order_no=${firstShipment.resiNumber}`
-          )
-
+          const res = await client.get(`/order/api/v1/orders/detail?order_no=${firstShipment.resiNumber}`)
           waybill = res.data?.data ?? null
 
           if (waybill && waybill.order_status === 'Diajukan' && firstShipment.status) {
             waybill.order_status = firstShipment.status
           }
-        } catch (error) {
-          console.log(' Error fetching waybill:', error.response?.data || error.message)
+        } catch (error: any) {
+          console.log('Error fetching waybill:', error.response?.data || error.message)
           waybill = null
         }
       }
@@ -433,7 +502,7 @@ export default class TransactionEcommerceController {
           waybill,
         },
       })
-    } catch (error) {
+    } catch (error: any) {
       console.log(error)
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
@@ -463,6 +532,7 @@ export default class TransactionEcommerceController {
 
       transaction.transactionStatus = TransactionStatus.COMPLETED.toString()
       await transaction.useTransaction(trx).save()
+
       if (transaction.shipments.length > 0) {
         const shipment = transaction.shipments[0]
         shipment.status = 'Delivered'
@@ -475,7 +545,7 @@ export default class TransactionEcommerceController {
         message: 'Transaction marked as completed.',
         serve: transaction,
       })
-    } catch (error) {
+    } catch (error: any) {
       await trx.rollback()
       return response.status(500).send({
         message: error.message || 'Internal Server Error',
@@ -512,18 +582,13 @@ export default class TransactionEcommerceController {
       }
 
       const pickupService = new PickupService()
-      const data = await pickupService.requestPickup(
-        shipment.resiNumber,
-        pickupDate,
-        pickupTime,
-        pickupVehicle
-      )
+      const data = await pickupService.requestPickup(shipment.resiNumber, pickupDate, pickupTime, pickupVehicle)
 
       return response.status(200).send({
         message: 'Pickup request processed',
         serve: data,
       })
-    } catch (error) {
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Pickup request failed',
         serve: [],
@@ -556,7 +621,7 @@ export default class TransactionEcommerceController {
         message: 'Waybill status updated',
         serve: shipment,
       })
-    } catch (error) {
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error',
         serve: [],

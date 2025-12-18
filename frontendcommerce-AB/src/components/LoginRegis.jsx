@@ -1,7 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { loginUser, verifyOtp, regis, OtpRegis, LoginGoogle } from "@/utils/auth";
+import { loginUser, regis, OtpRegis, LoginGoogle } from "@/utils/auth";
 import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
@@ -27,34 +27,68 @@ import {
   TabsContent,
 } from ".";
 
+const pickValue = (e) => e?.target?.value ?? e ?? "";
+
 export function LoginRegisModalForm() {
   const { login } = useAuth();
   const router = useRouter();
 
   const [tab, setTab] = useState("signin");
   const [loading, setLoading] = useState(false);
-  const [email_or_phone, setEmailOrPhone] = useState("");
-  const [step, setStep] = useState("login"); // login | otp | regis | otpregis
+  const [message, setMessage] = useState("");
+
+  // ===== SIGN IN =====
+  const [loginId, setLoginId] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+
+  // ===== SIGN UP =====
+  const [signupStep, setSignupStep] = useState("regis"); // regis | otpregis
   const [email, setEmail] = useState("");
-  const [phone_number, SetPhoneNumber] = useState("");
+  const [phone_number, setPhoneNumber] = useState("");
   const [first_name, setFirstName] = useState("");
   const [last_name, setLastName] = useState("");
-  const [gender, setGender] = useState("");
-  const [password, setPassword] = useState("");
+  const [gender, setGender] = useState(""); // "1" | "2"
+  const [regPassword, setRegPassword] = useState("");
   const [confirm_password, setConfirmPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [pwError, setPwError] = useState("");
-  const [message, setMessage] = useState("");
 
-  function validatePasswords(pw, cpw) {
+  function validateRegisterPassword(pw, cpw) {
     if (!pw || !cpw) return "";
     if (pw.length < 8) return "Password minimal 8 karakter";
+    // wajib ada simbol termasuk underscore (match backend)
+    if (!/[^A-Za-z0-9\s]/.test(pw)) return "Password wajib mengandung minimal 1 simbol (contoh: ! @ _)";
     if (pw !== cpw) return "Password dan konfirmasi tidak sama";
     return "";
   }
 
+  // ===== HANDLERS =====
+  const handleLogin = async () => {
+    setLoading(true);
+    setMessage("");
+    try {
+      const data = await loginUser(loginId, loginPassword);
+
+      const token = data?.serve?.token;
+      const user = data?.serve?.data;
+
+      if (token && user) {
+        login({ user, token });
+        router.push("/account/profile");
+        return;
+      }
+
+      setMessage(data?.message || "Login gagal.");
+    } catch (err) {
+      setMessage(err?.message || "Login gagal.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRegis = async () => {
     setLoading(true);
+    setMessage("");
     try {
       const data = await regis(
         email,
@@ -62,148 +96,122 @@ export function LoginRegisModalForm() {
         first_name,
         last_name,
         gender,
-        password
+        regPassword
       );
-      if (data.serve) {
-        setMessage("OTP dikirim ke email kamu");
-        setStep("otpregis");
+
+      if (data?.serve) {
+        setMessage("OTP dikirim, cek email/whatsapp kamu.");
+        setSignupStep("otpregis");
+        return;
       }
+
+      setMessage(data?.message || "Gagal mengirim OTP.");
     } catch (err) {
-      setMessage(err.message);
+      setMessage(err?.message || "Gagal register.");
     } finally {
       setLoading(false);
     }
   };
 
- const handleOtpRegis = async () => {
-  setLoading(true);
-  try {
-    const data = await OtpRegis(email, phone_number, first_name, last_name, gender, password, otp);
-
- if (data.success) {
-     setMessage("Register berhasil!");     router.push("/dashboard");
-   } else {
-     setMessage("OTP salah, coba lagi.");
-   }
-
-   const token = data?.serve?.token;
-   const user = data?.serve?.data;
-   if (token && user) {
-     login({ user, token });
-     setMessage("Register berhasil!");
-     router.push("/account/profile");
-   } else {
-     setMessage(data?.message || "Register gagal.");
-   }
-
-  } catch (err) {
-    setMessage(err.message);
-  } finally {
-    setLoading(false);
-  }
-};
-
-
-  const handleSuccess = async (credentialResponse) => {
-  try {
-    // Ambil token dari Google
-    const token = credentialResponse.credential;
-    console.log("Google token received:", token);
-
-    // Panggil LoginGoogle dari utils/auth
-    const data = await LoginGoogle(token);
-
-    console.log("LoginGoogle response:", data);
-    login({ user: data.serve.data, token: data.serve.token }); // pastikan token yang benar
-    setMessage("Login berhasil!");
-  } catch (err) {
-    console.error("Login Google error:", err.message);
-    setMessage("Login Google gagal.");
-  }
-};
-
-  const handleLogin = async () => {
+  const handleOtpRegis = async () => {
     setLoading(true);
+    setMessage("");
     try {
-      const data = await loginUser(email_or_phone, password);
-      if (data.serve) {
-        setMessage("OTP dikirim ke email kamu");
-        setStep("otp");
-      }
-    } catch (err) {
-      setMessage(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleOtpVerify = async () => {
-    setLoading(true);
-    try {
-      const data = await verifyOtp(
+      const data = await OtpRegis(
         email,
         phone_number,
         first_name,
         last_name,
-        otp,
         gender,
-        password
+        regPassword,
+        otp
       );
-      if (data.success) {
-        setMessage("Login berhasil!");
-        router.push("/dashboard"); // ✅
-      } else {
-        setMessage("OTP salah, coba lagi.");
+
+      const token = data?.serve?.token;
+      const user = data?.serve?.data;
+
+      if (token && user) {
+        login({ user, token });
+        router.push("/account/profile");
+        return;
       }
+
+      setMessage(data?.message || "OTP salah / register gagal.");
     } catch (err) {
-      setMessage(err.message);
+      setMessage(err?.message || "OTP salah / register gagal.");
     } finally {
-      setLoading(false); // ✅ add finally
+      setLoading(false);
     }
   };
 
-  // If you use @react-oauth/google's <GoogleLogin />, you don't need the window.google init.
-  // Remove the effect below to avoid double-initializing GSI (which can also cause odd dev-time warnings).
-  // useEffect(() => { ... }, []);
+  const handleSuccessGoogle = async (credentialResponse) => {
+    try {
+      setMessage("");
+      const token = credentialResponse?.credential;
+      if (!token) return setMessage("Login Google gagal (token kosong).");
+
+      const data = await LoginGoogle(token);
+      const user = data?.serve?.data;
+      const accessToken = data?.serve?.token;
+
+      if (user && accessToken) {
+        login({ user, token: accessToken });
+        router.push("/account/profile");
+        return;
+      }
+
+      setMessage(data?.message || "Login Google gagal.");
+    } catch (err) {
+      setMessage(err?.message || "Login Google gagal.");
+    }
+  };
 
   return (
     <Dialog className="Form-Sign-in">
       <DialogTrigger asChild>
-        <Button variant="primary" size="sm">Sign in</Button>
+        <Button variant="primary" size="sm">
+          Sign in
+        </Button>
       </DialogTrigger>
 
       <DialogContent>
-        {/* ✅ Put header pieces *inside* DialogHeader.
-            Keep DialogDescription TEXT-ONLY (or use asChild with a block wrapper). */}
         <DialogHeader>
           <DialogTitle></DialogTitle>
           <DialogDescription></DialogDescription>
         </DialogHeader>
 
-        {/* ✅ All complex layout/content lives OUTSIDE DialogDescription to avoid <div> inside <p>. */}
         <Tabs
-        className="py-6"
+          className="py-6"
           value={tab}
           onValueChange={(v) => {
             setTab(v);
-            setStep(v === "signin" ? "login" : "regis");
             setMessage("");
+            setLoading(false);
+
+            if (v === "signup") {
+              setSignupStep("regis");
+              setOtp("");
+              setPwError("");
+            }
           }}
         >
           <TabsList className="absolute left-6 top-4 w-fit">
-            <TabsTrigger value="signin" className="w-1/2">Sign in</TabsTrigger>
-            <TabsTrigger value="signup" className="w-1/2">Sign up</TabsTrigger>
+            <TabsTrigger value="signin" className="w-1/2">
+              Sign in
+            </TabsTrigger>
+            <TabsTrigger value="signup" className="w-1/2">
+              Sign up
+            </TabsTrigger>
           </TabsList>
 
-          {/* -------- SIGN IN -------- */}
+          {/* ===== SIGN IN ===== */}
           <TabsContent value="signin">
             <form
               className="space-y-4"
               onSubmit={(e) => {
                 e.preventDefault();
                 if (loading) return;
-                if (step === "login") handleLogin();
-                else if (step === "otp") handleOtpVerify();
+                handleLogin();
               }}
             >
               <div className="space-y-4">
@@ -221,7 +229,7 @@ export function LoginRegisModalForm() {
                     <span className="font-damion px-2 text-2xl text-primary-700 font-normal">
                       Abeauties
                     </span>
-                    Welcome back! 👋
+                    Welcome back! 
                   </div>
                   <div className="text-sm text-neutral-500">
                     Log in to unlock your personalized beauty space.
@@ -229,45 +237,33 @@ export function LoginRegisModalForm() {
                 </div>
               </div>
 
-              {step === "login" ? (
-                <div className="space-y-3">
-                  <TxtField
-                    autoComplete="email"
-                    inputMode="email"
-                    pattern="[^@\s]+@[^@\s]+\.[^@\s]+|[0-9]*"
-                    placeholder="Email or Phone number"
-                    variant="outline"
-                    size="sm"
-                    value={email_or_phone}
-                    onChange={(e) => setEmailOrPhone(e.target.value)}
-                  />
-                  <TxtField
-                    autoComplete="current-password"
-                    type="password"
-                    placeholder="Password"
-                    variant="outline"
-                    size="sm"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-              ) : (
+              <div className="space-y-3">
                 <TxtField
-                  autoComplete="one-time-code"
-                  placeholder="Masukkan OTP"
+                  type="text"
+                  autoComplete="username"
+                  inputMode="text"
+                  placeholder="Email or Phone number"
                   variant="outline"
                   size="sm"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
+                  value={loginId}
+                  onChange={(e) => setLoginId(pickValue(e))}
                 />
-              )}
+
+                <TxtField
+                  autoComplete="current-password"
+                  type="password"
+                  placeholder="Password"
+                  variant="outline"
+                  size="sm"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(pickValue(e))}
+                />
+              </div>
 
               <div className="w-full">
-                {step === "login" && (
-                  <Link href="#" className="text-xs">
-                    Forgot password?
-                  </Link>
-                )}
+                <Link href="#" className="text-xs">
+                  Forgot password?
+                </Link>
               </div>
 
               <div className="space-y-3">
@@ -278,36 +274,35 @@ export function LoginRegisModalForm() {
                   className="w-full"
                   disabled={loading}
                 >
-                  {loading ? "Loading..." : step === "login" ? "Sign in" : "Verify OTP"}
+                  {loading ? "Loading..." : "Sign in"}
                 </Button>
 
-                {step === "login" && (
-                  <>
-                    <div className="w-full flex justify-center text-sm">Or</div>
-                    <div className="flex flex-col gap-4">
-                      <GoogleLogin
-                        onSuccess={handleSuccess}
-                        onError={() => alert("Login gagal")}
-                      />
-                    </div>
-                  </>
-                )}
+                <div className="w-full flex justify-center text-sm">Or</div>
+                <div className="flex flex-col gap-4">
+                  <GoogleLogin
+                    onSuccess={handleSuccessGoogle}
+                    onError={() => setMessage("Login Google gagal")}
+                  />
+                </div>
               </div>
 
-              {/* If you keep this custom div, it’s fine—just don’t place it inside DialogDescription */}
-              {/* <div><div id="googleLoginDiv" /></div> */}
+              {message && (
+                <span className="block text-sm text-center text-neutral-600 mt-2">
+                  {message}
+                </span>
+              )}
             </form>
           </TabsContent>
 
-          {/* -------- SIGN UP -------- */}
+          {/* ===== SIGN UP ===== */}
           <TabsContent value="signup">
             <form
               className="space-y-4"
               onSubmit={(e) => {
                 e.preventDefault();
                 if (loading) return;
-                if (step === "regis") handleRegis();
-                else if (step === "otpregis") handleOtpRegis();
+                if (signupStep === "regis") handleRegis();
+                else handleOtpRegis();
               }}
             >
               <div className="space-y-4">
@@ -327,7 +322,7 @@ export function LoginRegisModalForm() {
                 </div>
               </div>
 
-              {step === "regis" && (
+              {signupStep === "regis" && (
                 <div className="space-y-3">
                   <div className="grid lg:grid-cols-2 md:grid-cols-2 sm:grid-cols-1 gap-4">
                     <TxtField
@@ -337,7 +332,7 @@ export function LoginRegisModalForm() {
                       variant="outline"
                       size="sm"
                       value={first_name}
-                      onChange={(e) => setFirstName(e.target.value)}
+                      onChange={(e) => setFirstName(pickValue(e))}
                     />
                     <TxtField
                       className="w-full"
@@ -346,20 +341,22 @@ export function LoginRegisModalForm() {
                       variant="outline"
                       size="sm"
                       value={last_name}
-                      onChange={(e) => setLastName(e.target.value)}
+                      onChange={(e) => setLastName(pickValue(e))}
                     />
                   </div>
 
+                  {/*  EMAIL REGISTER (bukan email_or_phone) */}
                   <TxtField
+                    type="email"
                     autoComplete="email"
                     inputMode="email"
-                    pattern="[^@\s]+@[^@\s]+\.[^@\s]+|[0-9]*"
                     placeholder="Enter your email"
                     variant="outline"
                     size="sm"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => setEmail(pickValue(e))}
                   />
+
                   <TxtField
                     autoComplete="tel"
                     inputMode="tel"
@@ -367,7 +364,7 @@ export function LoginRegisModalForm() {
                     variant="outline"
                     size="sm"
                     value={phone_number}
-                    onChange={(e) => SetPhoneNumber(e.target.value)}
+                    onChange={(e) => setPhoneNumber(pickValue(e))}
                   />
 
                   <Select value={gender} onValueChange={setGender}>
@@ -389,13 +386,14 @@ export function LoginRegisModalForm() {
                     placeholder="Password"
                     variant="outline"
                     size="sm"
-                    value={password}
+                    value={regPassword}
                     onChange={(e) => {
-                      const v = e.target.value;
-                      setPassword(v);
-                      setPwError(validatePasswords(v, confirm_password));
+                      const v = pickValue(e);
+                      setRegPassword(v);
+                      setPwError(validateRegisterPassword(v, confirm_password));
                     }}
                   />
+
                   <TxtField
                     autoComplete="new-password"
                     type="password"
@@ -404,22 +402,23 @@ export function LoginRegisModalForm() {
                     size="sm"
                     value={confirm_password}
                     onChange={(e) => {
-                      const v = e.target.value;
+                      const v = pickValue(e);
                       setConfirmPassword(v);
-                      setPwError(validatePasswords(password, v));
+                      setPwError(validateRegisterPassword(regPassword, v));
                     }}
                   />
+
                   {pwError && <p className="text-sm text-red-600">{pwError}</p>}
                 </div>
               )}
 
-              {step === "otpregis" && (
+              {signupStep === "otpregis" && (
                 <div className="space-y-3">
                   <TxtField
                     autoComplete="one-time-code"
                     placeholder="Masukkan OTP"
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
+                    onChange={(e) => setOtp(pickValue(e))}
                   />
                 </div>
               )}
@@ -430,9 +429,9 @@ export function LoginRegisModalForm() {
                   variant="primary"
                   size="sm"
                   className="w-full"
-                  disabled={loading}
+                  disabled={loading || (signupStep === "regis" && !!pwError)}
                 >
-                  {loading ? "Loading..." : step === "regis" ? "Sign Up" : "Verify OTP"}
+                  {loading ? "Loading..." : signupStep === "regis" ? "Sign Up" : "Verify OTP"}
                 </Button>
               </div>
 
