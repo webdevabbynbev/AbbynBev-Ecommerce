@@ -48,7 +48,7 @@ export default class UserAddressesController {
       const dataAddress = new UserAddress()
       dataAddress.address = request.input('address')
       dataAddress.isActive = request.input('is_active') ?? 1
-      dataAddress.id = auth.user?.id ?? 0
+      dataAddress.userId = auth.user?.id ?? 0
       dataAddress.province = provinceId
       dataAddress.city = cityId
       dataAddress.district = districtId

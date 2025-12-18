@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components";
 import { Profilepage } from "./profile";
 
 export default function AccountTabs({ slug }) {
