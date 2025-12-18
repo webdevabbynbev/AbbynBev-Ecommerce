@@ -17,8 +17,8 @@ import { DataCategoryCard, DataBrand, DataArticleBlog} from "@/data";
 export default function Home() {
   const router = useRouter();
   return (
-    <div className="Container items-center justify-center mx-auto xl:max-w-[1280px] lg:max-w-[960px] overflow-visible">
-      <div className="Hero-wrapper w-full flex flex-row md:flex-row sm:flex-col justify-between h-full py-6 mx-auto">
+    <div className="Container items-center justify-center mx-auto overflow-visible">
+      <div className="Hero-wrapper w-full flex flex-row md:flex-row sm:flex-col justify-between h-full py-6 mx-auto xl:max-w-[1280px] lg:max-w-[960px]">
         <div className="h-auto w-full sm:w-full items-center">
           <HeroCarousel/>
         </div>
@@ -66,7 +66,7 @@ export default function Home() {
         </div> */}
       </div>
 
-      <div className="ContainerCategory py-6 space-y-4 mx-auto w-full">
+      <div className="ContainerCategory py-6 space-y-4 mx-auto w-full xl:max-w-[1280px] lg:max-w-[960px]">
         <h3 className="text-primary-700 text-lg font-bold">Kategori</h3>
         <div className="flex justify-between w-full gap-4">
           {DataCategoryCard.map((item) => (
@@ -76,7 +76,7 @@ export default function Home() {
       </div>
 
       <div className="ContainerFlashSale w-full flex py-10 p-6 bg-primary-100 items-center justify-center bg-[url('/Logo_SVG_AB.svg')] bg-no-repeat bg-center">
-        <div className="Wrapper md:flex-row sm:flex-col sm:w-full items-center w-full mx-auto flex flex-row gap-6">
+        <div className="Wrapper md:flex-row sm:flex-col sm:w-full items-center w-full mx-auto flex flex-row gap-6 xl:max-w-[1280px] lg:max-w-[960px]">
           <div className="leftWrapper flex sm:flex-row md:flex-col sm:w-full w-[50%] space-y-6  md:items-start sm:items-center ">
             <div className="texts flex-row">
             <h3 className="font-damion text-4xl text-primary-700">
@@ -98,7 +98,7 @@ export default function Home() {
       </div>
 
       <div className="ContainerAbbyBev py-10 space-y-16 w-full">
-        <div className="max-w-[1536px] mx-auto rounded-[40px] bg-primary-50 wrapper flex-row space-y-6 p-6 outline outline-1 outline-primary-300">
+        <div className="xl:max-w-[1280px] lg:max-w-[960px] mx-auto rounded-[40px] bg-primary-50 wrapper flex-row space-y-6 p-6 outline-1 outline-primary-300">
           <div className="flex items-start justify-between">
             <div className="flex-row space-y-1">
               <h3 className="font-damion font-normal text-4xl text-primary-700">
@@ -118,7 +118,7 @@ export default function Home() {
           /> */}
         </div>
 
-        <div className="max-w-[1536px] mx-auto rounded-[40px] bg-primary-50 wrapper flex-row space-y-6 p-6 outline-1 outline-primary-300">
+        <div className="xl:max-w-[1280px] lg:max-w-[960px] mx-auto rounded-[40px] bg-primary-50 wrapper flex-row space-y-6 p-6 outline-1 outline-primary-300">
           <div className="flex items-start justify-between">
             <div className="flex-row space-y-1  items-center justify-center">
               <h3 className="font-damion font-normal text-4xl text-primary-700">
@@ -131,16 +131,11 @@ export default function Home() {
             </Button>
           </div>
           <PickCarousel />
-          {/* <Carousel
-            SlidesPerView={5}
-            products={BevPick}
-            CardComponent={RegularCard}
-          /> */}
         </div>
       </div>
 
       <div className="Brand-Container flex px-10 py-10 bg-primary-100 items-center justify-center space-x-6 bg-[url('/Logo_SVG_AB.svg')] bg-no-repeat bg-center">
-        <div className="flex max-w-[1536px] mx-auto space-x-10">
+        <div className="flex xl:max-w-[1280px] lg:max-w-[960px] mx-auto space-x-10">
           <div className="Wrapper flex-row w-full space-y-6">
             <h3 className="font-damion text-4xl text-primary-700">
               Shop by brands
