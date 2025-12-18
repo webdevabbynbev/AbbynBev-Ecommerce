@@ -1,4 +1,5 @@
 "use client";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import {
@@ -9,18 +10,32 @@ import {
   HeroCarousel,
   BrandCard,
   BlogCard,
-  FlashSaleCarousel
+  FlashSaleCarousel,
 } from "@/components";
-
-import { DataCategoryCard, DataBrand, DataArticleBlog} from "@/data";
+import { DataCategoryCard, DataBrand, DataArticleBlog } from "@/data";
+import { getProducts } from "@/services";
+import { RegularCard } from "@/components";
 
 export default function Home() {
+  const [products, setProducts] = useState([]);
   const router = useRouter();
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await getProducts({ page: 1, per_page: 50 });
+        setProducts(data); // ✅ langsung pakai data hasil normalizeProduct
+      } catch (err) {
+        console.error("getProducts error:", err);
+      }
+    })();
+  }, []);
+
   return (
     <div className="Container items-center justify-center mx-auto overflow-visible">
       <div className="Hero-wrapper w-full flex flex-row md:flex-row sm:flex-col justify-between h-full py-6 mx-auto xl:max-w-[1280px] lg:max-w-[960px]">
         <div className="h-auto w-full sm:w-full items-center">
-          <HeroCarousel/>
+          <HeroCarousel />
         </div>
         {/* <div className="bento-right md:w-full sm:w-full flex md:flex-col sm:flex-row h-auto gap-4">
           <div className="abbynbev flex md:flex-row sm:flex-col h-[50%] w-full gap-4">
@@ -79,13 +94,13 @@ export default function Home() {
         <div className="Wrapper md:flex-row sm:flex-col sm:w-full items-center w-full mx-auto flex flex-row gap-6 xl:max-w-[1280px] lg:max-w-[960px]">
           <div className="leftWrapper flex sm:flex-row md:flex-col sm:w-full w-[50%] space-y-6  md:items-start sm:items-center ">
             <div className="texts flex-row">
-            <h3 className="font-damion text-4xl text-primary-700">
-              Flash Sale Hingga 50% OFF!
-            </h3>
-            <p>
-              Your Favorite Beauty Essentials, Now at Irresistible Prices
-              Limited Time Only — While Stock Lasts!
-            </p>
+              <h3 className="font-damion text-4xl text-primary-700">
+                Flash Sale Hingga 50% OFF!
+              </h3>
+              <p>
+                Your Favorite Beauty Essentials, Now at Irresistible Prices
+                Limited Time Only — While Stock Lasts!
+              </p>
             </div>
             <Button variant="primary" size="md">
               See more flash sale product
@@ -145,7 +160,11 @@ export default function Home() {
                 From best-sellers to hidden gems — explore top beauty brands,
                 handpicked by Abby n Bev.
               </p>
-              <Button variant="primary" size="md" onClick={() => router.push("/brand")}>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => router.push("/brand")}
+              >
                 Discover more
               </Button>
             </div>
@@ -164,6 +183,14 @@ export default function Home() {
         <div className="grid grid-cols-3 gap-6">
           {DataArticleBlog.slice(0, 6).map((item) => (
             <BlogCard key={item.id} {...item} />
+          ))}
+        </div>
+      </div>
+      <div className="Article-Container py-10 px-10 space-y-6 max-w-[1536px] mx-auto">
+        <h3 className="text-primary-700 text-lg font-bold">New Posts</h3>
+        <div className="grid grid-cols-3 gap-6">
+          {products.map((p) => (
+            <RegularCard key={p.id ?? p.slug ?? p.path} item={p} />
           ))}
         </div>
       </div>
