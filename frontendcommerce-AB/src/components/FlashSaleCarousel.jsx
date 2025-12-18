@@ -11,29 +11,25 @@ import {
 
 export function FlashSaleCarousel() {
   return (
-    <Carousel className="mx-auto max-w-[1536px] px-2 sm:px-4 md:px-6">
-      <CarouselContent className="sm:space-x-28 md:space-x-28">
+    <Carousel className="w-full" opts={{ align: "start" }}>
+      <CarouselContent className="justify-start md:gap-[52px] lg:gap-[59px] xl:gap-[111px]">
         {Array.isArray(BevPick) &&
           BevPick.slice(0, 9).map((b) => (
             <CarouselItem
               key={b.id}
               className="
-                basis-[85%] 
-                sm:basis-1/3 
-                md:basis-1/3 
-                lg:basis-1/4 
-                xl:basis-1/5
-                flex-shrink-0
+                flex-none basis-1/2 sm:basis-1/2 md:basis-1/3 lg:basis-1/3 xl:basis-1/6
               "
             >
               <FlashSaleCard item={b} />
             </CarouselItem>
           ))}
+        <div className="flex-none w-[0px]" aria-hidden="true" />
       </CarouselContent>
 
       {/* Tombol navigasi carousel */}
-      <CarouselPrevious className="hidden sm:flex left-2 md:left-4" />
-      <CarouselNext className="hidden sm:flex right-2 md:right-4" />
+      <CarouselPrevious />
+      <CarouselNext />
     </Carousel>
   );
 }
