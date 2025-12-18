@@ -1,6 +1,12 @@
 import vine from '@vinejs/vine'
 import User from '#models/user'
 
+const passwordWithSymbol = vine
+  .string()
+  .minLength(8)
+  .maxLength(64)
+  .regex(/^(?=.*[^A-Za-z0-9\s]).+$/)
+
 export const register = vine.compile(
   vine.object({
     email: vine
@@ -28,27 +34,29 @@ export const register = vine.compile(
     first_name: vine.string().trim(),
     last_name: vine.string().trim(),
     gender: vine.number().in([1, 2]),
-    password: vine
-      .string()
-      .minLength(8)
-      .maxLength(16)
-      .regex(/(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*\W)/),
+    password: passwordWithSymbol,
 
-         // ✅ baru
+    // ✅ pilih pengiriman OTP
     send_via: vine.enum(['email', 'whatsapp']).optional(),
   })
 )
 
 export const login = vine.compile(
   vine.object({
-    email_or_phone: vine.string().regex(/^(?:\+62|62|0)[0-9]{9,14}$|^[^\s@]+@[^\s@]+\.[^\s@]+$/),
-    password: vine.string().minLength(8),
+    email_or_phone: vine
+      .string()
+      .regex(/^(?:\+62|62|0)[0-9]{9,14}$|^[^\s@]+@[^\s@]+\.[^\s@]+$/),
+
+    // ✅ login juga min 8 + wajib simbol (underscore dihitung)
+    password: passwordWithSymbol,
   })
 )
 
 export const verifyLoginOtp = vine.compile(
   vine.object({
-    email_or_phone: vine.string().regex(/^(?:\+62|62|0)[0-9]{9,14}$|^[^\s@]+@[^\s@]+\.[^\s@]+$/),
+    email_or_phone: vine
+      .string()
+      .regex(/^(?:\+62|62|0)[0-9]{9,14}$|^[^\s@]+@[^\s@]+\.[^\s@]+$/),
     otp: vine.string().minLength(4).maxLength(6),
   })
 )
@@ -61,11 +69,7 @@ export const verifyRegisterOtp = vine.compile(
     last_name: vine.string().trim(),
     otp: vine.string(),
     gender: vine.number().in([1, 2]),
-    password: vine
-      .string()
-      .minLength(8)
-      .maxLength(16)
-      .regex(/(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*\W)/),
+    password: passwordWithSymbol,
   })
 )
 
@@ -79,21 +83,13 @@ export const resetPassword = vine.compile(
   vine.object({
     email: vine.string().email(),
     otp: vine.string().optional(),
-    password: vine
-      .string()
-      .minLength(8)
-      .maxLength(16)
-      .regex(/(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*\W)/),
+    password: passwordWithSymbol,
   })
 )
 
 export const changePassword = vine.compile(
   vine.object({
-    password: vine
-      .string()
-      .minLength(8)
-      .maxLength(16)
-      .regex(/(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*\W)/),
+    password: passwordWithSymbol,
   })
 )
 
@@ -127,11 +123,7 @@ export const updateProfilePicture = vine.compile(
 export const updatePasswordValidator = vine.compile(
   vine.object({
     old_password: vine.string().minLength(8),
-    new_password: vine
-      .string()
-      .minLength(8)
-      .maxLength(16)
-      .regex(/(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*\W)/),
+    new_password: passwordWithSymbol,
     confirm_password: vine.string().sameAs('new_password'),
   })
 )
@@ -141,5 +133,3 @@ export const deactivateAccountValidator = vine.compile(
     confirm: vine.boolean(),
   })
 )
-
-
