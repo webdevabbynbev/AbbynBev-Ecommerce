@@ -23,24 +23,6 @@ const isNumericLike = (v) =>
   String(v).trim() !== "" &&
   !Number.isNaN(Number(v));
 
-/**
- * ✅ Default courier list.
- * Tambahin sesuai paket provider kamu (komerce/rajaongkir).
- * NOTE: ini yang menentukan "kenapa cuma JNE/TIKI" sebelumnya.
- */
-const COURIERS = [
-  "jne",
-  "tiki",
-  "jnt",
-  "pos",
-  "sicepat",
-  "anteraja",
-  "ninja",
-  // "wahana",
-  // "lion",
-  // "rpx",
-];
-
 export default function CheckoutPage() {
   const router = useRouter();
 
@@ -54,10 +36,9 @@ export default function CheckoutPage() {
   const [provinceMap, setProvinceMap] = useState({});
   const [cityMap, setCityMap] = useState({});
 
-  // raw shipping (semua layanan), dan compact (1 per kurir)
+  // Shipping
   const [shippingAll, setShippingAll] = useState([]);
   const [selectedShipping, setSelectedShipping] = useState(null);
-
   const [expandedCouriers, setExpandedCouriers] = useState({}); // courier -> boolean
 
   const [selectedPayment, setSelectedPayment] = useState(null);
@@ -218,6 +199,9 @@ export default function CheckoutPage() {
     return Math.max(1, Math.round(w));
   }, [checkoutItems]);
 
+  // ✅ round per 100g biar request gak “beda dikit” terus (hemat hit)
+  const weightRounded = useMemo(() => Math.max(1, Math.ceil(weightGrams / 100) * 100), [weightGrams]);
+
   const total = subtotal + n(selectedShipping?.price, 0);
 
   // ===== Update qty/delete cart =====
@@ -340,42 +324,42 @@ export default function CheckoutPage() {
     return out;
   };
 
-  // ✅ pilih 1 opsi terbaik per courier
-  const pickBestPerCourier = (list) => {
+  // ✅ group by courier + best option per courier
+  const groupByCourier = (list) => {
     const groups = {};
     for (const m of list) {
       const k = m.courier || "unknown";
       if (!groups[k]) groups[k] = [];
       groups[k].push(m);
     }
+    for (const k of Object.keys(groups)) {
+      groups[k].sort((a, b) => a.price - b.price);
+    }
 
+    // choose best: prefer service tertentu kalau ada
     const prefer = ["REG", "ECO", "YES", "OKE", "EZ", "CTC", "EXP"];
-    const best = [];
-
+    const best = {};
     for (const [courier, items] of Object.entries(groups)) {
-      items.sort((a, b) => a.price - b.price);
-
       let pick = null;
       for (const p of prefer) {
         pick = items.find((x) => String(x.service).toUpperCase() === p);
         if (pick) break;
       }
-      best.push(pick || items[0]);
+      best[courier] = pick || items[0] || null;
     }
-
-    best.sort((a, b) => a.price - b.price);
-    return { best, groups };
+    return { groups, best };
   };
 
-  // ===== Shipping methods (1x hit, multi courier) =====
+  // ===== Shipping fetch (hemat hit) =====
   const lastShipKeyRef = useRef("");
   const shipTimerRef = useRef(null);
+  const shipReqIdRef = useRef(0);
 
   const fetchShipping = async () => {
     if (!selectedIdsReady) return;
     if (!selectedAddress || loadingCart || loadingAddr) return;
+    if (!checkoutItems.length) return;
 
-    // ✅ FIX: pakai subDistrict (bukan district)
     const destinationSubdistrict = n(
       selectedAddress?.subDistrict ??
         selectedAddress?.subdistrict ??
@@ -392,63 +376,88 @@ export default function CheckoutPage() {
       return;
     }
 
-    const couriers = COURIERS.join(",");
-    const key = `${selectedAddressId}|${destinationSubdistrict}|${weightGrams}|${couriers}`;
+    // ✅ key buat anti double-hit + cache
+    const key = `ship:${selectedAddressId}|${destinationSubdistrict}|${weightRounded}`;
 
-    // ✅ anti double hit
+    // ✅ session cache (browser)
+    const cached = sessionStorage.getItem(key);
+    if (cached) {
+      const payload = JSON.parse(cached);
+      const normalized = normalizeShipping(payload);
+      setShippingAll(normalized);
+
+      // keep selection kalau masih ada
+      setSelectedShipping((prev) => {
+        if (!normalized.length) return null;
+        if (!prev) return normalized[0];
+        return normalized.find((x) => x.id === prev.id) || normalized[0];
+      });
+      return;
+    }
+
+    // ✅ anti double hit (StrictMode)
     if (lastShipKeyRef.current === key) return;
     lastShipKeyRef.current = key;
 
-    setLoadingShip(true);
+    const reqId = ++shipReqIdRef.current;
 
+    setLoadingShip(true);
     try {
       const res = await axios.post("/get-cost", {
         destination: destinationSubdistrict,
-        destinationType: "subdistrict", // biar explicit
-        weight: weightGrams,
-        courier: couriers, // ✅ ini yang bener, bukan "all"
-        price: "all", // ✅ ambil semua layanan, nanti kita ringkas di FE
+        destinationType: "subdistrict",
+        weight: weightRounded,
+        courier: "all",     // ✅ backend expand dari KOMERCE_COURIERS
+        price: "all",
       });
 
-      const payload = unwrap(res);
-      const normalized = normalizeShipping(payload);
+      if (reqId !== shipReqIdRef.current) return; // ignore response lama
 
+      const payload = unwrap(res);
+      sessionStorage.setItem(key, JSON.stringify(payload));
+
+      const normalized = normalizeShipping(payload);
       setShippingAll(normalized);
 
-      const { best } = pickBestPerCourier(normalized);
-
-      // auto pilih termurah dari "best per courier"
       setSelectedShipping((prev) => {
-        if (!best.length) return null;
-        if (!prev) return best[0];
-        const still = best.find((x) => x.id === prev.id) || normalized.find((x) => x.id === prev.id);
-        return still || best[0];
+        if (!normalized.length) return null;
+        if (!prev) return normalized[0];
+        return normalized.find((x) => x.id === prev.id) || normalized[0];
       });
     } catch (err) {
       console.error("fetchShipping error:", err?.response?.data || err);
       setShippingAll([]);
       setSelectedShipping(null);
+
+      // ✅ biar bisa retry kalau error
+      lastShipKeyRef.current = "";
     } finally {
       setLoadingShip(false);
     }
   };
 
-  // ✅ debounce biar qty klik cepat gak spam
+  // ✅ debounce (klik qty cepat gak spam)
   useEffect(() => {
     if (shipTimerRef.current) clearTimeout(shipTimerRef.current);
     shipTimerRef.current = setTimeout(() => {
       fetchShipping();
-    }, 350);
+    }, 700);
 
     return () => {
       if (shipTimerRef.current) clearTimeout(shipTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAddressId, weightGrams, selectedIdsReady, loadingCart, loadingAddr]);
+  }, [selectedAddressId, weightRounded, selectedIdsReady, loadingCart, loadingAddr, checkoutItems.length]);
 
-  const { best: shippingBest, groups: shippingGroups } = useMemo(() => {
-    return pickBestPerCourier(shippingAll);
+  const { groups: shippingGroups, best: bestByCourier } = useMemo(() => {
+    return groupByCourier(shippingAll);
   }, [shippingAll]);
+
+  const courierKeys = useMemo(() => {
+    const keys = Object.keys(shippingGroups || {});
+    keys.sort(); // rapih
+    return keys;
+  }, [shippingGroups]);
 
   // ---- address display list (pakai nama city/province)
   const displayAddresses = useMemo(() => {
@@ -605,7 +614,7 @@ export default function CheckoutPage() {
           )}
         </div>
 
-        {/* SHIPPING */}
+        {/* SHIPPING: COURIER CARDS */}
         <div className="bg-white border rounded-xl p-6 shadow-sm">
           <h2 className="text-xl font-semibold mb-4">Shipping method</h2>
 
@@ -617,73 +626,95 @@ export default function CheckoutPage() {
             <p className="text-gray-400 italic">Loading shipping options...</p>
           )}
 
-          {selectedAddress && !loadingShip && shippingBest.length === 0 && (
+          {selectedAddress && !loadingShip && courierKeys.length === 0 && (
             <p className="text-gray-400 italic">
               Tidak ada opsi pengiriman. (cek subDistrict di alamat + originType/origin di backend)
             </p>
           )}
 
-          {/* ✅ Default: 1 opsi per courier (biar gak kebanyakan) */}
-          <div className="space-y-4">
-            {shippingBest.map((m) => {
-              const courier = m.courier;
+          {/* ✅ CARD per courier, klik card -> muncul list service */}
+          <div className="space-y-3">
+            {courierKeys.map((courier) => {
               const expanded = !!expandedCouriers[courier];
-              const all = shippingGroups?.[courier] || [];
-
-              const displayList = expanded ? all : [m];
+              const list = shippingGroups[courier] || [];
+              const best = bestByCourier[courier];
 
               return (
-                <div key={`group-${courier}`} className="border rounded-xl p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-semibold uppercase">{courier}</p>
-                    {all.length > 1 && (
-                      <button
-                        type="button"
-                        className="text-xs text-gray-500 hover:underline"
-                        onClick={() =>
-                          setExpandedCouriers((prev) => ({
-                            ...prev,
-                            [courier]: !prev[courier],
-                          }))
-                        }
-                      >
-                        {expanded ? "Sembunyikan" : `Lihat semua (${all.length})`}
-                      </button>
-                    )}
+                <div
+                  key={courier}
+                  onClick={() =>
+                    setExpandedCouriers((prev) => ({
+                      ...prev,
+                      [courier]: !prev[courier],
+                    }))
+                  }
+                  className={`rounded-xl border p-4 cursor-pointer transition ${
+                    expanded ? "border-pink-600 bg-pink-50" : "hover:border-gray-400"
+                  }`}
+                >
+                  {/* Header card */}
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-semibold uppercase">{courier}</p>
+                      {best ? (
+                        <p className="text-sm text-gray-600 mt-1">
+                          Best: <span className="font-medium">{best.service}</span> • Rp{" "}
+                          {n(best.price, 0).toLocaleString("id-ID")} • {best.estimate}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-gray-500 mt-1">Tidak ada service.</p>
+                      )}
+                    </div>
+
+                    <div className="text-xs text-gray-500 whitespace-nowrap">
+                      {expanded ? "Tutup" : `Lihat service (${list.length})`}
+                    </div>
                   </div>
 
-                  <div className="space-y-3">
-                    {displayList.map((opt) => (
-                      <div
-                        key={opt.id}
-                        onClick={() => setSelectedShipping(opt)}
-                        className={`p-4 rounded-xl border cursor-pointer transition ${
-                          selectedShipping?.id === opt.id
-                            ? "border-pink-600 bg-pink-50"
-                            : "hover:border-gray-400"
-                        }`}
-                      >
-                        <div className="flex justify-between">
-                          <div className="pr-4">
-                            <p className="font-medium">
-                              {opt.name} (Rp {n(opt.price, 0).toLocaleString("id-ID")})
-                            </p>
-                            {!!opt.description && (
-                              <p className="text-xs text-gray-500 mt-1">{opt.description}</p>
-                            )}
+                  {/* Expanded services */}
+                  {expanded && (
+                    <div className="mt-4 space-y-2">
+                      {list.map((opt) => {
+                        const isSelected = selectedShipping?.id === opt.id;
+
+                        return (
+                          <div
+                            key={opt.id}
+                            onClick={(e) => {
+                              e.stopPropagation(); // ✅ biar klik service gak nutup card
+                              setSelectedShipping(opt);
+                            }}
+                            className={`p-3 rounded-xl border transition ${
+                              isSelected
+                                ? "border-pink-600 bg-white"
+                                : "bg-white hover:border-gray-400"
+                            }`}
+                          >
+                            <div className="flex justify-between items-start gap-4">
+                              <div>
+                                <p className="font-medium">
+                                  {opt.service} (Rp {n(opt.price, 0).toLocaleString("id-ID")})
+                                </p>
+                                {!!opt.description && (
+                                  <p className="text-xs text-gray-500 mt-1">{opt.description}</p>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-500 whitespace-nowrap">
+                                {opt.estimate}
+                              </p>
+                            </div>
                           </div>
-                          <p className="text-gray-500 text-sm">{opt.estimate}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
 
           <p className="text-xs text-gray-400 mt-3">
-            *Total berat: {weightGrams} gram | {shippingAll.length} service (setelah filter cargo)
+            *Berat: {weightRounded} gram (rounded) | {shippingAll.length} service (setelah filter cargo)
           </p>
         </div>
       </div>

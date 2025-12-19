@@ -44,7 +44,7 @@ function cleanCourier(courier: any) {
   // boleh array, "jne:jnt:tiki", "jne,jnt,tiki"
   if (Array.isArray(courier)) courier = courier.join(',')
   courier = String(courier ?? '').trim()
-  if (!courier) return 'jne'
+  if (!courier) return ''
   return courier
     .replace(/:/g, ',') // FE bisa kirim ":" biar gampang join
     .replace(/\s+/g, '') // buang spasi
@@ -54,15 +54,19 @@ function cleanCourier(courier: any) {
 
 function normalizeLocationType(v: any, fallback: string) {
   const s = String(v ?? '').trim().toLowerCase()
-  // set yang umum dipakai komerce/rajaongkir-like
   const allowed = new Set(['province', 'city', 'district', 'subdistrict'])
   return allowed.has(s) ? s : fallback
 }
 
 function endpointForOriginType(originType: string) {
-  // aman: kalau originType aneh, fallback ke district
   const t = normalizeLocationType(originType, 'district')
   return `/calculate/${t}/domestic-cost`
+}
+
+function getDefaultCouriers() {
+  // ✅ atur dari env biar gampang nambah/kurang courier tanpa ubah FE
+  const fromEnv = String(env.get('KOMERCE_COURIERS') || '').trim()
+  return fromEnv || 'jne,tiki,jnt'
 }
 
 export default class UserAddressesController {
@@ -85,7 +89,6 @@ export default class UserAddressesController {
 
       const isActive = toInt(pickInput(request, ['is_active', 'isActive'], 1), 1)
 
-      // validasi lokasi
       if (!districtId || !subDistrictId) {
         await trx.rollback()
         return response.status(400).send({
@@ -120,7 +123,6 @@ export default class UserAddressesController {
 
       await dataAddress.useTransaction(trx).save()
 
-      // kalau set main address, yang lain turun jadi 1
       if (dataAddress.isActive === 2) {
         await UserAddress.query({ client: trx })
           .where('user_id', auth.user?.id ?? 0)
@@ -163,7 +165,6 @@ export default class UserAddressesController {
       const picLabel = pickInput(request, ['pic_label', 'picLabel'])
       const benchmark = pickInput(request, ['benchmark'])
 
-      // kalau update lokasi, validasi district+subdistrict dan refresh zip dari API
       if (typeof districtId !== 'undefined' || typeof subDistrictId !== 'undefined') {
         if (!districtId || !subDistrictId) {
           await trx.rollback()
@@ -271,7 +272,9 @@ export default class UserAddressesController {
   public async getSubDistrict({ response, request }: HttpContext) {
     try {
       const districtId = request.qs().district
-      const { data } = await axios.get(`${BASE_URL}/destination/sub-district/${districtId}`, { headers: { key: API_KEY } })
+      const { data } = await axios.get(`${BASE_URL}/destination/sub-district/${districtId}`, {
+        headers: { key: API_KEY },
+      })
       return response.status(200).send({ message: 'Success', serve: data?.data ?? data })
     } catch (e: any) {
       return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
@@ -281,7 +284,6 @@ export default class UserAddressesController {
   public async getCost({ request, response }: HttpContext) {
     try {
       // ===== destination =====
-      // FE bisa kirim destination atau subdistrict/sub_district
       const destination = toInt(pickInput(request, ['destination', 'subdistrict', 'sub_district', 'subDistrict']), 0)
 
       // ===== weight =====
@@ -299,11 +301,16 @@ export default class UserAddressesController {
       const destinationType = normalizeLocationType(destinationTypeFromReq ?? 'subdistrict', 'subdistrict')
 
       // ===== courier =====
-      let courier = pickInput(request, ['courier'], 'jne')
+      // ✅ default "all" biar FE dapat banyak courier tanpa set satu-satu
+      let courier = pickInput(request, ['courier'], 'all')
       courier = cleanCourier(courier)
 
+      // ✅ kalau FE kirim "all" / kosong → expand dari env
+      if (!courier || courier.toLowerCase() === 'all') {
+        courier = cleanCourier(getDefaultCouriers())
+      }
+
       // ===== price =====
-      // "all" biar keluar semua layanan. kalau mau ringkas bisa "lowest"
       const price = String(pickInput(request, ['price'], 'all')).toLowerCase()
 
       const noCache = toInt(pickInput(request, ['no_cache', 'noCache'], 0), 0) === 1
@@ -336,14 +343,13 @@ export default class UserAddressesController {
         }
       }
 
-      // ✅ FIX: kirim originType + destinationType, dan endpoint mengikuti originType
       const body = qs.stringify({
         origin,
         originType,
         destination,
         destinationType,
         weight,
-        courier, // sudah koma-separated (multi courier bisa)
+        courier, // ✅ multi courier comma-separated
         price,
       })
 
