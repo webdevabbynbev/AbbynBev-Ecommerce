@@ -26,6 +26,28 @@ function toSortDir(v: any): 'asc' | 'desc' {
   return s === 'asc' ? 'asc' : 'desc'
 }
 
+function normalizeInt(v: any, fallback = 0) {
+  const n = toNumber(v, fallback)
+  return Math.max(0, Math.round(n))
+}
+
+function pickEtdFromKomerceRows(rows: any[], courierService: string) {
+  if (!Array.isArray(rows) || rows.length === 0) return null
+
+  const want = String(courierService || '').trim().toLowerCase()
+  if (!want) return rows[0]?.etd ?? null
+
+  // Komerce kadang beda-beda key, coba beberapa kemungkinan
+  const matched =
+    rows.find((r) => String(r?.service || '').toLowerCase() === want) ||
+    rows.find((r) => String(r?.service_name || '').toLowerCase() === want) ||
+    rows.find((r) => String(r?.courier_service || '').toLowerCase() === want) ||
+    rows.find((r) => String(r?.service_code || '').toLowerCase() === want) ||
+    rows.find((r) => String(r?.serviceType || '').toLowerCase() === want)
+
+  return (matched?.etd ?? rows[0]?.etd ?? null) as any
+}
+
 export default class TransactionEcommerceController {
   public async get({ response, request, auth }: HttpContext) {
     try {
@@ -33,14 +55,7 @@ export default class TransactionEcommerceController {
       const page = toNumber(q.page, 1) || 1
       const perPage = toNumber(q.per_page, 10) || 10
 
-      // whitelist kolom biar aman
-      const allowedSort = new Set([
-        'created_at',
-        'updated_at',
-        'id',
-        'shipping_cost',
-        'user_address_id',
-      ])
+      const allowedSort = new Set(['created_at', 'updated_at', 'id', 'shipping_cost', 'user_address_id'])
       const sortBy = allowedSort.has(String(q.field)) ? String(q.field) : 'created_at'
       const sortDir = toSortDir(q.value)
 
@@ -54,7 +69,7 @@ export default class TransactionEcommerceController {
           trxQuery.where('user_id', auth.user?.id ?? 0)
 
           if (transactionNumber) trxQuery.where('transaction_number', transactionNumber)
-          if (status) trxQuery.where('transaction_status', status) // ✅ FIX (bukan "status")
+          if (status) trxQuery.where('transaction_status', status)
           if (startDate) trxQuery.where('created_at', '>=', startDate)
           if (endDate) trxQuery.where('created_at', '<=', endDate)
         })
@@ -104,12 +119,16 @@ export default class TransactionEcommerceController {
       const voucher = request.input('voucher') // bisa null / object
       const userAddressId = toNumber(request.input('user_address_id'), 0)
 
-      const courierName = String(request.input('shipping_service_type') || '')
-      const courierService = String(request.input('shipping_service') || '')
+      // di FE kamu: shipping_service_type = courier (jne/tiki/dll), shipping_service = REG/ECO/dll
+      const courierName = String(request.input('shipping_service_type') || '').trim()
+      const courierService = String(request.input('shipping_service') || '').trim()
 
-      const shippingPrice = toNumber(request.input('shipping_price'), 0) // ✅ number
+      const shippingPriceInput = normalizeInt(request.input('shipping_price'), 0)
       const isProtected = !!request.input('is_protected')
-      const protectionFee = toNumber(request.input('protection_fee'), 0) // ✅ number
+      const protectionFee = normalizeInt(request.input('protection_fee'), 0)
+
+      // optional: FE bisa kirim weight
+      const weightFromReq = normalizeInt(request.input('weight'), 0)
 
       if (!cartIds.length) {
         await trx.rollback()
@@ -149,13 +168,84 @@ export default class TransactionEcommerceController {
         return acc + (toNumber(cart.price) - toNumber(cart.discount)) * qty
       }, 0)
 
+      // ========= address =========
+      const userAddress = await UserAddress.query({ client: trx }).where('id', userAddressId).first()
+      if (!userAddress) {
+        await trx.rollback()
+        return response.status(400).send({ message: 'Address not found.', serve: [] })
+      }
+      if (!userAddress.postalCode) {
+        await trx.rollback()
+        return response
+          .status(400)
+          .send({ message: 'Postal code not found. Please update your address.', serve: [] })
+      }
+
+      // ========= weight =========
+      // Prioritas: request.weight -> hitung dari cart (variant.weight/product.weight)
+      const weightFromCart = carts.reduce((acc, cart: any) => {
+        const qty = cart.qtyCheckout > 0 ? cart.qtyCheckout : cart.qty
+        const vWeight = toNumber(cart?.variant?.weight, 0)
+        const pWeight = toNumber(cart?.product?.weight, 0)
+        const w = vWeight || pWeight || 0
+        return acc + w * qty
+      }, 0)
+
+      // minimal 1 gram biar API gak error
+      const totalWeight = Math.max(1, weightFromReq || weightFromCart || 1)
+
+      // ========= komerce etd + (optional) price sanity =========
+      const komerceClient = axios.create({
+        baseURL: env.get('KOMERCE_COST_BASE_URL'),
+        headers: { key: env.get('KOMERCE_COST_API_KEY') },
+      })
+
+      const origin = normalizeInt(env.get('KOMERCE_ORIGIN'), 0)
+      const originType = String(env.get('KOMERCE_ORIGIN_TYPE') || 'district')
+
+      const destinationSubdistrict = normalizeInt(userAddress.subDistrict, 0)
+      if (!destinationSubdistrict) {
+        await trx.rollback()
+        return response
+          .status(400)
+          .send({ message: 'Subdistrict not found. Please update your address.', serve: [] })
+      }
+
+      const komerceBody = qs.stringify({
+        origin,
+        originType,
+        destination: destinationSubdistrict,
+        destinationType: 'subdistrict',
+        weight: totalWeight,
+        courier: courierName, // satu courier saja (untuk verifikasi service/etd)
+        price: 'lowest',
+      })
+
+      const { data: komerceResp } = await komerceClient.post('/calculate/district/domestic-cost', komerceBody, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+      })
+
+      if (!komerceResp?.data || !Array.isArray(komerceResp.data) || komerceResp.data.length === 0) {
+        await trx.rollback()
+        return response.status(400).send({
+          message: 'Shipping service not available for this destination.',
+          serve: [],
+        })
+      }
+
+      const etd = pickEtdFromKomerceRows(komerceResp.data, courierService)
+
+      // kalau mau super aman: bisa validasi shippingPriceInput vs hasil API (optional)
+      // untuk sekarang kita tetap pakai input FE biar alur kamu gak pecah
+      const shippingPrice = shippingPriceInput
+
       const discount = this.calculateVoucher(voucher, subTotal, shippingPrice)
       const grandTotal = this.generateGrandTotal(voucher, subTotal, shippingPrice) + (isProtected ? protectionFee : 0)
 
       // ========= transaction =========
       const transaction = new Transaction()
-      transaction.userId = user.id // ✅ FIX (bukan transaction.id)
-      transaction.amount = grandTotal // biar kompatibel sama midtrans
+      transaction.userId = user.id
+      transaction.amount = grandTotal
       transaction.subTotal = subTotal
       transaction.grandTotal = grandTotal
       transaction.discount = discount
@@ -201,15 +291,14 @@ export default class TransactionEcommerceController {
       transactionEcommerce.voucherId = voucher?.id ?? null
       transactionEcommerce.tokenMidtrans = snap.token
       transactionEcommerce.redirectUrl = snap.redirect_url
-      transactionEcommerce.userId = user.id // ✅ FIX (bukan id)
-      transactionEcommerce.shippingCost = shippingPrice // ✅ number
+      transactionEcommerce.userId = user.id
+      transactionEcommerce.shippingCost = shippingPrice
       transactionEcommerce.userAddressId = userAddressId
       transactionEcommerce.courierName = courierName
       transactionEcommerce.courierService = courierService
       await transactionEcommerce.useTransaction(trx).save()
 
       // ========= voucher reduce (opsional) =========
-      // NOTE: idealnya voucher dipotong saat settlement, tapi untuk sekarang kita ikutin pola kamu dulu
       if (voucher?.id) {
         const voucherDb = await Voucher.query({ client: trx }).where('id', voucher.id).first()
         if (voucherDb) {
@@ -219,11 +308,10 @@ export default class TransactionEcommerceController {
       }
 
       // ========= stock reduce + details + delete cart =========
-      for (const cart of carts) {
+      for (const cart of carts as any[]) {
         const qty = cart.qtyCheckout > 0 ? cart.qtyCheckout : cart.qty
         if (!cart.productVariantId) continue
 
-        // lock row biar aman race condition
         const productVariant = await ProductVariant.query({ client: trx })
           .preload('product')
           .where('id', cart.productVariantId)
@@ -257,7 +345,6 @@ export default class TransactionEcommerceController {
         transactionDetail.productVariantId = cart.productVariantId
         await transactionDetail.useTransaction(trx).save()
 
-        // popularity
         if (cart.productId) {
           const product = await Product.query({ client: trx }).where('id', cart.productId).first()
           if (product) {
@@ -270,50 +357,11 @@ export default class TransactionEcommerceController {
       }
 
       // ========= shipment =========
-      const userAddress = await UserAddress.query({ client: trx }).where('id', userAddressId).first()
-      if (!userAddress) {
-        await trx.rollback()
-        return response.status(400).send({ message: 'Address not found.', serve: [] })
-      }
-      if (!userAddress.postalCode) {
-        await trx.rollback()
-        return response
-          .status(400)
-          .send({ message: 'Postal code not found. Please update your address.', serve: [] })
-      }
-
-      // komerce etd
-      const komerceClient = axios.create({
-        baseURL: env.get('KOMERCE_COST_BASE_URL'),
-        headers: { key: env.get('KOMERCE_COST_API_KEY') },
-      })
-
-      const body = qs.stringify({
-        origin: Number(env.get('KOMERCE_ORIGIN')),
-        originType: env.get('KOMERCE_ORIGIN_TYPE'),
-        destination: userAddress.subDistrict,
-        destinationType: 'subdistrict',
-        weight: 1000,
-        courier: courierName,
-        price: 'lowest',
-      })
-
-      const { data: komerceResp } = await komerceClient.post('/calculate/district/domestic-cost', body, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
-      })
-
-      if (!komerceResp?.data) {
-        await trx.rollback()
-        return response
-          .status(400)
-          .send({ message: 'Subdistrict not found. Please update your address.', serve: [] })
-      }
-
       const transactionShipment = new TransactionShipment()
       transactionShipment.transactionId = transaction.id
       transactionShipment.service = courierName
       transactionShipment.serviceType = courierService
-      transactionShipment.price = shippingPrice // ✅ number
+      transactionShipment.price = shippingPrice
       transactionShipment.address = `${userAddress.address}, ${userAddress.subDistrict}, ${userAddress.district}, ${userAddress.city}, ${userAddress.province}, ${userAddress.postalCode}`
       transactionShipment.provinceId = userAddress.province
       transactionShipment.cityId = userAddress.city
@@ -322,9 +370,8 @@ export default class TransactionEcommerceController {
       transactionShipment.postalCode = userAddress.postalCode
       transactionShipment.pic = userAddress.picName
       transactionShipment.pic_phone = userAddress.picPhone
-      transactionShipment.estimationArrival = komerceResp.data[0]?.etd || null
+      transactionShipment.estimationArrival = etd
       transactionShipment.protectionFee = protectionFee
-      transactionShipment.protectionFee = protectionFee // ✅ number
       await transactionShipment.useTransaction(trx).save()
 
       await trx.commit()
@@ -393,7 +440,6 @@ export default class TransactionEcommerceController {
       const grossAmount = request.input('gross_amount')
       const signatureKey = request.input('signature_key')
 
-      // ✅ signature verify (anti spoof)
       const serverKey = env.get('MIDTRANS_SERVER_KEY')
       const raw = `${orderId}${statusCode}${grossAmount}${serverKey}`
       const expected = createHash('sha512').update(raw).digest('hex')
@@ -402,9 +448,7 @@ export default class TransactionEcommerceController {
         return response.status(401).json({ message: 'Invalid signature', serve: [] })
       }
 
-      const transaction = await Transaction.query({ client: trx })
-        .where('transaction_number', orderId)
-        .first()
+      const transaction = await Transaction.query({ client: trx }).where('transaction_number', orderId).first()
 
       if (!transaction) {
         await trx.commit()
@@ -425,7 +469,6 @@ export default class TransactionEcommerceController {
         await transactionEcommerce.useTransaction(trx).save()
       }
 
-      // mapping status midtrans -> status internal
       if (transactionStatus === 'capture' && fraudStatus === 'accept') {
         transaction.transactionStatus = TransactionStatus.ON_PROCESS.toString()
       } else if (transactionStatus === 'settlement') {
@@ -561,10 +604,7 @@ export default class TransactionEcommerceController {
       const pickupTime = request.input('pickup_time')
       const pickupVehicle = request.input('pickup_vehicle')
 
-      const transaction = await Transaction.query()
-        .where('transaction_number', transactionNumber)
-        .preload('shipments')
-        .first()
+      const transaction = await Transaction.query().where('transaction_number', transactionNumber).preload('shipments').first()
 
       if (!transaction || transaction.shipments.length === 0) {
         return response.status(400).send({
@@ -601,10 +641,7 @@ export default class TransactionEcommerceController {
       const transactionNumber = request.input('transaction_number')
       const newStatus = request.input('status')
 
-      const transaction = await Transaction.query()
-        .where('transaction_number', transactionNumber)
-        .preload('shipments')
-        .first()
+      const transaction = await Transaction.query().where('transaction_number', transactionNumber).preload('shipments').first()
 
       if (!transaction || transaction.shipments.length === 0) {
         return response.status(404).send({
