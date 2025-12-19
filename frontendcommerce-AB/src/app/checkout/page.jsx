@@ -18,10 +18,25 @@ const unwrap = (res) => {
 
 const n = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 const isNumericLike = (v) =>
-  v !== null &&
-  v !== undefined &&
-  String(v).trim() !== "" &&
-  !Number.isNaN(Number(v));
+  v !== null && v !== undefined && String(v).trim() !== "" && !Number.isNaN(Number(v));
+
+// ===== safe sessionStorage (Safari / private mode bisa throw) =====
+const ssGet = (key) => {
+  try {
+    if (typeof window === "undefined") return null;
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+const ssSet = (key, value) => {
+  try {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.setItem(key, value);
+  } catch {
+    // ignore quota / private mode
+  }
+};
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -70,7 +85,7 @@ export default function CheckoutPage() {
       const items = payload?.items ?? payload;
       setCart(Array.isArray(items) ? items : []);
     } catch (err) {
-      console.error("Error load cart:", err);
+      console.warn("Error load cart:", err?.response?.data || err);
       setCart([]);
     } finally {
       setLoadingCart(false);
@@ -139,7 +154,7 @@ export default function CheckoutPage() {
       setSelectedAddressId(pick?.id ?? null);
       hydrateLocationNames(arr);
     } catch (err) {
-      console.error("Error load addresses:", err);
+      console.warn("Error load addresses:", err?.response?.data || err);
       setAddresses([]);
       setSelectedAddressId(null);
     } finally {
@@ -199,7 +214,7 @@ export default function CheckoutPage() {
     return Math.max(1, Math.round(w));
   }, [checkoutItems]);
 
-  // ✅ round per 100g biar request gak “beda dikit” terus (hemat hit)
+  // ✅ round per 100g (hemat hit)
   const weightRounded = useMemo(() => Math.max(1, Math.ceil(weightGrams / 100) * 100), [weightGrams]);
 
   const total = subtotal + n(selectedShipping?.price, 0);
@@ -215,7 +230,7 @@ export default function CheckoutPage() {
       await axios.put(`/cart/${item.id}`, { qty: newQty });
       await loadCart();
     } catch (err) {
-      console.error("Error update qty:", err);
+      console.warn("Error update qty:", err?.response?.data || err);
       alert(err?.response?.data?.message || "Gagal mengubah jumlah produk");
     } finally {
       setLoadingItemId(null);
@@ -238,7 +253,7 @@ export default function CheckoutPage() {
 
       await loadCart();
     } catch (err) {
-      console.error("Error delete cart item:", err);
+      console.warn("Error delete cart item:", err?.response?.data || err);
       alert(err?.response?.data?.message || "Gagal menghapus produk dari keranjang");
     } finally {
       setLoadingItemId(null);
@@ -252,7 +267,7 @@ export default function CheckoutPage() {
       await axios.put("/addresses", { id, is_active: 2 });
       await loadAddresses(id);
     } catch (err) {
-      console.error("Failed set main address:", err?.response?.data || err);
+      console.warn("Failed set main address:", err?.response?.data || err);
     }
   };
 
@@ -295,7 +310,7 @@ export default function CheckoutPage() {
 
       if (!code || cost <= 0) continue;
 
-      // ✅ filter layanan “cargo/jutaan/tier”
+      // ✅ filter layanan cargo/jutaan/tier
       const bad =
         /JTR|TRUCK|CARGO|KARGO/i.test(service) ||
         /[<>]/.test(service) ||
@@ -336,7 +351,6 @@ export default function CheckoutPage() {
       groups[k].sort((a, b) => a.price - b.price);
     }
 
-    // choose best: prefer service tertentu kalau ada
     const prefer = ["REG", "ECO", "YES", "OKE", "EZ", "CTC", "EXP"];
     const best = {};
     for (const [courier, items] of Object.entries(groups)) {
@@ -348,6 +362,12 @@ export default function CheckoutPage() {
       best[courier] = pick || items[0] || null;
     }
     return { groups, best };
+  };
+
+  const pickCheapestBest = (bestMap) => {
+    const bestList = Object.values(bestMap || {}).filter(Boolean);
+    bestList.sort((a, b) => a.price - b.price);
+    return bestList[0] || null;
   };
 
   // ===== Shipping fetch (hemat hit) =====
@@ -376,23 +396,28 @@ export default function CheckoutPage() {
       return;
     }
 
-    // ✅ key buat anti double-hit + cache
     const key = `ship:${selectedAddressId}|${destinationSubdistrict}|${weightRounded}`;
 
-    // ✅ session cache (browser)
-    const cached = sessionStorage.getItem(key);
+    // ✅ session cache
+    const cached = ssGet(key);
     if (cached) {
-      const payload = JSON.parse(cached);
-      const normalized = normalizeShipping(payload);
-      setShippingAll(normalized);
+      try {
+        const payload = JSON.parse(cached);
+        const normalized = normalizeShipping(payload);
+        setShippingAll(normalized);
 
-      // keep selection kalau masih ada
-      setSelectedShipping((prev) => {
-        if (!normalized.length) return null;
-        if (!prev) return normalized[0];
-        return normalized.find((x) => x.id === prev.id) || normalized[0];
-      });
-      return;
+        const { best } = groupByCourier(normalized);
+        const cheapestBest = pickCheapestBest(best);
+
+        setSelectedShipping((prev) => {
+          if (!normalized.length) return null;
+          if (!prev) return cheapestBest || normalized[0];
+          return normalized.find((x) => x.id === prev.id) || cheapestBest || normalized[0];
+        });
+        return;
+      } catch {
+        // kalau cache rusak, lanjut request
+      }
     }
 
     // ✅ anti double hit (StrictMode)
@@ -407,36 +432,47 @@ export default function CheckoutPage() {
         destination: destinationSubdistrict,
         destinationType: "subdistrict",
         weight: weightRounded,
-        courier: "all",     // ✅ backend expand dari KOMERCE_COURIERS
+        courier: "all", // ✅ FE tidak hardcode list kurir (backend yang expand)
         price: "all",
       });
 
-      if (reqId !== shipReqIdRef.current) return; // ignore response lama
+      if (reqId !== shipReqIdRef.current) return;
 
       const payload = unwrap(res);
-      sessionStorage.setItem(key, JSON.stringify(payload));
+      ssSet(key, JSON.stringify(payload));
 
       const normalized = normalizeShipping(payload);
       setShippingAll(normalized);
 
+      const { best } = groupByCourier(normalized);
+      const cheapestBest = pickCheapestBest(best);
+
       setSelectedShipping((prev) => {
         if (!normalized.length) return null;
-        if (!prev) return normalized[0];
-        return normalized.find((x) => x.id === prev.id) || normalized[0];
+        if (!prev) return cheapestBest || normalized[0];
+        return normalized.find((x) => x.id === prev.id) || cheapestBest || normalized[0];
       });
     } catch (err) {
-      console.error("fetchShipping error:", err?.response?.data || err);
+      // pakai warn biar overlay Next nggak rese
+      console.warn("fetchShipping error detail:", {
+        message: err?.message,
+        code: err?.code,
+        status: err?.response?.status,
+        data: err?.response?.data,
+        url: `${err?.config?.baseURL || ""}${err?.config?.url || ""}`,
+      });
+
       setShippingAll([]);
       setSelectedShipping(null);
 
-      // ✅ biar bisa retry kalau error
+      // ✅ biar bisa retry
       lastShipKeyRef.current = "";
     } finally {
       setLoadingShip(false);
     }
   };
 
-  // ✅ debounce (klik qty cepat gak spam)
+  // ✅ debounce
   useEffect(() => {
     if (shipTimerRef.current) clearTimeout(shipTimerRef.current);
     shipTimerRef.current = setTimeout(() => {
@@ -455,7 +491,7 @@ export default function CheckoutPage() {
 
   const courierKeys = useMemo(() => {
     const keys = Object.keys(shippingGroups || {});
-    keys.sort(); // rapih
+    keys.sort();
     return keys;
   }, [shippingGroups]);
 
@@ -526,13 +562,7 @@ export default function CheckoutPage() {
                 className="flex justify-between items-center border-b pb-4 mb-4"
               >
                 <div className="flex gap-3 items-center">
-                  <Image
-                    src={image}
-                    width={60}
-                    height={60}
-                    alt={productName}
-                    className="rounded-md"
-                  />
+                  <Image src={image} width={60} height={60} alt={productName} className="rounded-md" />
                   <div>
                     <p className="font-medium">{productName}</p>
                     <p className="text-sm text-gray-500">Variant: {variantName}</p>
@@ -570,8 +600,7 @@ export default function CheckoutPage() {
                 </div>
 
                 <p className="font-semibold text-pink-600 text-right">
-                  Rp{" "}
-                  {n(item.amount ?? item.price ?? product.price ?? 0, 0).toLocaleString("id-ID")}
+                  Rp {n(item.amount ?? item.price ?? product.price ?? 0, 0).toLocaleString("id-ID")}
                 </p>
               </div>
             );
@@ -632,7 +661,6 @@ export default function CheckoutPage() {
             </p>
           )}
 
-          {/* ✅ CARD per courier, klik card -> muncul list service */}
           <div className="space-y-3">
             {courierKeys.map((courier) => {
               const expanded = !!expandedCouriers[courier];
@@ -652,7 +680,6 @@ export default function CheckoutPage() {
                     expanded ? "border-pink-600 bg-pink-50" : "hover:border-gray-400"
                   }`}
                 >
-                  {/* Header card */}
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="font-semibold uppercase">{courier}</p>
@@ -671,23 +698,19 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
-                  {/* Expanded services */}
                   {expanded && (
                     <div className="mt-4 space-y-2">
                       {list.map((opt) => {
                         const isSelected = selectedShipping?.id === opt.id;
-
                         return (
                           <div
                             key={opt.id}
                             onClick={(e) => {
-                              e.stopPropagation(); // ✅ biar klik service gak nutup card
+                              e.stopPropagation();
                               setSelectedShipping(opt);
                             }}
                             className={`p-3 rounded-xl border transition ${
-                              isSelected
-                                ? "border-pink-600 bg-white"
-                                : "bg-white hover:border-gray-400"
+                              isSelected ? "border-pink-600 bg-white" : "bg-white hover:border-gray-400"
                             }`}
                           >
                             <div className="flex justify-between items-start gap-4">
@@ -699,9 +722,7 @@ export default function CheckoutPage() {
                                   <p className="text-xs text-gray-500 mt-1">{opt.description}</p>
                                 )}
                               </div>
-                              <p className="text-sm text-gray-500 whitespace-nowrap">
-                                {opt.estimate}
-                              </p>
+                              <p className="text-sm text-gray-500 whitespace-nowrap">{opt.estimate}</p>
                             </div>
                           </div>
                         );
