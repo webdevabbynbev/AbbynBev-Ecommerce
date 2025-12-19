@@ -518,7 +518,10 @@ export default class UserAddressesController {
       const originFromReq = pickInputU(request, ['origin'])
       const origin = toInt(originFromReq ?? env.get('KOMERCE_ORIGIN'), 0)
 
-      const price = String(pickInputU(request, ['price'], 'all')).toLowerCase()
+      const priceIn = String(pickInputU(request, ['price'], 'lowest')).toLowerCase()
+const allowedPrice = new Set(['lowest', 'highest'])
+const price = allowedPrice.has(priceIn) ? priceIn : 'lowest'
+
       const noCache = toInt(pickInputU(request, ['no_cache', 'noCache'], 0), 0) === 1
 
       // courier: "all" -> pakai env KOMERCE_COURIERS atau default fallback
