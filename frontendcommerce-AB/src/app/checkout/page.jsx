@@ -464,7 +464,7 @@ export default function CheckoutPage() {
         destination: destinationDistrict,
         weight: weightRounded,
         courier: "all",
-        price: "lowest"
+        price: "all",
       });
 
       if (reqId !== shipReqIdRef.current) return;
