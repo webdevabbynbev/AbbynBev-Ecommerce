@@ -37,7 +37,6 @@ function pickEtdFromKomerceRows(rows: any[], courierService: string) {
   const want = String(courierService || '').trim().toLowerCase()
   if (!want) return rows[0]?.etd ?? null
 
-  // Komerce kadang beda-beda key, coba beberapa kemungkinan
   const matched =
     rows.find((r) => String(r?.service || '').toLowerCase() === want) ||
     rows.find((r) => String(r?.service_name || '').toLowerCase() === want) ||
@@ -48,7 +47,56 @@ function pickEtdFromKomerceRows(rows: any[], courierService: string) {
   return (matched?.etd ?? rows[0]?.etd ?? null) as any
 }
 
+function pickReceiptFromMidtrans(payload: any) {
+  return (
+    payload?.transaction_id ||
+    payload?.va_numbers?.[0]?.va_number ||
+    payload?.permata_va_number ||
+    payload?.bill_key ||
+    payload?.biller_code ||
+    null
+  )
+}
+
+function normalizeMidtransStatus(v: any) {
+  return String(v || '').trim().toLowerCase()
+}
+
 export default class TransactionEcommerceController {
+  // ✅ restore stock + voucher kalau order jadi FAILED (expire/cancel/deny)
+  private async restoreStockAndVoucher(trx: any, transactionId: number, voucherId: number | null) {
+    const details = await TransactionDetail.query({ client: trx }).where('transaction_id', transactionId)
+
+    for (const d of details as any[]) {
+      // restore variant stock
+      if (d.productVariantId) {
+        const pv = await ProductVariant.query({ client: trx }).where('id', d.productVariantId).forUpdate().first()
+        if (pv) {
+          pv.stock = toNumber(pv.stock) + toNumber(d.qty)
+          await pv.useTransaction(trx).save()
+        }
+      }
+
+      // optional: rollback popularity (sebelumnya create +1 per item)
+      if (d.productId) {
+        const p = await Product.query({ client: trx }).where('id', d.productId).forUpdate().first()
+        if (p) {
+          p.popularity = Math.max(0, toNumber(p.popularity) - 1)
+          await p.useTransaction(trx).save()
+        }
+      }
+    }
+
+    // restore voucher qty
+    if (voucherId) {
+      const v = await Voucher.query({ client: trx }).where('id', voucherId).forUpdate().first()
+      if (v) {
+        v.qty = toNumber(v.qty) + 1
+        await v.useTransaction(trx).save()
+      }
+    }
+  }
+
   public async get({ response, request, auth }: HttpContext) {
     try {
       const q = request.qs()
@@ -116,10 +164,9 @@ export default class TransactionEcommerceController {
         ? rawCartIds.map((x) => toNumber(x)).filter((x) => x > 0)
         : []
 
-      const voucher = request.input('voucher') // bisa null / object
+      const voucher = request.input('voucher')
       const userAddressId = toNumber(request.input('user_address_id'), 0)
 
-      // di FE kamu: shipping_service_type = courier (jne/tiki/dll), shipping_service = REG/ECO/dll
       const courierName = String(request.input('shipping_service_type') || '').trim()
       const courierService = String(request.input('shipping_service') || '').trim()
 
@@ -127,7 +174,6 @@ export default class TransactionEcommerceController {
       const isProtected = !!request.input('is_protected')
       const protectionFee = normalizeInt(request.input('protection_fee'), 0)
 
-      // optional: FE bisa kirim weight
       const weightFromReq = normalizeInt(request.input('weight'), 0)
 
       if (!cartIds.length) {
@@ -182,7 +228,6 @@ export default class TransactionEcommerceController {
       }
 
       // ========= weight =========
-      // Prioritas: request.weight -> hitung dari cart (variant.weight/product.weight)
       const weightFromCart = carts.reduce((acc, cart: any) => {
         const qty = cart.qtyCheckout > 0 ? cart.qtyCheckout : cart.qty
         const vWeight = toNumber(cart?.variant?.weight, 0)
@@ -191,10 +236,9 @@ export default class TransactionEcommerceController {
         return acc + w * qty
       }, 0)
 
-      // minimal 1 gram biar API gak error
       const totalWeight = Math.max(1, weightFromReq || weightFromCart || 1)
 
-      // ========= komerce etd + (optional) price sanity =========
+      // ========= komerce etd =========
       const komerceClient = axios.create({
         baseURL: env.get('KOMERCE_COST_BASE_URL'),
         headers: { key: env.get('KOMERCE_COST_API_KEY') },
@@ -217,7 +261,7 @@ export default class TransactionEcommerceController {
         destination: destinationSubdistrict,
         destinationType: 'subdistrict',
         weight: totalWeight,
-        courier: courierName, // satu courier saja (untuk verifikasi service/etd)
+        courier: courierName,
         price: 'lowest',
       })
 
@@ -235,8 +279,6 @@ export default class TransactionEcommerceController {
 
       const etd = pickEtdFromKomerceRows(komerceResp.data, courierService)
 
-      // kalau mau super aman: bisa validasi shippingPriceInput vs hasil API (optional)
-      // untuk sekarang kita tetap pakai input FE biar alur kamu gak pecah
       const shippingPrice = shippingPriceInput
 
       const discount = this.calculateVoucher(voucher, subTotal, shippingPrice)
@@ -298,7 +340,7 @@ export default class TransactionEcommerceController {
       transactionEcommerce.courierService = courierService
       await transactionEcommerce.useTransaction(trx).save()
 
-      // ========= voucher reduce (opsional) =========
+      // ========= voucher reduce =========
       if (voucher?.id) {
         const voucherDb = await Voucher.query({ client: trx }).where('id', voucher.id).first()
         if (voucherDb) {
@@ -398,7 +440,7 @@ export default class TransactionEcommerceController {
     if (!v) return 0
 
     const isPercentage = toNumber(v.isPercentage) === 1
-    const type = toNumber(v.type) // 2 = shipping?
+    const type = toNumber(v.type)
     const percentage = toNumber(v.percentage)
     const maxDiscPrice = toNumber(v.maxDiscPrice)
     const fixedPrice = toNumber(v.price)
@@ -431,25 +473,35 @@ export default class TransactionEcommerceController {
     return `AB${tahun}${bulan}${tanggal}${random}`
   }
 
+  /**
+   * Webhook Midtrans:
+   * - capture+accept / settlement => PAID_WAITING_ADMIN
+   * - pending => WAITING_PAYMENT
+   * - deny/cancel/expire/failure => FAILED
+   *
+   * Guard:
+   * - Kalau status order sudah ON_PROCESS / ON_DELIVERY / COMPLETED, webhook tidak boleh override.
+   * - Kalau status sudah FAILED, jangan diubah lagi.
+   */
   public async webhookMidtrans({ request, response }: HttpContext) {
     const trx = await db.transaction()
 
     try {
-      const orderId = request.input('order_id')
-      const statusCode = request.input('status_code')
-      const grossAmount = request.input('gross_amount')
-      const signatureKey = request.input('signature_key')
+      const orderId = String(request.input('order_id') || '')
+      const statusCode = String(request.input('status_code') || '')
+      const grossAmount = String(request.input('gross_amount') || '')
+      const signatureKey = String(request.input('signature_key') || '')
 
       const serverKey = env.get('MIDTRANS_SERVER_KEY')
       const raw = `${orderId}${statusCode}${grossAmount}${serverKey}`
       const expected = createHash('sha512').update(raw).digest('hex')
+
       if (signatureKey && signatureKey !== expected) {
         await trx.rollback()
         return response.status(401).json({ message: 'Invalid signature', serve: [] })
       }
 
       const transaction = await Transaction.query({ client: trx }).where('transaction_number', orderId).first()
-
       if (!transaction) {
         await trx.commit()
         return response.status(400).json({ message: 'Order not valid.', serve: [] })
@@ -459,29 +511,61 @@ export default class TransactionEcommerceController {
         .where('transaction_id', transaction.id)
         .first()
 
-      const transactionStatus = request.input('transaction_status')
-      const fraudStatus = request.input('fraud_status')
+      const transactionStatus = normalizeMidtransStatus(request.input('transaction_status'))
+      const fraudStatus = normalizeMidtransStatus(request.input('fraud_status'))
 
       if (transactionEcommerce) {
         transactionEcommerce.paymentMethod = request.input('payment_type') || null
-        transactionEcommerce.receipt =
-          request.input('transaction_id') || request.input('va_numbers')?.[0]?.va_number || null
+        transactionEcommerce.receipt = pickReceiptFromMidtrans(request.all()) || null
         await transactionEcommerce.useTransaction(trx).save()
       }
 
-      if (transactionStatus === 'capture' && fraudStatus === 'accept') {
-        transaction.transactionStatus = TransactionStatus.ON_PROCESS.toString()
-      } else if (transactionStatus === 'settlement') {
-        transaction.transactionStatus = TransactionStatus.ON_PROCESS.toString()
-      } else if (transactionStatus === 'pending') {
-        transaction.transactionStatus = TransactionStatus.WAITING_PAYMENT.toString()
-      } else if (['deny', 'cancel', 'expire'].includes(transactionStatus)) {
-        transaction.transactionStatus = TransactionStatus.FAILED.toString()
+      const current = String(transaction.transactionStatus || '')
+
+      // ✅ terminal: FAILED jangan diubah lagi (biar stok/voucher gak kacau)
+      if (current === TransactionStatus.FAILED.toString()) {
+        await trx.commit()
+        return response.status(200).json({ message: 'ok', serve: [] })
       }
 
-      await transaction.useTransaction(trx).save()
-      await trx.commit()
+      const isFinal =
+        current === TransactionStatus.ON_PROCESS.toString() ||
+        current === TransactionStatus.ON_DELIVERY.toString() ||
+        current === TransactionStatus.COMPLETED.toString()
 
+      let nextStatus: string | null = null
+      if (transactionStatus === 'capture' && fraudStatus === 'accept') {
+        nextStatus = TransactionStatus.PAID_WAITING_ADMIN.toString()
+      } else if (transactionStatus === 'settlement') {
+        nextStatus = TransactionStatus.PAID_WAITING_ADMIN.toString()
+      } else if (transactionStatus === 'pending') {
+        nextStatus = TransactionStatus.WAITING_PAYMENT.toString()
+      } else if (['deny', 'cancel', 'expire', 'failure'].includes(transactionStatus)) {
+        nextStatus = TransactionStatus.FAILED.toString()
+      }
+
+      // ✅ jangan downgrade paid -> waiting
+      const isDowngrade =
+        current === TransactionStatus.PAID_WAITING_ADMIN.toString() &&
+        nextStatus === TransactionStatus.WAITING_PAYMENT.toString()
+
+      const prevStatus = current
+      let changed = false
+
+      // ✅ guard: kalau sudah final, jangan override status apa pun
+      if (nextStatus && !isFinal && !isDowngrade && prevStatus !== nextStatus) {
+        transaction.transactionStatus = nextStatus
+        await transaction.useTransaction(trx).save()
+        changed = true
+      }
+
+      // ✅ kalau berubah jadi FAILED, restore stock + voucher sekali
+      if (changed && nextStatus === TransactionStatus.FAILED.toString() && prevStatus !== TransactionStatus.FAILED.toString()) {
+        const voucherId = transactionEcommerce?.voucherId ?? null
+        await this.restoreStockAndVoucher(trx, transaction.id, voucherId)
+      }
+
+      await trx.commit()
       return response.status(200).json({ message: 'ok', serve: [] })
     } catch (error: any) {
       await trx.rollback()
@@ -554,6 +638,9 @@ export default class TransactionEcommerceController {
     }
   }
 
+  /**
+   * ✅ User confirm selesai (harus sudah dikirim dulu)
+   */
   public async confirmOrder({ request, response, auth }: HttpContext) {
     const trx = await db.transaction()
     try {
@@ -569,6 +656,15 @@ export default class TransactionEcommerceController {
         await trx.rollback()
         return response.status(404).send({
           message: 'Transaction not found.',
+          serve: [],
+        })
+      }
+
+      // ✅ prevent user selesaiin sebelum dikirim
+      if (transaction.transactionStatus !== TransactionStatus.ON_DELIVERY.toString()) {
+        await trx.rollback()
+        return response.status(400).send({
+          message: 'Pesanan belum dikirim, belum bisa dikonfirmasi selesai.',
           serve: [],
         })
       }

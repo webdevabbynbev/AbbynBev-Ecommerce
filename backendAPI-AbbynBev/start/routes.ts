@@ -329,13 +329,19 @@ router
           .use(middleware.roleAdmin())
 
         router
-          .group(() => {
-            router.get('', [CmsTransactionsController, 'get'])
-            router.put('/update-receipt', [CmsTransactionsController, 'updateReceipt'])
-            router.put('/cancel', [CmsTransactionsController, 'cancelTransactions'])
-          })
-          .use(middleware.roleAdmin())
-          .prefix('/transactions')
+          router
+  .group(() => {
+    router.get('', [CmsTransactionsController, 'get'])
+
+    // ✅ NEW: admin confirm setelah status PAID_WAITING_ADMIN
+    router.put('/confirm', [CmsTransactionsController, 'confirmPaidOrder'])
+
+    router.put('/update-receipt', [CmsTransactionsController, 'updateReceipt'])
+    router.put('/cancel', [CmsTransactionsController, 'cancelTransactions'])
+  })
+  .use(middleware.roleAdmin())
+  .prefix('/transactions')
+
 
         router.get('/total-user', [CmsHomeController, 'getTotalRegisterUser'])
         router.get('/total-transaction', [CmsHomeController, 'getTotalTransaction'])

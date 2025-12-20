@@ -1,9 +1,21 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import Transaction from '#models/transaction'
 import db from '@adonisjs/lucid/services/db'
+import Transaction from '#models/transaction'
+import ProductVariant from '#models/product_variant'
+import Voucher from '#models/voucher'
 import { TransactionStatus } from '../../enums/transaction_status.js'
 import axios from 'axios'
 import env from '#start/env'
+
+function toNumber(v: any, fallback = 0) {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : fallback
+}
+
+function parseIds(input: any): number[] {
+  if (!Array.isArray(input)) return []
+  return input.map((x) => toNumber(x)).filter((x) => x > 0)
+}
 
 export default class TransactionsController {
   public async get({ response, request }: HttpContext) {
@@ -27,7 +39,15 @@ export default class TransactionsController {
           query.where('transaction_number', transaction_number)
         })
         .if(transaction_status, (query) => {
-          query.where('transaction_status', transaction_status)
+          // support multi-status: "1,5,2"
+          const raw = String(transaction_status || '')
+          const arr = raw
+            .split(',')
+            .map((x) => x.trim())
+            .filter(Boolean)
+
+          if (arr.length > 1) query.whereIn('transaction_status', arr)
+          else if (arr.length === 1) query.where('transaction_status', arr[0])
         })
         .if(user, (query) => {
           query.where('user_id', user)
@@ -39,14 +59,9 @@ export default class TransactionsController {
           query.where('created_at', '<=', end_date)
         })
         .if(channel, (query) => {
-          if (channel === 'ecommerce') {
-            query.whereHas('ecommerce', () => {})
-          }
-          if (channel === 'pos') {
-            query.whereHas('pos', () => {})
-          }
+          if (channel === 'ecommerce') query.whereHas('ecommerce', () => {})
+          if (channel === 'pos') query.whereHas('pos', () => {})
         })
-
         .preload('details', (detailsQuery) => {
           detailsQuery.preload('product', (productLoader) => {
             productLoader.preload('medias')
@@ -67,7 +82,7 @@ export default class TransactionsController {
           ...dataTransaction.toJSON().meta,
         },
       })
-    } catch (error) {
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
         serve: [],
@@ -75,10 +90,68 @@ export default class TransactionsController {
     }
   }
 
+  /**
+   * ✅ Admin confirm:
+   * dari "PAID_WAITING_ADMIN" -> "ON_PROCESS"
+   * Body: { transaction_id: number }
+   */
+  public async confirmPaidOrder({ response, request }: HttpContext) {
+    const trx = await db.transaction()
+    try {
+      const transactionId = toNumber(request.input('transaction_id'), 0)
+      if (!transactionId) {
+        await trx.rollback()
+        return response.status(400).send({ message: 'transaction_id wajib diisi', serve: [] })
+      }
+
+      const transaction = await Transaction.query({ client: trx })
+        .where('id', transactionId)
+        .forUpdate()
+        .first()
+
+      if (!transaction) {
+        await trx.rollback()
+        return response.status(404).send({ message: 'Transaction not found.', serve: [] })
+      }
+
+      // hanya boleh confirm kalau sudah bayar dan menunggu admin
+      if (String(transaction.transactionStatus) !== TransactionStatus.PAID_WAITING_ADMIN.toString()) {
+        await trx.rollback()
+        return response.status(400).send({
+          message: 'Transaksi belum dibayar / tidak dalam status menunggu konfirmasi admin.',
+          serve: [],
+        })
+      }
+
+      transaction.transactionStatus = TransactionStatus.ON_PROCESS.toString()
+      await transaction.useTransaction(trx).save()
+
+      await trx.commit()
+      return response.status(200).send({
+        message: 'Pesanan berhasil dikonfirmasi admin.',
+        serve: transaction,
+      })
+    } catch (error: any) {
+      await trx.rollback()
+      return response.status(500).send({
+        message: error.message || 'Internal Server Error.',
+        serve: [],
+      })
+    }
+  }
+
+  /**
+   * ✅ Generate resi (Komerce)
+   * hanya boleh kalau status sudah ON_PROCESS (sudah confirm admin)
+   */
   public async updateReceipt({ response, request }: HttpContext) {
     const trx = await db.transaction()
     try {
-      const transactionId = request.input('transaction_id')
+      const transactionId = toNumber(request.input('transaction_id'), 0)
+      if (!transactionId) {
+        await trx.rollback()
+        return response.status(400).send({ message: 'transaction_id wajib diisi', serve: [] })
+      }
 
       const transaction = await Transaction.query({ client: trx })
         .where('id', transactionId)
@@ -103,10 +176,25 @@ export default class TransactionsController {
         return response.status(404).send({ message: 'Transaction not found.', serve: [] })
       }
 
+      // ✅ kunci flow: harus confirm admin dulu
+      if (String(transaction.transactionStatus) !== TransactionStatus.ON_PROCESS.toString()) {
+        await trx.rollback()
+        return response.status(400).send({
+          message: 'Order harus dikonfirmasi admin dulu sebelum generate resi.',
+          serve: [],
+        })
+      }
+
       const shipment = transaction.shipments[0]
       if (!shipment) {
         await trx.rollback()
         return response.status(404).send({ message: 'Shipment not found.', serve: [] })
+      }
+
+      // ✅ cegah double create resi
+      if (shipment.resiNumber) {
+        await trx.rollback()
+        return response.status(400).send({ message: 'Resi sudah ada untuk transaksi ini.', serve: [] })
       }
 
       const user = transaction.ecommerce?.user
@@ -163,7 +251,7 @@ export default class TransactionsController {
             ? 'COD'
             : (transaction.ecommerce?.paymentMethod || 'COD').toUpperCase().replace('_', ' '),
 
-        service_fee: Math.round(transaction.amount * 0.028),
+        service_fee: Math.round(Number(transaction.amount) * 0.028),
         additional_cost: 0,
         grand_total: Number(transaction.amount),
         cod_value: Number(transaction.amount),
@@ -187,11 +275,7 @@ export default class TransactionsController {
         timeout: 10000,
       })
 
-      console.log('Payload:', JSON.stringify(komercePayload, null, 2))
-
       const { data } = await client.post('/order/api/v1/orders/store', komercePayload)
-
-      console.log('Response Komerce:', JSON.stringify(data, null, 2))
 
       if (data?.meta?.status === 'failed' || !data?.data?.order_no) {
         await trx.rollback()
@@ -204,6 +288,7 @@ export default class TransactionsController {
       shipment.resiNumber = data.data.order_no
       await shipment.useTransaction(trx).save()
 
+      // setelah resi berhasil dibuat -> dikirim
       transaction.transactionStatus = TransactionStatus.ON_DELIVERY.toString()
       await transaction.useTransaction(trx).save()
 
@@ -218,9 +303,8 @@ export default class TransactionsController {
           total_weight: totalWeight,
         },
       })
-    } catch (error) {
+    } catch (error: any) {
       await trx.rollback()
-      console.error('Error updateReceipt:', error.response?.data || error.message)
       return response.status(500).send({
         message: error.response?.data || error.message || 'Internal Server Error.',
         serve: [],
@@ -228,86 +312,88 @@ export default class TransactionsController {
     }
   }
 
-  // Kalo mau nyoba Sandbox pakai souce ini
-  // const komercePayload = {
-  //   order_date: '2025-09-25',
-  //   brand_name: 'Abby n Bev',
-  //   shipper_name: 'Abby n Bev Store',
-  //   shipper_phone: '628123456789',
-  //   shipper_destination_id: 423,
-  //   shipper_address: 'Jl. Dummy Bandung',
-  //   shipper_email: 'support@abbynbev.com',
-  //   origin_pin_point: '-6.914744, 107.609810',
-
-  //   receiver_name: shipment.pic,
-  //   receiver_phone: shipment.pic_phone,
-  //   receiver_destination_id: 5130,
-
-  //   receiver_address: 'Jl. Dummy Subang',
-  //   receiver_email: 'buyer@gmail.com',
-  //   destination_pin_point: '-6.905977, 107.613144',
-
-  //   shipping: 'JNE',
-  //   shipping_type: 'REG23',
-  //   shipping_cost: 16000,
-  //   shipping_cashback: 0,
-  //   payment_method: 'COD',
-
-  //   //  Sesuai aturan: 2.8% dari produk atau total harga (dummy 14448)
-  //   service_fee: Math.round(516000 * 0.028),
-  //   additional_cost: 0,
-  //   grand_total: 516000,
-  //   cod_value: 516000,
-  //   insurance_value: 0,
-
-  //   order_details: [
-  //     {
-  //       product_name: 'Produk Dummy A',
-  //       product_variant_name: 'Merah 250ml',
-  //       product_price: 250000,
-  //       product_weight: 500,
-  //       product_width: 10,
-  //       product_height: 10,
-  //       product_length: 10,
-  //       qty: 2,
-  //       subtotal: 500000,
-  //     },
-  //   ],
-  // }
-
+  /**
+   * ✅ Cancel transaksi dari CMS
+   * - allowed: WAITING_PAYMENT / PAID_WAITING_ADMIN
+   * - set FAILED
+   * - restore stock variant + restore voucher qty
+   */
   public async cancelTransactions({ request, response }: HttpContext) {
-    const transactionIds = request.input('transactionIds')
     const trx = await db.transaction()
     try {
-      if (!transactionIds || transactionIds.length === 0) {
+      const transactionIds = parseIds(request.input('transactionIds'))
+      if (!transactionIds.length) {
         await trx.rollback()
-        return response.status(400).json({
-          message: 'Invalid transaction IDs',
-        })
+        return response.status(400).json({ message: 'Invalid transaction IDs' })
       }
 
       const transactions = await Transaction.query({ client: trx })
         .whereIn('id', transactionIds)
         .preload('details', (d) => d.preload('product'))
+        .preload('ecommerce')
 
-      await Transaction.query({ client: trx })
-        .whereIn('id', transactionIds)
-        .update({ transaction_status: TransactionStatus.FAILED })
+      if (transactions.length !== transactionIds.length) {
+        await trx.rollback()
+        return response.status(404).json({ message: 'Ada transaksi yang tidak ditemukan.' })
+      }
 
+      // validasi status
       for (const t of transactions) {
+        const st = String(t.transactionStatus || '')
+        const allowed =
+          st === TransactionStatus.WAITING_PAYMENT.toString() ||
+          st === TransactionStatus.PAID_WAITING_ADMIN.toString()
+
+        if (!allowed) {
+          await trx.rollback()
+          return response.status(400).json({
+            message: `Transaksi ${t.transactionNumber} tidak bisa dicancel karena statusnya tidak valid.`,
+          })
+        }
+      }
+
+      for (const t of transactions as any[]) {
+        // restore stock
         for (const detail of t.details) {
+          if (!detail.productVariantId) continue
+
+          const pv = await ProductVariant.query({ client: trx })
+            .where('id', detail.productVariantId)
+            .forUpdate()
+            .first()
+
+          if (pv) {
+            pv.stock = toNumber(pv.stock) + toNumber(detail.qty)
+            await pv.useTransaction(trx).save()
+          }
+
+          // popularity rollback (optional)
           if (detail.product) {
-            detail.product.popularity = Math.max(0, (detail.product.popularity || 0) - detail.qty)
+            detail.product.popularity = Math.max(0, toNumber(detail.product.popularity) - 1)
             await detail.product.useTransaction(trx).save()
           }
         }
+
+        // restore voucher qty
+        const voucherId = t.ecommerce?.voucherId
+        if (voucherId) {
+          const v = await Voucher.query({ client: trx }).where('id', voucherId).forUpdate().first()
+          if (v) {
+            v.qty = toNumber(v.qty) + 1
+            await v.useTransaction(trx).save()
+          }
+        }
+
+        // set FAILED
+        t.transactionStatus = TransactionStatus.FAILED.toString()
+        await t.useTransaction(trx).save()
       }
 
       await trx.commit()
       return response.status(200).json({
-        message: 'Transactions successfully canceled & popularity updated.',
+        message: 'Transactions successfully canceled. Stock & voucher restored.',
       })
-    } catch (error) {
+    } catch (error: any) {
       await trx.rollback()
       return response.status(500).json({
         message: 'An error occurred while canceling transactions',
