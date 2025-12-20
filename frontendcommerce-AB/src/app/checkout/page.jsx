@@ -106,17 +106,15 @@ export default function CheckoutPage() {
 
       const cartIds = checkoutItems.map((x) => x?.id).filter(Boolean);
 
-      // payload sesuai backend transaction_commerces_controller.ts
       const payload = {
         cart_ids: cartIds,
         user_address_id: selectedAddressId,
-        shipping_service_type: selectedShipping.courier, // contoh: "jne"
-        shipping_service: selectedShipping.service,      // contoh: "REG"
+        shipping_service_type: selectedShipping.courier,
+        shipping_service: selectedShipping.service,
         shipping_price: selectedShipping.price,
         weight: weightRounded,
         is_protected: false,
         protection_fee: 0,
-        // voucher: null, // kalau udah ada voucher nanti isi di sini
       };
 
       const res = await axios.post("/transaction", payload);
@@ -124,7 +122,17 @@ export default function CheckoutPage() {
 
       const token = serve?.ecommerce?.tokenMidtrans;
       const redirectUrl = serve?.ecommerce?.redirectUrl;
-      const orderId = serve?.transactionNumber || serve?.transaction_number;
+
+      const orderId =
+        serve?.transactionNumber ||
+        serve?.transaction_number ||
+        serve?.transaction?.transactionNumber ||
+        null;
+
+      const goOrderHistory = () => {
+        const q = orderId ? `?order_id=${encodeURIComponent(orderId)}` : "";
+        router.push(`/account/order-history${q}`);
+      };
 
       if (!token && !redirectUrl) {
         console.warn("Transaction response:", res?.data);
@@ -135,19 +143,11 @@ export default function CheckoutPage() {
       // ✅ Prefer popup Snap
       if (token && typeof window !== "undefined" && window.snap?.pay) {
         window.snap.pay(token, {
-          onSuccess: function () {
-            alert("Pembayaran berhasil ✅");
-            router.push("/notification"); // atau arahkan ke halaman order history kalau sudah ada
-          },
-          onPending: function () {
-            alert("Pembayaran pending ⏳");
-            router.push("/notification");
-          },
-          onError: function () {
-            alert("Pembayaran gagal ❌");
-          },
-          onClose: function () {
-            // user nutup popup
+          onSuccess: goOrderHistory,
+          onPending: goOrderHistory,
+          onError: () => alert("Pembayaran gagal ❌"),
+          onClose: () => {
+            // user nutup popup (optional)
           },
         });
         return;
@@ -159,7 +159,6 @@ export default function CheckoutPage() {
         return;
       }
 
-      // terakhir: info debug
       alert(`Transaksi dibuat (${orderId || "-"}) tapi Snap belum ready.`);
     } catch (err) {
       console.error("create transaction error:", err?.response?.data || err);
@@ -227,7 +226,7 @@ export default function CheckoutPage() {
                       <div className="mt-2 flex items-center gap-3">
                         <div className="flex items-center gap-2">
                           <button
-                            disabled={isBusy || quantity <= 1}
+                            disabled={isBusy || quantity <= 1 || loadingPay}
                             onClick={() => handleUpdateQty(item, quantity - 1)}
                             className="w-7 h-7 flex items-center justify-center border rounded-full text-sm disabled:opacity-40"
                           >
@@ -237,7 +236,7 @@ export default function CheckoutPage() {
                           <span className="min-w-[32px] text-center">{quantity}</span>
 
                           <button
-                            disabled={isBusy}
+                            disabled={isBusy || loadingPay}
                             onClick={() => handleUpdateQty(item, quantity + 1)}
                             className="w-7 h-7 flex items-center justify-center border rounded-full text-sm disabled:opacity-40"
                           >
@@ -246,7 +245,7 @@ export default function CheckoutPage() {
                         </div>
 
                         <button
-                          disabled={isBusy}
+                          disabled={isBusy || loadingPay}
                           onClick={() => handleDelete(item)}
                           className="text-xs text-red-500 hover:underline disabled:opacity-40"
                         >
@@ -293,7 +292,7 @@ export default function CheckoutPage() {
                     name={a.picName || a.pic_name || "receiver"}
                     phone={a.phone || a.picPhone || a.pic_phone || (a.pic && a.pic.phone) || ""}
                     selected={a.id === selectedAddressId}
-                    disabled={loadingAddr}
+                    disabled={loadingAddr || loadingPay}
                     onSelect={selectAsMain}
                   />
                 ))}
@@ -402,7 +401,8 @@ export default function CheckoutPage() {
             </div>
 
             <p className="text-xs text-gray-400 mt-3">
-              *Berat: {weightRounded} gram (rounded) | {shippingAll.length} service (setelah filter cargo)
+              *Berat: {weightRounded} gram (rounded) | {shippingAll.length} service (setelah filter
+              cargo)
             </p>
           </div>
         </div>
@@ -425,6 +425,7 @@ export default function CheckoutPage() {
                   checked={selectedPayment === method.id}
                   onChange={() => setSelectedPayment(method.id)}
                   className="w-5 h-5 accent-pink-600"
+                  disabled={loadingPay}
                 />
               </label>
             ))}
@@ -455,7 +456,16 @@ export default function CheckoutPage() {
 
           <button
             onClick={handlePayNow}
-            disabled={loadingPay}
+            disabled={
+              loadingPay ||
+              loadingCart ||
+              loadingAddr ||
+              loadingShip ||
+              !selectedAddressId ||
+              !selectedShipping ||
+              !selectedPayment ||
+              checkoutItems.length === 0
+            }
             className="w-full mt-6 py-3 bg-pink-600 text-white rounded-full font-semibold disabled:opacity-50"
           >
             {loadingPay ? "Processing..." : "Pay now"}
