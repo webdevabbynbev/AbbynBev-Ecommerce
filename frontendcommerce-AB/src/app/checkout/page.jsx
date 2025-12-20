@@ -1,536 +1,69 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import axios from "@/lib/axios";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 
 import { AddressCard } from "@/app/account";
 import { NewAddress } from "@/app/account/popup";
 
-const STORAGE_KEY = "checkout_selected_ids";
+import { PAYMENT_METHODS } from "@/data/paymentMethods";
+import { n, isNumericLike } from "@/utils/number";
+import { calcWeightRounded } from "@/utils/checkoutWeight";
 
-// ✅ support backend response {data}, {serve}, array, atau {results}
-const unwrap = (res) => {
-  const d = res?.data;
-  return d?.data ?? d?.serve ?? d ?? null;
-};
-
-const n = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
-const isNumericLike = (v) =>
-  v !== null && v !== undefined && String(v).trim() !== "" && !Number.isNaN(Number(v));
-
-// ===== safe sessionStorage (Safari/private mode bisa throw) =====
-const ssGet = (key) => {
-  try {
-    if (typeof window === "undefined") return null;
-    return window.sessionStorage.getItem(key);
-  } catch {
-    return null;
-  }
-};
-const ssSet = (key, value) => {
-  try {
-    if (typeof window === "undefined") return;
-    window.sessionStorage.setItem(key, value);
-  } catch {
-    // ignore
-  }
-};
+import { useCheckoutCartServer } from "@/app/hook/useCheckoutCartServer";
+import { useCartMutations } from "@/app/hook/useCartMutations";
+import { useAddresses } from "@/app/hook/useAddresses";
+import { useLocationNames } from "@/app/hook/useLocationNames";
+import { useShippingOptions } from "@/app/hook/useShippingOptions";
 
 export default function CheckoutPage() {
-  const router = useRouter();
+  // ✅ cart checkout dari server (is_checkout=2)
+  const { checkoutItems, subtotal, loadingCart, reloadCart } = useCheckoutCartServer();
 
-  const [cart, setCart] = useState([]);
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [selectedIdsReady, setSelectedIdsReady] = useState(false);
+  // ✅ mutations cart (ga perlu removeSelectedId lagi karena selection bukan localStorage)
+  const { loadingItemId, handleUpdateQty, handleDelete } = useCartMutations({
+    reloadCart,
+  });
 
-  const [addresses, setAddresses] = useState([]);
-  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  // addresses
+  const {
+    addresses,
+    selectedAddressId,
+    selectedAddress,
+    loadingAddr,
+    reloadAddresses,
+    selectAsMain,
+  } = useAddresses();
 
-  const [provinceMap, setProvinceMap] = useState({});
-  const [cityMap, setCityMap] = useState({});
+  // location name maps
+  const { provinceMap, cityMap } = useLocationNames(addresses);
 
-  // Shipping
-  const [shippingAll, setShippingAll] = useState([]);
-  const [selectedShipping, setSelectedShipping] = useState(null);
-  const [expandedCouriers, setExpandedCouriers] = useState({});
-  const [shippingError, setShippingError] = useState(null);
+  // weight
+  const weightRounded = useMemo(() => calcWeightRounded(checkoutItems), [checkoutItems]);
 
+  // shipping
+  const {
+    shippingAll,
+    selectedShipping,
+    setSelectedShipping,
+    expandedCouriers,
+    setExpandedCouriers,
+    loadingShip,
+    shippingError,
+    shippingGroups,
+    bestByCourier,
+    courierKeys,
+  } = useShippingOptions({
+    selectedAddress,
+    selectedAddressId,
+    weightRounded,
+    enabled: !loadingCart && !loadingAddr && checkoutItems.length > 0,
+  });
+
+  // payment
   const [selectedPayment, setSelectedPayment] = useState(null);
 
-  const [loadingCart, setLoadingCart] = useState(true);
-  const [loadingAddr, setLoadingAddr] = useState(true);
-  const [loadingShip, setLoadingShip] = useState(false);
-
-  const [loadingItemId, setLoadingItemId] = useState(null);
-
-  // ===== cart selection =====
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      setSelectedIds(Array.isArray(parsed) ? parsed : []);
-    } catch {
-      setSelectedIds([]);
-    } finally {
-      setSelectedIdsReady(true);
-    }
-  }, []);
-
-  const loadCart = async () => {
-    try {
-      setLoadingCart(true);
-      const res = await axios.get("/cart");
-      const payload = unwrap(res);
-      const items = payload?.items ?? payload;
-      setCart(Array.isArray(items) ? items : []);
-    } catch (err) {
-      console.warn("Error load cart:", err?.response?.data || err);
-      setCart([]);
-    } finally {
-      setLoadingCart(false);
-    }
-  };
-
-  const hydrateLocationNames = async (data) => {
-    try {
-      const provinceIds = Array.from(
-        new Set(
-          (Array.isArray(data) ? data : [])
-            .map((a) => a?.province)
-            .filter((p) => isNumericLike(p))
-            .map((p) => Number(p))
-        )
-      );
-
-      const provRes = await axios.get("/province");
-      const provList = provRes?.data?.serve || provRes?.data?.data || [];
-      const provMapNext = {};
-      (Array.isArray(provList) ? provList : []).forEach((p) => {
-        provMapNext[String(p.id)] = p.name;
-      });
-      setProvinceMap(provMapNext);
-
-      const cityMapNext = {};
-      await Promise.all(
-        provinceIds.map(async (pid) => {
-          const res = await axios.get("/city", { params: { province: pid } });
-          const list = res?.data?.serve || res?.data?.data || [];
-          (Array.isArray(list) ? list : []).forEach((c) => {
-            cityMapNext[String(c.id)] = c.name;
-          });
-        })
-      );
-      setCityMap(cityMapNext);
-    } catch (e) {
-      console.warn("Hydrate location names failed:", e?.response?.data || e);
-    }
-  };
-
-  const loadAddresses = async (preferSelectId = null) => {
-    try {
-      setLoadingAddr(true);
-      const res = await axios.get("/addresses");
-      const payload = unwrap(res);
-
-      const arr = Array.isArray(payload)
-        ? payload
-        : Array.isArray(payload?.serve)
-        ? payload.serve
-        : Array.isArray(payload?.data)
-        ? payload.data
-        : [];
-
-      setAddresses(arr);
-
-      const getIsActive = (a) => n(a?.is_active ?? a?.isActive ?? 0, 0);
-
-      const pick =
-        (preferSelectId ? arr.find((x) => x?.id === preferSelectId) : null) ||
-        arr.find((x) => getIsActive(x) === 2) ||
-        arr[0] ||
-        null;
-
-      setSelectedAddressId(pick?.id ?? null);
-      hydrateLocationNames(arr);
-    } catch (err) {
-      console.warn("Error load addresses:", err?.response?.data || err);
-      setAddresses([]);
-      setSelectedAddressId(null);
-    } finally {
-      setLoadingAddr(false);
-    }
-  };
-
-  useEffect(() => {
-    loadCart();
-    loadAddresses();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const safeCart = Array.isArray(cart) ? cart : [];
-
-  const checkoutItems = useMemo(() => {
-    const s = new Set(selectedIds);
-    return safeCart.filter((item) => s.has(item?.id));
-  }, [safeCart, selectedIds]);
-
-  // ✅ cegah redirect sebelum selectedIds kebaca
-  useEffect(() => {
-    if (!selectedIdsReady) return;
-    if (!loadingCart && selectedIds.length === 0) router.replace("/cart");
-  }, [loadingCart, selectedIds.length, router, selectedIdsReady]);
-
-  useEffect(() => {
-    if (!selectedIdsReady) return;
-    if (!loadingCart && selectedIds.length > 0 && checkoutItems.length === 0) {
-      router.replace("/cart");
-    }
-  }, [loadingCart, selectedIds.length, checkoutItems.length, router, selectedIdsReady]);
-
-  const subtotal = useMemo(() => {
-    return checkoutItems.reduce((sum, item) => sum + n(item.amount ?? 0, 0), 0);
-  }, [checkoutItems]);
-
-  const selectedAddress = useMemo(() => {
-    return addresses.find((a) => a?.id === selectedAddressId) || null;
-  }, [addresses, selectedAddressId]);
-
-  // ✅ total berat gram (fallback 200g/item)
-  const weightGrams = useMemo(() => {
-    const w = checkoutItems.reduce((sum, item) => {
-      const qty = n(item?.qtyCheckout ?? item?.qty ?? item?.quantity ?? 1, 1);
-
-      const vw = n(item?.variant?.weight ?? 0, 0);
-      const pw = n(item?.product?.weight ?? 0, 0);
-      const rawW = vw > 0 ? vw : pw;
-
-      const grams =
-        rawW <= 0 ? 200 : rawW > 0 && rawW < 1 ? Math.round(rawW * 1000) : Math.round(rawW);
-
-      return sum + qty * grams;
-    }, 0);
-
-    return Math.max(1, Math.round(w));
-  }, [checkoutItems]);
-
-  // ✅ round per 100g
-  const weightRounded = useMemo(() => Math.max(1, Math.ceil(weightGrams / 100) * 100), [weightGrams]);
-
   const total = subtotal + n(selectedShipping?.price, 0);
-
-  // ===== Update qty/delete cart =====
-  const handleUpdateQty = async (item, nextQty) => {
-    if (!item?.id) return alert("Cart item id tidak ditemukan");
-    const newQty = n(nextQty, 0);
-    if (newQty <= 0) return;
-
-    try {
-      setLoadingItemId(item.id);
-      await axios.put(`/cart/${item.id}`, { qty: newQty });
-      await loadCart();
-    } catch (err) {
-      console.warn("Error update qty:", err?.response?.data || err);
-      alert(err?.response?.data?.message || "Gagal mengubah jumlah produk");
-    } finally {
-      setLoadingItemId(null);
-    }
-  };
-
-  const handleDelete = async (item) => {
-    if (!item?.id) return alert("Cart item id tidak ditemukan");
-    if (!window.confirm("Hapus produk ini dari keranjang?")) return;
-
-    try {
-      setLoadingItemId(item.id);
-      await axios.delete(`/cart/${item.id}`);
-
-      setSelectedIds((prev) => {
-        const next = prev.filter((id) => id !== item.id);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-        return next;
-      });
-
-      await loadCart();
-    } catch (err) {
-      console.warn("Error delete cart item:", err?.response?.data || err);
-      alert(err?.response?.data?.message || "Gagal menghapus produk dari keranjang");
-    } finally {
-      setLoadingItemId(null);
-    }
-  };
-
-  // ===== Select main address =====
-  const setMainAddress = async (id) => {
-    setSelectedAddressId(id);
-    try {
-      await axios.put("/addresses", { id, is_active: 2 });
-      await loadAddresses(id);
-    } catch (err) {
-      console.warn("Failed set main address:", err?.response?.data || err);
-    }
-  };
-
-  // ✅ normalizer response ongkir (flat / nested)
-  const normalizeShipping = (payload) => {
-    let base = payload;
-    if (payload?.serve) base = payload.serve;
-    if (payload?.data) base = payload.data;
-    if (payload?.results) base = payload.results;
-
-    let list = Array.isArray(base) ? base : Array.isArray(base?.data) ? base.data : [];
-    list = Array.isArray(list) ? list : [];
-
-    // flatten jika bentuknya {code, costs:[...]}
-    const flat = [];
-    for (const x of list) {
-      if (Array.isArray(x?.costs)) {
-        const code = String(x?.code ?? x?.courier ?? x?.name ?? "").trim();
-        for (const c of x.costs) {
-          // cost bisa array [{value,etd}]
-          let val = 0;
-          let etd = "";
-          if (Array.isArray(c?.cost) && c.cost[0]) {
-            val = n(c.cost[0]?.value ?? c.cost[0]?.cost ?? c.cost[0]?.amount ?? 0, 0);
-            etd = String(c.cost[0]?.etd ?? c.cost[0]?.estimate ?? "").trim();
-          } else {
-            val = n(c?.cost ?? c?.price ?? c?.value ?? 0, 0);
-            etd = String(c?.etd ?? c?.estimate ?? "").trim();
-          }
-
-          flat.push({
-            code,
-            service: c?.service ?? c?.service_code ?? c?.serviceCode,
-            description: c?.description ?? c?.desc ?? "",
-            cost: val,
-            etd,
-          });
-        }
-      } else {
-        flat.push(x);
-      }
-    }
-
-    const seen = new Set();
-    const out = [];
-
-    for (const x of flat) {
-      const code = String(
-        x?.code ??
-          x?.courier ??
-          x?.courier_code ??
-          x?.courierCode ??
-          x?.courier_name ??
-          x?.courierName ??
-          x?.name ??
-          ""
-      )
-        .trim()
-        .toUpperCase();
-
-      const service = String(
-        x?.service ??
-          x?.service_code ??
-          x?.serviceCode ??
-          x?.service_name ??
-          x?.serviceName ??
-          "REG"
-      )
-        .trim()
-        .toUpperCase();
-
-      const cost = n(x?.cost ?? x?.price ?? x?.value ?? x?.amount ?? 0, 0);
-      const etd = String(x?.etd ?? x?.estimate ?? "").trim();
-      const desc = String(x?.description ?? x?.desc ?? "").trim();
-
-      if (!code || cost <= 0) continue;
-
-      // filter cargo
-      const bad = /JTR|TRUCK|CARGO|KARGO/i.test(service) || /JTR|TRUCK|CARGO|KARGO/i.test(desc);
-      if (bad) continue;
-
-      const id = `${code}-${service}-${cost}`;
-      if (seen.has(id)) continue;
-      seen.add(id);
-
-      out.push({
-        id,
-        courier: code.toLowerCase(),
-        service,
-        name: `${code} - ${service}`,
-        description: desc,
-        price: cost,
-        estimate: etd ? `${etd}` : "-",
-        raw: x,
-      });
-    }
-
-    out.sort((a, b) => a.price - b.price);
-    return out;
-  };
-
-  const groupByCourier = (list) => {
-    const groups = {};
-    for (const m of list) {
-      const k = m.courier || "unknown";
-      if (!groups[k]) groups[k] = [];
-      groups[k].push(m);
-    }
-    for (const k of Object.keys(groups)) {
-      groups[k].sort((a, b) => a.price - b.price);
-    }
-
-    const prefer = ["REG", "ECO", "YES", "OKE", "EZ", "CTC", "EXP"];
-    const best = {};
-    for (const [courier, items] of Object.entries(groups)) {
-      let pick = null;
-      for (const p of prefer) {
-        pick = items.find((x) => String(x.service).toUpperCase() === p);
-        if (pick) break;
-      }
-      best[courier] = pick || items[0] || null;
-    }
-    return { groups, best };
-  };
-
-  const pickCheapestBest = (bestMap) => {
-    const bestList = Object.values(bestMap || {}).filter(Boolean);
-    bestList.sort((a, b) => a.price - b.price);
-    return bestList[0] || null;
-  };
-
-  // ===== Shipping fetch =====
-  const lastShipKeyRef = useRef("");
-  const shipTimerRef = useRef(null);
-  const shipReqIdRef = useRef(0);
-
-  const fetchShipping = async () => {
-    if (!selectedIdsReady) return;
-    if (!selectedAddress || loadingCart || loadingAddr) return;
-    if (!checkoutItems.length) return;
-
-    // ✅ FIX: pakai district id (karena backend getCost pakai calculate/district/domestic-cost)
-    const destinationDistrict = n(
-      selectedAddress?.district ??
-        selectedAddress?.district_id ??
-        selectedAddress?.districtId ??
-        0,
-      0
-    );
-
-    if (!destinationDistrict) {
-      setShippingAll([]);
-      setSelectedShipping(null);
-      setShippingError("Alamat belum lengkap (district ID kosong).");
-      return;
-    }
-
-    const key = `ship:${selectedAddressId}|${destinationDistrict}|${weightRounded}`;
-
-    const cached = ssGet(key);
-    if (cached) {
-      try {
-        const payload = JSON.parse(cached);
-        const normalized = normalizeShipping(payload);
-        setShippingAll(normalized);
-
-        const { best } = groupByCourier(normalized);
-        const cheapestBest = pickCheapestBest(best);
-
-        setSelectedShipping((prev) => {
-          if (!normalized.length) return null;
-          if (!prev) return cheapestBest || normalized[0];
-          return normalized.find((x) => x.id === prev.id) || cheapestBest || normalized[0];
-        });
-
-        setShippingError(null);
-        return;
-      } catch {
-        // ignore
-      }
-    }
-
-    if (lastShipKeyRef.current === key) return;
-    lastShipKeyRef.current = key;
-
-    const reqId = ++shipReqIdRef.current;
-
-    setLoadingShip(true);
-    setShippingError(null);
-
-    try {
-      const res = await axios.post("/get-cost", {
-        destination: destinationDistrict,
-        weight: weightRounded,
-        courier: "all",
-        price: "all",
-      });
-
-      if (reqId !== shipReqIdRef.current) return;
-
-      const payload = unwrap(res);
-      ssSet(key, JSON.stringify(payload));
-
-      const normalized = normalizeShipping(payload);
-      setShippingAll(normalized);
-
-      const { best } = groupByCourier(normalized);
-      const cheapestBest = pickCheapestBest(best);
-
-      setSelectedShipping((prev) => {
-        if (!normalized.length) return null;
-        if (!prev) return cheapestBest || normalized[0];
-        return normalized.find((x) => x.id === prev.id) || cheapestBest || normalized[0];
-      });
-
-      setShippingError(null);
-    } catch (err) {
-      const msg =
-        err?.response?.data?.message ||
-        err?.response?.data?.meta?.message ||
-        err?.message ||
-        "Shipping error";
-
-      console.warn("fetchShipping error detail:", {
-        message: msg,
-        status: err?.response?.status,
-        data: err?.response?.data,
-        url: `${err?.config?.baseURL || ""}${err?.config?.url || ""}`,
-      });
-
-      setShippingAll([]);
-      setSelectedShipping(null);
-      setShippingError(`[${err?.response?.status || 500}] ${msg}`);
-
-      lastShipKeyRef.current = "";
-    } finally {
-      setLoadingShip(false);
-    }
-  };
-
-  // debounce
-  useEffect(() => {
-    if (shipTimerRef.current) clearTimeout(shipTimerRef.current);
-    shipTimerRef.current = setTimeout(() => {
-      fetchShipping();
-    }, 700);
-
-    return () => {
-      if (shipTimerRef.current) clearTimeout(shipTimerRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAddressId, weightRounded, selectedIdsReady, loadingCart, loadingAddr, checkoutItems.length]);
-
-  const { groups: shippingGroups, best: bestByCourier } = useMemo(() => {
-    return groupByCourier(shippingAll);
-  }, [shippingAll]);
-
-  const courierKeys = useMemo(() => {
-    const keys = Object.keys(shippingGroups || {});
-    keys.sort();
-    return keys;
-  }, [shippingGroups]);
 
   // address display list
   const displayAddresses = useMemo(() => {
@@ -599,7 +132,13 @@ export default function CheckoutPage() {
                 className="flex justify-between items-center border-b pb-4 mb-4"
               >
                 <div className="flex gap-3 items-center">
-                  <Image src={image} width={60} height={60} alt={productName} className="rounded-md" />
+                  <Image
+                    src={image}
+                    width={60}
+                    height={60}
+                    alt={productName}
+                    className="rounded-md"
+                  />
                   <div>
                     <p className="font-medium">{productName}</p>
                     <p className="text-sm text-gray-500">Variant: {variantName}</p>
@@ -637,7 +176,8 @@ export default function CheckoutPage() {
                 </div>
 
                 <p className="font-semibold text-pink-600 text-right">
-                  Rp {n(item.amount ?? item.price ?? product.price ?? 0, 0).toLocaleString("id-ID")}
+                  Rp{" "}
+                  {n(item.amount ?? item.price ?? product.price ?? 0, 0).toLocaleString("id-ID")}
                 </p>
               </div>
             );
@@ -648,7 +188,7 @@ export default function CheckoutPage() {
         <div className="p-4 font-medium text-base bg-muted border-1 border-neutral-100 w-full rounded-2xl space-y-6">
           <div className="flex w-full items-center justify-between">
             <h3 className="font-bold">Shipping address</h3>
-            <NewAddress onSuccess={() => loadAddresses()} />
+            <NewAddress onSuccess={() => reloadAddresses()} />
           </div>
 
           {loadingAddr && <p className="text-gray-400 italic">Loading address...</p>}
@@ -673,7 +213,7 @@ export default function CheckoutPage() {
                   phone={a.phone || a.picPhone || a.pic_phone || (a.pic && a.pic.phone) || ""}
                   selected={a.id === selectedAddressId}
                   disabled={loadingAddr}
-                  onSelect={setMainAddress}
+                  onSelect={selectAsMain}
                 />
               ))}
             </div>
@@ -701,7 +241,7 @@ export default function CheckoutPage() {
 
           {selectedAddress && !loadingShip && courierKeys.length === 0 && !shippingError && (
             <p className="text-gray-400 italic">
-              Tidak ada opsi pengiriman. (cek district di alamat + KOMERCE_ORIGIN (district id) di backend)
+              Tidak ada opsi pengiriman. (cek district di alamat + KOMERCE_ORIGIN di backend)
             </p>
           )}
 
@@ -754,7 +294,9 @@ export default function CheckoutPage() {
                               setSelectedShipping(opt);
                             }}
                             className={`p-3 rounded-xl border transition ${
-                              isSelected ? "border-pink-600 bg-white" : "bg-white hover:border-gray-400"
+                              isSelected
+                                ? "border-pink-600 bg-white"
+                                : "bg-white hover:border-gray-400"
                             }`}
                           >
                             <div className="flex justify-between items-start gap-4">
@@ -789,12 +331,8 @@ export default function CheckoutPage() {
         <h2 className="text-xl font-semibold mb-6">Payment</h2>
 
         <div className="space-y-5">
-          {[
-            { name: "BCA virtual account", icon: "/icons/bca.png" },
-            { name: "BRI virtual account", icon: "/icons/bri.png" },
-            { name: "Mandiri virtual account", icon: "/icons/mandiri.png" },
-          ].map((method) => (
-            <label key={method.name} className="flex items-center justify-between cursor-pointer">
+          {PAYMENT_METHODS.map((method) => (
+            <label key={method.id} className="flex items-center justify-between cursor-pointer">
               <div className="flex items-center gap-3">
                 <Image src={method.icon} width={42} height={42} alt={method.name} />
                 <span>{method.name}</span>
@@ -803,8 +341,8 @@ export default function CheckoutPage() {
               <input
                 type="radio"
                 name="payment"
-                checked={selectedPayment === method.name}
-                onChange={() => setSelectedPayment(method.name)}
+                checked={selectedPayment === method.id}
+                onChange={() => setSelectedPayment(method.id)}
                 className="w-5 h-5 accent-pink-600"
               />
             </label>
@@ -822,7 +360,9 @@ export default function CheckoutPage() {
           <div className="flex justify-between">
             <span>Shipment:</span>
             <span>
-              {selectedShipping ? `Rp ${n(selectedShipping.price, 0).toLocaleString("id-ID")}` : "-"}
+              {selectedShipping
+                ? `Rp ${n(selectedShipping.price, 0).toLocaleString("id-ID")}`
+                : "-"}
             </span>
           </div>
 

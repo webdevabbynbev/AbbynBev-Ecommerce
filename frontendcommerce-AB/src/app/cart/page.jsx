@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import axios from "@/lib/axios";
 import Image from "next/image";
@@ -11,9 +11,10 @@ export default function CartPage() {
   const router = useRouter();
 
   const [cart, setCart] = useState([]);
-  const [selectedIds, setSelectedIds] = useState([]); // ✅ selection local
+  const [selectedIds, setSelectedIds] = useState([]); // selection local utk UI
   const [loadingCart, setLoadingCart] = useState(true);
   const [loadingItemId, setLoadingItemId] = useState(null);
+  const [loadingCheckout, setLoadingCheckout] = useState(false);
 
   const toNumber = (v, fallback = 0) => {
     const n = Number(v);
@@ -27,7 +28,7 @@ export default function CartPage() {
     try {
       setLoadingCart(true);
       const res = await axios.get("/cart");
-      const items = res.data?.data?.items || res.data?.data || [];
+      const items = res.data?.data?.items || res.data?.data || res.data?.serve || [];
       const arr = Array.isArray(items) ? items : [];
       setCart(arr);
     } catch (err) {
@@ -42,6 +43,7 @@ export default function CartPage() {
     loadCart();
   }, []);
 
+  // (opsional) baca selection lama (localStorage) buat UX
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -53,7 +55,7 @@ export default function CartPage() {
     }
   }, []);
 
-  
+  // (opsional) simpen selection ke localStorage (buat UX)
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedIds));
@@ -64,24 +66,25 @@ export default function CartPage() {
 
   const safeCart = Array.isArray(cart) ? cart : [];
 
+  // kalau cart berubah, drop selected yang udah gak ada
   useEffect(() => {
-    const idsInCart = new Set(safeCart.map((x) => x?.id).filter(Boolean));
-    setSelectedIds((prev) => prev.filter((id) => idsInCart.has(id)));
+    const idsInCart = new Set(safeCart.map((x) => Number(x?.id)).filter(Boolean));
+    setSelectedIds((prev) => prev.map(Number).filter((id) => idsInCart.has(id)));
+  }, [safeCart]);
 
-  }, [safeCart.length]);
-
-  const isSelected = (item) => selectedIds.includes(item?.id);
+  const isSelected = (item) => selectedIds.map(Number).includes(Number(item?.id));
 
   const allIds = useMemo(
-    () => safeCart.map((x) => x?.id).filter(Boolean),
+    () => safeCart.map((x) => Number(x?.id)).filter(Boolean),
     [safeCart]
   );
 
   const selectedCount = selectedIds.length;
 
   const selectedSubtotal = useMemo(() => {
+    const selectedSet = new Set(selectedIds.map(Number));
     return safeCart
-      .filter((item) => selectedIds.includes(item?.id))
+      .filter((item) => selectedSet.has(Number(item?.id)))
       .reduce((sum, item) => sum + toNumber(item.amount ?? 0, 0), 0);
   }, [safeCart, selectedIds]);
 
@@ -118,7 +121,7 @@ export default function CartPage() {
       setLoadingItemId(item.id);
       await axios.delete(`/cart/${item.id}`);
 
-      setSelectedIds((prev) => prev.filter((id) => id !== item.id));
+      setSelectedIds((prev) => prev.filter((id) => Number(id) !== Number(item.id)));
 
       await loadCart();
     } catch (err) {
@@ -130,11 +133,12 @@ export default function CartPage() {
   };
 
   const toggleSelect = (itemId, checked) => {
-    if (!itemId) return;
+    const id = Number(itemId);
+    if (!id) return;
 
     setSelectedIds((prev) => {
-      const s = new Set(prev);
-      checked ? s.add(itemId) : s.delete(itemId);
+      const s = new Set(prev.map(Number));
+      checked ? s.add(id) : s.delete(id);
       return Array.from(s);
     });
   };
@@ -143,12 +147,32 @@ export default function CartPage() {
     setSelectedIds(checked ? allIds : []);
   };
 
-  const handleCheckout = () => {
+  // ✅ PENTING: sync selection ke server sebelum masuk checkout
+  const handleCheckout = async () => {
     if (selectedCount === 0) {
       alert("Pilih minimal 1 produk untuk checkout");
       return;
     }
-    router.push("/checkout");
+
+    const selected = selectedIds.map(Number).filter(Boolean);
+    const selectedSet = new Set(selected);
+    const unselected = allIds.filter((id) => !selectedSet.has(id));
+
+    try {
+      setLoadingCheckout(true);
+
+      await Promise.all([
+        axios.post("/cart/update-selection", { cart_ids: selected, is_checkout: 2 }),
+        axios.post("/cart/update-selection", { cart_ids: unselected, is_checkout: 1 }),
+      ]);
+
+      router.push("/checkout");
+    } catch (err) {
+      console.error("Failed update selection:", err?.response?.data || err);
+      alert(err?.response?.data?.message || "Gagal memproses checkout. Coba lagi.");
+    } finally {
+      setLoadingCheckout(false);
+    }
   };
 
   return (
@@ -158,10 +182,10 @@ export default function CartPage() {
 
         <button
           onClick={handleCheckout}
-          disabled={selectedCount === 0}
+          disabled={selectedCount === 0 || loadingCheckout}
           className="px-5 py-2 rounded-full bg-pink-600 text-white font-semibold disabled:opacity-40"
         >
-          Checkout ({selectedCount})
+          {loadingCheckout ? "Processing..." : `Checkout (${selectedCount})`}
         </button>
       </div>
 
@@ -192,7 +216,6 @@ export default function CartPage() {
             const product = item.product || {};
             const image = product.thumbnail || product.image || "/placeholder.png";
             const quantity = getQuantity(item);
-
             const busy = loadingItemId !== null && loadingItemId === id;
 
             const productName =
@@ -218,7 +241,7 @@ export default function CartPage() {
                     type="checkbox"
                     className="mt-2 w-5 h-5 accent-pink-600 cursor-pointer"
                     checked={!!id && isSelected(item)}
-                    disabled={!id || busy}
+                    disabled={!id || busy || loadingCheckout}
                     onChange={(e) => toggleSelect(id, e.target.checked)}
                   />
 
@@ -237,7 +260,7 @@ export default function CartPage() {
                     <div className="mt-2 flex items-center gap-3">
                       <div className="flex items-center gap-2">
                         <button
-                          disabled={busy || quantity <= 1}
+                          disabled={busy || quantity <= 1 || loadingCheckout}
                           onClick={() => handleUpdateQty(item, quantity - 1)}
                           className="w-7 h-7 flex items-center justify-center border rounded-full text-sm disabled:opacity-40"
                         >
@@ -247,7 +270,7 @@ export default function CartPage() {
                         <span className="min-w-[32px] text-center">{quantity}</span>
 
                         <button
-                          disabled={busy}
+                          disabled={busy || loadingCheckout}
                           onClick={() => handleUpdateQty(item, quantity + 1)}
                           className="w-7 h-7 flex items-center justify-center border rounded-full text-sm disabled:opacity-40"
                         >
@@ -256,7 +279,7 @@ export default function CartPage() {
                       </div>
 
                       <button
-                        disabled={busy}
+                        disabled={busy || loadingCheckout}
                         onClick={() => handleDelete(item)}
                         className="text-xs text-red-500 hover:underline disabled:opacity-40"
                       >
@@ -295,10 +318,10 @@ export default function CartPage() {
 
           <button
             onClick={handleCheckout}
-            disabled={selectedCount === 0}
+            disabled={selectedCount === 0 || loadingCheckout}
             className="w-full mt-6 py-3 bg-pink-600 text-white rounded-full font-semibold disabled:opacity-40"
           >
-            Checkout
+            {loadingCheckout ? "Processing..." : "Checkout"}
           </button>
 
           <p className="text-xs text-gray-400 mt-3">

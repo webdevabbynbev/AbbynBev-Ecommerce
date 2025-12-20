@@ -1,0 +1,4 @@
+export const unwrap = (res) => {
+  const d = res?.data;
+  return d?.data ?? d?.serve ?? d?.results ?? d ?? null;
+};
