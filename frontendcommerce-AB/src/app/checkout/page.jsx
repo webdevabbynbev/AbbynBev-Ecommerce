@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Script from "next/script";
 import { useRouter } from "next/navigation";
@@ -46,10 +46,10 @@ export default function CheckoutPage() {
   // weight
   const weightRounded = useMemo(() => calcWeightRounded(checkoutItems), [checkoutItems]);
 
-  // shipping
+  // shipping (ini masih boleh auto-select di hook sebagai "rekomendasi")
   const {
     shippingAll,
-    selectedShipping,
+    selectedShipping, // <- anggap "recommended" oleh sistem
     setSelectedShipping,
     expandedCouriers,
     setExpandedCouriers,
@@ -65,12 +65,20 @@ export default function CheckoutPage() {
     enabled: !loadingCart && !loadingAddr && checkoutItems.length > 0,
   });
 
+  // ✅ CONFIRMED shipping (baru terisi kalau user klik)
+  const [confirmedShipping, setConfirmedShipping] = useState(null);
+
+  // reset confirmed shipping kalau address/berat/cart berubah
+  useEffect(() => {
+    setConfirmedShipping(null);
+  }, [selectedAddressId, weightRounded, checkoutItems.length]);
+
   // payment
   const [selectedPayment, setSelectedPayment] = useState(null);
-
   const [loadingPay, setLoadingPay] = useState(false);
 
-  const total = subtotal + n(selectedShipping?.price, 0);
+  // ✅ Total pakai confirmedShipping (bukan selectedShipping)
+  const total = subtotal + n(confirmedShipping?.price, 0);
 
   // address display list
   const displayAddresses = useMemo(() => {
@@ -97,7 +105,7 @@ export default function CheckoutPage() {
 
   const handlePayNow = async () => {
     if (!selectedAddressId) return alert("Alamat belum dipilih");
-    if (!selectedShipping) return alert("Metode pengiriman belum dipilih");
+    if (!confirmedShipping) return alert("Pilih metode pengiriman dulu");
     if (!selectedPayment) return alert("Metode pembayaran belum dipilih");
     if (!checkoutItems.length) return alert("Item checkout kosong");
 
@@ -106,12 +114,13 @@ export default function CheckoutPage() {
 
       const cartIds = checkoutItems.map((x) => x?.id).filter(Boolean);
 
+      // ✅ payload pakai confirmedShipping
       const payload = {
         cart_ids: cartIds,
         user_address_id: selectedAddressId,
-        shipping_service_type: selectedShipping.courier,
-        shipping_service: selectedShipping.service,
-        shipping_price: selectedShipping.price,
+        shipping_service_type: confirmedShipping.courier,
+        shipping_service: confirmedShipping.service,
+        shipping_price: confirmedShipping.price,
         weight: weightRounded,
         is_protected: false,
         protection_fee: 0,
@@ -140,20 +149,16 @@ export default function CheckoutPage() {
         return;
       }
 
-      // ✅ Prefer popup Snap
       if (token && typeof window !== "undefined" && window.snap?.pay) {
         window.snap.pay(token, {
           onSuccess: goOrderHistory,
           onPending: goOrderHistory,
           onError: () => alert("Pembayaran gagal ❌"),
-          onClose: () => {
-            // user nutup popup (optional)
-          },
+          onClose: () => {},
         });
         return;
       }
 
-      // ✅ Fallback: redirect ke hosted payment page
       if (redirectUrl) {
         window.location.href = redirectUrl;
         return;
@@ -325,6 +330,19 @@ export default function CheckoutPage() {
               </p>
             )}
 
+            {/* ✅ reminder: harus pilih shipping */}
+            {selectedAddress && !loadingShip && courierKeys.length > 0 && !confirmedShipping && (
+              <div className="mb-3 text-sm text-gray-600">
+                Pilih salah satu service pengiriman.
+                {selectedShipping ? (
+                  <span className="ml-1 text-gray-500">
+                     <b>{selectedShipping.courier?.toUpperCase()}</b> {selectedShipping.service} 
+                    {n(selectedShipping.price, 0).toLocaleString("id-ID")}
+                  </span>
+                ) : null}
+              </div>
+            )}
+
             <div className="space-y-3">
               {courierKeys.map((courier) => {
                 const expanded = !!expandedCouriers[courier];
@@ -365,12 +383,15 @@ export default function CheckoutPage() {
                     {expanded && (
                       <div className="mt-4 space-y-2">
                         {list.map((opt) => {
-                          const isSelected = selectedShipping?.id === opt.id;
+                          const isSelected = confirmedShipping?.id === opt.id;
                           return (
                             <div
                               key={opt.id}
                               onClick={(e) => {
                                 e.stopPropagation();
+                                // ✅ confirm shipping by user
+                                setConfirmedShipping(opt);
+                                // optional: keep hook state in sync
                                 setSelectedShipping(opt);
                               }}
                               className={`p-3 rounded-xl border transition ${
@@ -401,8 +422,7 @@ export default function CheckoutPage() {
             </div>
 
             <p className="text-xs text-gray-400 mt-3">
-              *Berat: {weightRounded} gram (rounded) | {shippingAll.length} service (setelah filter
-              cargo)
+              *Berat: {weightRounded} gram (rounded) | {shippingAll.length} service (setelah filter cargo)
             </p>
           </div>
         </div>
@@ -442,8 +462,8 @@ export default function CheckoutPage() {
             <div className="flex justify-between">
               <span>Shipment:</span>
               <span>
-                {selectedShipping
-                  ? `Rp ${n(selectedShipping.price, 0).toLocaleString("id-ID")}`
+                {confirmedShipping
+                  ? `Rp ${n(confirmedShipping.price, 0).toLocaleString("id-ID")}`
                   : "-"}
               </span>
             </div>
@@ -462,7 +482,7 @@ export default function CheckoutPage() {
               loadingAddr ||
               loadingShip ||
               !selectedAddressId ||
-              !selectedShipping ||
+              !confirmedShipping ||
               !selectedPayment ||
               checkoutItems.length === 0
             }
