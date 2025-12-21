@@ -80,9 +80,22 @@ export function RegularCard({ item: raw }) {
 
   if (loading) return <RegularCardSkeleton />;
 
+  const path =
+    item?.path ??
+    item?.product?.path ??
+    item?.slug ??
+    item?.product?.slug ??
+    "";
+  const href = path
+    ? `/product-detail/${String(path)
+        .split("/")
+        .map(encodeURIComponent)
+        .join("/")}`
+    : "#";
+
   return (
     <div className="container group relative rounded-lg bg-white h-auto w-[200px] space-y-4 transition-all overflow-hidden">
-      <Link href={`/product-detail/${item.slug}`}>
+      <Link href={href}>
         <div className="image flex w-full items-center justify-center relative">
           {(item.sale || hasSale) && (
             <img
@@ -105,11 +118,11 @@ export function RegularCard({ item: raw }) {
             />
           </div>
 
-          <div className="image object-cover">
+          <div className="image">
             <img
               src={item.image}
               alt={item.name}
-              className="w-[150px] h-auto"
+              className="w-full h-auto object-cover"
               onError={(e) => {
                 e.currentTarget.src = "/placeholder.png";
               }}

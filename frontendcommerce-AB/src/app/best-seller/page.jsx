@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { BevPick } from "@/data";
 import { RegularCard, Button, TxtField, Filter } from "@/components";
+import { useDebounce } from "../hook/useDebounce";
 
 function shuffledArray(array) {
   const shuffled = [...array];
@@ -14,12 +15,12 @@ function shuffledArray(array) {
 }
 
 const BestSeller = () => {
-  const combineData = useMemo(() => {
-    return [...BevPick.map((item) => ({ ...item, type: "regular" }))];
-  }, []);
+  const [search, setSearch] = useState("");
+  const debounceSearch = useDebounce(search, 500);
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 20;
+  const combineData = useMemo(() => {
+    return BevPick.map((item) => ({ ...item, type: "regular" }));
+  }, []);
 
   const [mixedData, setMixedData] = useState([]);
 
@@ -27,14 +28,39 @@ const BestSeller = () => {
     setMixedData(shuffledArray(combineData));
   }, [combineData]);
 
+  // ✅ ini yang benar: return array hasil filter
+  const filteredProducts = useMemo(() => {
+    let products = mixedData;
+
+    const q = debounceSearch.trim().toLowerCase();
+    if (q) {
+      products = products.filter((p) => {
+        const name = String(p.name ?? "").toLowerCase();
+        const brand = String(p.brand ?? "").toLowerCase();
+        return name.includes(q) || brand.includes(q);
+      });
+    }
+
+    return products;
+  }, [mixedData, debounceSearch]);
+
+  // Pagination pakai filteredProducts
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+
+  // kalau search berubah, balik ke halaman 1 biar UX enak
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debounceSearch]);
+
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = mixedData.slice(indexOfFirstItem, indexOfLastItem);
+  const currentItems = filteredProducts.slice(indexOfFirstItem, indexOfLastItem);
 
-  const totalPages = Math.ceil(mixedData.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage));
 
   return (
-    <div className="flex w-full justify-between">
+    <div className="flex w-full mx-auto justify-between xl:max-w-[1280px] lg:max-w-[960px]">
       <div className="w-[400px] pl-10 pr-5 py-6">
         <Filter showBrandFilter={true} className="w-full py-24" />
       </div>
@@ -47,6 +73,8 @@ const BestSeller = () => {
             variant="outline"
             size="md"
             className="w-full min-w-[280px]"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
           />
         </div>
 
@@ -54,6 +82,7 @@ const BestSeller = () => {
           {currentItems.map((item, idx) => (
             <RegularCard key={item.id ?? idx} item={item} />
           ))}
+
           {/* Pagination */}
           <div className="flex justify-center mt-6 space-x-2 col-span-full">
             <Button
@@ -78,6 +107,7 @@ const BestSeller = () => {
                 {i + 1}
               </button>
             ))}
+
             <Button
               variant="secondary"
               size="sm"

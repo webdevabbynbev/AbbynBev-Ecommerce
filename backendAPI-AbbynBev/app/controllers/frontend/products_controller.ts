@@ -69,6 +69,10 @@ export default class ProductsController {
       const rawPath = params['*']
       const path = Array.isArray(rawPath) ? rawPath.join('/') : rawPath
 
+      if (!path) {
+        return response.status(400).send({ message: 'Missing product path', serve: null })
+      }
+
       const now = new Date()
       now.setHours(now.getHours() + 7)
       const dateString = now.toISOString().slice(0, 19).replace('T', ' ')

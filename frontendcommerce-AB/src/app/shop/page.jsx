@@ -83,8 +83,7 @@ export default function ShopPage() {
 
         const apiUrl =
           process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333/api/v1";
-
-        const res = await fetch(`${apiUrl}/products?page=1&per_page=50`, {
+          const res = await fetch(`${apiUrl}/products?page=1&per_page=50`, {
           cache: "no-store",
         });
 

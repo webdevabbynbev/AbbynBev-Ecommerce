@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import {
-  BtnIcon,
   PickCarousel,
   CategoryCard,
   Button,
@@ -183,14 +182,6 @@ export default function Home() {
         <div className="grid grid-cols-3 gap-6">
           {DataArticleBlog.slice(0, 6).map((item) => (
             <BlogCard key={item.id} {...item} />
-          ))}
-        </div>
-      </div>
-      <div className="Article-Container py-10 px-10 space-y-6 max-w-[1536px] mx-auto">
-        <h3 className="text-primary-700 text-lg font-bold">New Posts</h3>
-        <div className="grid grid-cols-3 gap-6">
-          {products.map((p) => (
-            <RegularCard key={p.id ?? p.slug ?? p.path} item={p} />
           ))}
         </div>
       </div>

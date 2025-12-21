@@ -120,8 +120,8 @@ export default function ProductDetailClient({ product }) {
   };
 
   return (
-    <div className="container w-full py-6 px-10 flex">
-      <div className="wrapper space-y-10 items-center justify-between">
+    <div className="container mx-auto w-full py-6 px-10 flex justify-between xl:max-w-[1280px] lg:max-w-[960px]">
+      <div className="wrapper space-y-10 items-center ">
         <div className="left-wrapper-content w-full flex-row space-y-10">
           {/* Breadcrumb */}
           <Breadcrumb>

@@ -70,11 +70,7 @@ export async function getProducts(params = {}) {
 }
 
 // ================= GET PRODUCT BY PATH ================== //
-export async function getProductByPath(path) {
-  const safePath = Array.isArray(path) ? path.join("/") : path;
-  const json = await fetchApi(`${API_BASE}/products/${safePath}`);
-  return normalizeProduct(json?.serve);
-}
+
 
 
 // ================= GET BRAND ================== //

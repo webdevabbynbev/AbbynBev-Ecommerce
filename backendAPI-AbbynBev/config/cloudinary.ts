@@ -14,4 +14,4 @@ cloudinary.config({
   api_secret: apiSecret,
 });
 
-export default cloudinary;
+export default cloudinary;8
