@@ -3,15 +3,49 @@ import env from '#start/env'
 import UserAddress from '#models/user_address'
 import axios from 'axios'
 import db from '@adonisjs/lucid/services/db'
-import qs from 'qs'
-
-const BASE_URL = String(env.get('KOMERCE_COST_BASE_URL') || '')
-  .trim()
-  .replace(/\/+$/, '')
-const API_KEY = String(env.get('KOMERCE_COST_API_KEY') || '').trim()
 
 /** =========================
- *  Generic cache + inflight
+ *  BITESHIP config
+ *  ========================= */
+const BITESHIP_BASE_URL = String(env.get('BITESHIP_BASE_URL') || '').trim().replace(/\/+$/, '')
+const BITESHIP_API_KEY = String(env.get('BITESHIP_API_KEY') || '').trim()
+
+// Origin (recommended: origin area id; fallback: postal code toko)
+const ORIGIN_AREA_ID = String(env.get('BITESHIP_ORIGIN_AREA_ID') || '').trim()
+const ORIGIN_POSTAL_CODE = String(env.get('COMPANY_POSTAL_CODE') || '').trim()
+
+function toInt(v: unknown, fallback = 0) {
+  const n = Number(v)
+  return Number.isFinite(n) ? Math.trunc(n) : fallback
+}
+function pickInput(request: any, keys: string[], fallback: any = undefined) {
+  for (const k of keys) {
+    const v = request.input(k)
+    if (typeof v !== 'undefined' && v !== null && v !== '') return v
+  }
+  return fallback
+}
+function isPostalCode(v: unknown) {
+  const s = String(v ?? '').trim()
+  return /^[0-9]{5}$/.test(s)
+}
+function getCourierAll(): string {
+  const s = String(env.get('BITESHIP_COURIERS') || '').trim()
+  return s || 'jne,sicepat,jnt,anteraja,pos,tiki,ninja,wahana,lion'
+}
+
+const biteship = axios.create({
+  baseURL: `${BITESHIP_BASE_URL}/v1`,
+  headers: {
+    authorization: BITESHIP_API_KEY,
+    accept: 'application/json',
+    'content-type': 'application/json',
+  },
+  timeout: 30_000,
+})
+
+/** =========================
+ *  Cache (simple)
  *  ========================= */
 type CacheValue = { exp: number; data: unknown }
 const cacheStore = new Map<string, CacheValue>()
@@ -26,14 +60,12 @@ function cacheGet(key: string) {
   }
   return it.data
 }
-
 function cacheSet(key: string, data: unknown, ttlMs: number) {
   cacheStore.set(key, { exp: Date.now() + ttlMs, data })
 }
-
 async function cachedFetch<T>(key: string, ttlMs: number, fetcher: () => Promise<T>) {
   const cached = cacheGet(key)
-  if (cached) return { data: cached as T, cached: true as const }
+  if (cached !== null) return { data: cached as T, cached: true as const }
 
   const running = inflight.get(key)
   if (running) {
@@ -57,126 +89,13 @@ async function cachedFetch<T>(key: string, ttlMs: number, fetcher: () => Promise
   }
 }
 
-/** =========================
- *  Helpers
- *  ========================= */
-function pickInput(request: any, keys: string[], fallback: any = undefined) {
-  for (const k of keys) {
-    const v = request.input(k)
-    if (typeof v !== 'undefined' && v !== null && v !== '') return v
-  }
-  return fallback
-}
-
-// FE kadang kirim object {label,value} / {id,name} dari react-select
-function unwrapSelectValue(v: any): any {
-  if (Array.isArray(v)) return unwrapSelectValue(v[0])
-  if (v && typeof v === 'object') {
-    if (typeof v.value !== 'undefined') return unwrapSelectValue(v.value)
-    if (typeof v.id !== 'undefined') return unwrapSelectValue(v.id)
-    if (typeof v.key !== 'undefined') return unwrapSelectValue(v.key)
-    if (typeof v.label !== 'undefined') return unwrapSelectValue(v.label)
-    if (typeof v.name !== 'undefined') return unwrapSelectValue(v.name)
-  }
-  return v
-}
-
-function pickInputU(request: any, keys: string[], fallback: any = undefined) {
-  return unwrapSelectValue(pickInput(request, keys, fallback))
-}
-
-function toInt(v: unknown, fallback = 0) {
-  const n = Number(v)
-  return Number.isFinite(n) ? Math.trunc(n) : fallback
-}
-
-/**
- * courier multi: pakai ":" (bukan koma)
- * normalize: "jne, jnt : pos" -> "jne:jnt:pos"
- */
-function cleanCourier(courier: unknown): string {
-  if (Array.isArray(courier)) courier = courier.join(':')
-  const s = String(courier ?? '').trim()
-  if (!s) return ''
-  return s
-    .replace(/,/g, ':')
-    .replace(/\s+/g, '')
-    .replace(/:+/g, ':')
-    .replace(/^:|:$/g, '')
-    .toLowerCase()
-}
-
-function getCourierAll(): string {
-  // kalau env ada, pakai env
-  const envList = cleanCourier(env.get('KOMERCE_COURIERS'))
-  if (envList) return envList
-
-  // fallback default (biar nggak kosong)
-  return 'jne:sicepat:jnt:anteraja:pos:tiki:ninja:wahana:lion'
-}
-
-// TTL cache
-const TTL_LOC_MS = 24 * 60 * 60 * 1000 // 24 jam
-const TTL_COST_MS = 5 * 60 * 1000 // 5 menit
-
-async function fetchListCached(cacheKey: string, url: string): Promise<any[]> {
-  const { data } = await cachedFetch<any>(cacheKey, TTL_LOC_MS, async () => {
-    const res = await axios.get(url, { headers: { key: API_KEY } })
-    return res.data?.data ?? res.data
-  })
-
-  if (Array.isArray(data)) return data
-  const inner = (data as any)?.data
-  return Array.isArray(inner) ? inner : []
-}
-
-function normName(v: unknown) {
-  return String(v ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-}
-
-function findByIdOrName(list: any[], input: unknown) {
-  const raw = String(input ?? '').trim()
-  if (!raw) return null
-
-  const byId = list.find((x) => String(x?.id) === raw)
-  if (byId) return byId
-
-  const target = normName(raw)
-  return list.find((x) => normName(x?.name) === target)
-}
-
-async function resolveProvince(provinceInput: unknown) {
-  const provinces = await fetchListCached('loc:province', `${BASE_URL}/destination/province`)
-  const p = findByIdOrName(provinces, provinceInput)
-  if (!p) return null
-  return { id: toInt(p.id, 0), raw: p }
-}
-
-async function resolveCity(provinceId: number, cityInput: unknown) {
-  const cities = await fetchListCached(`loc:city:${provinceId}`, `${BASE_URL}/destination/city/${provinceId}`)
-  const c = findByIdOrName(cities, cityInput)
-  if (!c) return null
-  return { id: toInt(c.id, 0), raw: c }
-}
-
-async function resolveDistrict(cityId: number, districtInput: unknown) {
-  const districts = await fetchListCached(`loc:district:${cityId}`, `${BASE_URL}/destination/district/${cityId}`)
-  const d = findByIdOrName(districts, districtInput)
-  if (!d) return null
-  return { id: toInt(d.id, 0), raw: d }
-}
-
-async function resolveSubDistrict(districtId: number, subInput: unknown) {
-  const subs = await fetchListCached(`loc:subdistrict:${districtId}`, `${BASE_URL}/destination/sub-district/${districtId}`)
-  const s = findByIdOrName(subs, subInput)
-  if (!s) return null
-  return { id: toInt(s.id, 0), raw: s }
-}
+const TTL_SEARCH_MS = 24 * 60 * 60 * 1000
+const TTL_COST_MS = 5 * 60 * 1000
 
 export default class UserAddressesController {
+  /** ======================
+   *  Address CRUD
+   *  ====================== */
   public async list({ response, auth }: HttpContext) {
     try {
       const addresses = await UserAddress.query().where('user_id', auth.user?.id ?? 0)
@@ -189,70 +108,45 @@ export default class UserAddressesController {
   public async create({ response, request, auth }: HttpContext) {
     const trx = await db.transaction()
     try {
-      if (!BASE_URL || !API_KEY) {
-        await trx.rollback()
-        return response.status(500).send({
-          message: 'KOMERCE config missing (KOMERCE_COST_BASE_URL / KOMERCE_COST_API_KEY).',
-          serve: null,
-        })
-      }
+      const areaObj = pickInput(request, ['area'])
+      const areaIdIn = pickInput(request, ['area_id', 'areaId', 'biteship_area_id', 'biteshipAreaId'])
+      const areaNameIn = pickInput(request, ['area_name', 'areaName', 'biteship_area_name', 'biteshipAreaName'])
+      const postalIn = pickInput(request, ['postal_code', 'postalCode'])
 
-      const provinceInput = pickInputU(request, ['province', 'province_id', 'provinceId'])
-      const cityInput = pickInputU(request, ['city', 'city_id', 'cityId'])
-      const districtInput = pickInputU(request, ['district', 'district_id', 'districtId'])
-      const subInput = pickInputU(request, ['subdistrict', 'sub_district', 'subDistrict', 'subdistrict_id', 'subDistrictId'])
+      const areaId = String(areaObj?.id ?? areaIdIn ?? '').trim()
+      const areaName = String(areaObj?.name ?? areaNameIn ?? '').trim()
+      const postalFromArea = areaObj?.postal_code ?? areaObj?.postalCode
+      const postalCode = String(postalFromArea ?? postalIn ?? '').trim()
 
-      const isActive = toInt(pickInputU(request, ['is_active', 'isActive'], 1), 1)
-
-      if (!provinceInput || !cityInput || !districtInput || !subInput) {
+      if (!areaId) {
         await trx.rollback()
         return response.status(400).send({
-          message: 'Province, city, district & subdistrict are required.',
+          message: 'area_id is required (ambil dari Biteship Maps /v1/maps/areas).',
           serve: null,
         })
       }
 
-      const province = await resolveProvince(provinceInput)
-      if (!province?.id) {
-        await trx.rollback()
-        return response.status(400).send({ message: 'Province not found', serve: null })
-      }
-
-      const city = await resolveCity(province.id, cityInput)
-      if (!city?.id) {
-        await trx.rollback()
-        return response.status(400).send({ message: 'City not found', serve: null })
-      }
-
-      const district = await resolveDistrict(city.id, districtInput)
-      if (!district?.id) {
-        await trx.rollback()
-        return response.status(400).send({ message: 'District not found', serve: null })
-      }
-
-      const subDistrict = await resolveSubDistrict(district.id, subInput)
-      if (!subDistrict?.id) {
-        await trx.rollback()
-        return response.status(400).send({ message: 'Subdistrict not found', serve: null })
-      }
+      const isActive = toInt(pickInput(request, ['is_active', 'isActive'], 1), 1)
 
       const dataAddress = new UserAddress()
-      dataAddress.address = pickInputU(request, ['address'])
-      dataAddress.isActive = isActive
       dataAddress.userId = auth.user?.id ?? 0
+      dataAddress.isActive = isActive
 
-      dataAddress.province = province.id
-      dataAddress.city = city.id
-      dataAddress.district = district.id
-      dataAddress.subDistrict = subDistrict.id
+      // ✅ simpan biteship area id/name (pakai any dulu supaya tidak error sebelum model diupdate)
+      ;(dataAddress as any).biteshipAreaId = areaId
+      ;(dataAddress as any).biteshipAreaName = areaName || ''
 
-      dataAddress.picName = pickInputU(request, ['pic_name', 'picName'])
-      dataAddress.picPhone = pickInputU(request, ['pic_phone', 'picPhone'])
-      dataAddress.picLabel = pickInputU(request, ['pic_label', 'picLabel'])
-      dataAddress.benchmark = pickInputU(request, ['benchmark'])
+      // ✅ jangan set province/city/district/subDistrict ke null dulu (biar gak bentrok tipe/DB)
+      // biarkan field lama untouched
 
-      const zip = (subDistrict.raw as any)?.zip_code ?? (subDistrict.raw as any)?.zipCode
-      dataAddress.postalCode = zip || pickInputU(request, ['postal_code', 'postalCode']) || null
+      dataAddress.address = String(pickInput(request, ['address'], '') || '')
+      dataAddress.picName = String(pickInput(request, ['pic_name', 'picName'], '') || '')
+      dataAddress.picPhone = String(pickInput(request, ['pic_phone', 'picPhone'], '') || '')
+      dataAddress.picLabel = String(pickInput(request, ['pic_label', 'picLabel'], '') || '')
+      dataAddress.benchmark = String(pickInput(request, ['benchmark'], '') || '')
+
+      // ✅ TS-safe: jangan assign null
+      dataAddress.postalCode = postalCode || ''
 
       await dataAddress.useTransaction(trx).save()
 
@@ -268,25 +162,14 @@ export default class UserAddressesController {
       return response.status(200).send({ message: 'Successfully created address.', serve: dataAddress })
     } catch (error: any) {
       await trx.rollback()
-      return response.status(500).send({
-        message: error.message || 'Internal server error.',
-        serve: error.response?.data || null,
-      })
+      return response.status(500).send({ message: error.message || 'Internal server error.', serve: error.response?.data || null })
     }
   }
 
   public async update({ response, request, auth }: HttpContext) {
     const trx = await db.transaction()
     try {
-      if (!BASE_URL || !API_KEY) {
-        await trx.rollback()
-        return response.status(500).send({
-          message: 'KOMERCE config missing (KOMERCE_COST_BASE_URL / KOMERCE_COST_API_KEY).',
-          serve: null,
-        })
-      }
-
-      const id = pickInputU(request, ['id'])
+      const id = pickInput(request, ['id'])
       const dataAddress = await UserAddress.query({ client: trx })
         .where('id', id)
         .where('user_id', auth.user?.id ?? 0)
@@ -297,78 +180,37 @@ export default class UserAddressesController {
         return response.status(404).send({ message: 'Address not found.', serve: null })
       }
 
-      const is_active = pickInputU(request, ['is_active', 'isActive'])
-      const address = pickInputU(request, ['address'])
-      const picName = pickInputU(request, ['pic_name', 'picName'])
-      const picPhone = pickInputU(request, ['pic_phone', 'picPhone'])
-      const picLabel = pickInputU(request, ['pic_label', 'picLabel'])
-      const benchmark = pickInputU(request, ['benchmark'])
-      const postalCode = pickInputU(request, ['postal_code', 'postalCode'])
+      // optional update area
+      const areaObj = pickInput(request, ['area'])
+      const areaIdIn = pickInput(request, ['area_id', 'areaId', 'biteship_area_id', 'biteshipAreaId'])
+      const areaNameIn = pickInput(request, ['area_name', 'areaName', 'biteship_area_name', 'biteshipAreaName'])
+      const postalIn = pickInput(request, ['postal_code', 'postalCode'])
 
-      const provinceInput = pickInputU(request, ['province', 'province_id', 'provinceId'])
-      const cityInput = pickInputU(request, ['city', 'city_id', 'cityId'])
-      const districtInput = pickInputU(request, ['district', 'district_id', 'districtId'])
-      const subInput = pickInputU(request, ['subdistrict', 'sub_district', 'subDistrict', 'subdistrict_id', 'subDistrictId'])
+      const areaId = String(areaObj?.id ?? areaIdIn ?? '').trim()
+      const areaName = String(areaObj?.name ?? areaNameIn ?? '').trim()
+      const postalFromArea = areaObj?.postal_code ?? areaObj?.postalCode
+      const postalCode = String(postalFromArea ?? postalIn ?? '').trim()
 
-      const wantsUpdateLocation =
-        typeof provinceInput !== 'undefined' ||
-        typeof cityInput !== 'undefined' ||
-        typeof districtInput !== 'undefined' ||
-        typeof subInput !== 'undefined'
-
-      if (wantsUpdateLocation) {
-        const pIn = typeof provinceInput !== 'undefined' ? provinceInput : dataAddress.province
-        const cIn = typeof cityInput !== 'undefined' ? cityInput : dataAddress.city
-        const dIn = typeof districtInput !== 'undefined' ? districtInput : dataAddress.district
-        const sIn = typeof subInput !== 'undefined' ? subInput : dataAddress.subDistrict
-
-        if (!pIn || !cIn || !dIn || !sIn) {
-          await trx.rollback()
-          return response.status(400).send({
-            message: 'Province, city, district & subdistrict are required when updating location.',
-            serve: null,
-          })
-        }
-
-        const province = await resolveProvince(pIn)
-        if (!province?.id) {
-          await trx.rollback()
-          return response.status(400).send({ message: 'Province not found', serve: null })
-        }
-
-        const city = await resolveCity(province.id, cIn)
-        if (!city?.id) {
-          await trx.rollback()
-          return response.status(400).send({ message: 'City not found', serve: null })
-        }
-
-        const district = await resolveDistrict(city.id, dIn)
-        if (!district?.id) {
-          await trx.rollback()
-          return response.status(400).send({ message: 'District not found', serve: null })
-        }
-
-        const subDistrict = await resolveSubDistrict(district.id, sIn)
-        if (!subDistrict?.id) {
-          await trx.rollback()
-          return response.status(400).send({ message: 'Subdistrict not found', serve: null })
-        }
-
-        dataAddress.province = province.id
-        dataAddress.city = city.id
-        dataAddress.district = district.id
-        dataAddress.subDistrict = subDistrict.id
-
-        const zip = (subDistrict.raw as any)?.zip_code ?? (subDistrict.raw as any)?.zipCode
-        dataAddress.postalCode = zip || postalCode || dataAddress.postalCode
+      if (areaId) {
+        ;(dataAddress as any).biteshipAreaId = areaId
+        ;(dataAddress as any).biteshipAreaName = areaName || (dataAddress as any).biteshipAreaName || ''
       }
 
+      const is_active = pickInput(request, ['is_active', 'isActive'])
+      const address = pickInput(request, ['address'])
+      const picName = pickInput(request, ['pic_name', 'picName'])
+      const picPhone = pickInput(request, ['pic_phone', 'picPhone'])
+      const picLabel = pickInput(request, ['pic_label', 'picLabel'])
+      const benchmark = pickInput(request, ['benchmark'])
+
       if (typeof is_active !== 'undefined') dataAddress.isActive = toInt(is_active, dataAddress.isActive)
-      if (typeof address !== 'undefined') dataAddress.address = address
-      if (typeof picName !== 'undefined') dataAddress.picName = picName
-      if (typeof picPhone !== 'undefined') dataAddress.picPhone = picPhone
-      if (typeof picLabel !== 'undefined') dataAddress.picLabel = picLabel
-      if (typeof benchmark !== 'undefined') dataAddress.benchmark = benchmark
+      if (typeof address !== 'undefined') dataAddress.address = String(address)
+      if (typeof picName !== 'undefined') dataAddress.picName = String(picName)
+      if (typeof picPhone !== 'undefined') dataAddress.picPhone = String(picPhone)
+      if (typeof picLabel !== 'undefined') dataAddress.picLabel = String(picLabel)
+      if (typeof benchmark !== 'undefined') dataAddress.benchmark = String(benchmark)
+
+      if (postalCode) dataAddress.postalCode = postalCode
 
       await dataAddress.useTransaction(trx).save()
 
@@ -384,17 +226,14 @@ export default class UserAddressesController {
       return response.status(200).send({ message: 'Successfully updated address.', serve: dataAddress })
     } catch (error: any) {
       await trx.rollback()
-      return response.status(500).send({
-        message: error.message || 'Internal server error.',
-        serve: error.response?.data || null,
-      })
+      return response.status(500).send({ message: error.message || 'Internal server error.', serve: error.response?.data || null })
     }
   }
 
   public async delete({ response, request, auth }: HttpContext) {
     const trx = await db.transaction()
     try {
-      const id = pickInputU(request, ['id'])
+      const id = pickInput(request, ['id'])
       const dataAddress = await UserAddress.query({ client: trx })
         .where('id', id)
         .where('user_id', auth.user?.id ?? 0)
@@ -411,153 +250,111 @@ export default class UserAddressesController {
       return response.status(200).send({ message: 'Successfully deleted address.', serve: [] })
     } catch (error: any) {
       await trx.rollback()
-      return response.status(500).send({ message: error.message || 'Internal server error.', serve: error.response?.data || null })
+      return response.status(500).send({ message: error.message || 'Internal Server Error', serve: error.response?.data || null })
     }
   }
 
-  // ======================
-  // Location endpoints (cached 24h)
-  // ======================
-  public async getProvince({ response }: HttpContext) {
+  /** ======================
+   *  Search lokasi via Biteship Maps
+   *  GET /areas?input=bandung
+   *  ====================== */
+  public async searchAreas({ request, response }: HttpContext) {
     try {
-      if (!BASE_URL || !API_KEY) return response.status(500).send({ message: 'KOMERCE config missing.', serve: null })
-
-      const { data, cached } = await cachedFetch('loc:province', TTL_LOC_MS, async () => {
-        const { data } = await axios.get(`${BASE_URL}/destination/province`, { headers: { key: API_KEY } })
-        return data?.data ?? data
-      })
-
-      return response.status(200).send({ message: 'Success', serve: data, meta: { cached } })
-    } catch (e: any) {
-      const status = e?.response?.status || 500
-      return response.status(status).send({ message: e.message || 'Internal Server Error', serve: e.response?.data || null })
-    }
-  }
-
-  public async getCity({ response, request }: HttpContext) {
-    try {
-      if (!BASE_URL || !API_KEY) return response.status(500).send({ message: 'KOMERCE config missing.', serve: null })
-
-      const provinceId = request.qs().province
-      const key = `loc:city:${provinceId}`
-
-      const { data, cached } = await cachedFetch(key, TTL_LOC_MS, async () => {
-        const { data } = await axios.get(`${BASE_URL}/destination/city/${provinceId}`, { headers: { key: API_KEY } })
-        return data?.data ?? data
-      })
-
-      return response.status(200).send({ message: 'Success', serve: data, meta: { cached } })
-    } catch (e: any) {
-      const status = e?.response?.status || 500
-      return response.status(status).send({ message: e.message || 'Internal Server Error', serve: e.response?.data || null })
-    }
-  }
-
-  public async getDistrict({ response, request }: HttpContext) {
-    try {
-      if (!BASE_URL || !API_KEY) return response.status(500).send({ message: 'KOMERCE config missing.', serve: null })
-
-      const cityId = request.qs().city
-      const key = `loc:district:${cityId}`
-
-      const { data, cached } = await cachedFetch(key, TTL_LOC_MS, async () => {
-        const { data } = await axios.get(`${BASE_URL}/destination/district/${cityId}`, { headers: { key: API_KEY } })
-        return data?.data ?? data
-      })
-
-      return response.status(200).send({ message: 'Success', serve: data, meta: { cached } })
-    } catch (e: any) {
-      const status = e?.response?.status || 500
-      return response.status(status).send({ message: e.message || 'Internal Server Error', serve: e.response?.data || null })
-    }
-  }
-
-  public async getSubDistrict({ response, request }: HttpContext) {
-    try {
-      if (!BASE_URL || !API_KEY) return response.status(500).send({ message: 'KOMERCE config missing.', serve: null })
-
-      const districtId = request.qs().district
-      const key = `loc:subdistrict:${districtId}`
-
-      const { data, cached } = await cachedFetch(key, TTL_LOC_MS, async () => {
-        const { data } = await axios.get(`${BASE_URL}/destination/sub-district/${districtId}`, {
-          headers: { key: API_KEY },
-        })
-        return data?.data ?? data
-      })
-
-      return response.status(200).send({ message: 'Success', serve: data, meta: { cached } })
-    } catch (e: any) {
-      const status = e?.response?.status || 500
-      return response.status(status).send({ message: e.message || 'Internal Server Error', serve: e.response?.data || null })
-    }
-  }
-
-  // ======================
-  // Shipping cost (FIX: pakai district endpoint)
-  // ======================
-  public async getCost({ request, response }: HttpContext) {
-    try {
-      if (!BASE_URL || !API_KEY) {
-        return response.status(500).send({
-          message: 'KOMERCE config missing (KOMERCE_COST_BASE_URL / KOMERCE_COST_API_KEY).',
-          serve: null,
-        })
+      if (!BITESHIP_BASE_URL || !BITESHIP_API_KEY) {
+        return response.status(500).send({ message: 'BITESHIP config missing.', serve: null })
       }
 
-      // ✅ untuk endpoint district/domestic-cost, yang dipakai adalah DISTRICT ID
-      const destination = toInt(
-        pickInputU(request, ['destination', 'district', 'district_id', 'districtId']),
-        0
-      )
+      const input = String(request.qs().input || '').trim()
+      if (!input) return response.status(400).send({ message: 'input is required', serve: null })
 
-      const weightRaw = Math.max(1, toInt(pickInputU(request, ['weight'], 1), 1))
-      const weightStep = toInt(env.get('KOMERCE_WEIGHT_STEP'), 0) // optional, misal 100
-      const weight = weightStep > 0 ? Math.ceil(weightRaw / weightStep) * weightStep : weightRaw
+      const countries = String(request.qs().countries || 'ID').trim()
+      const type = String(request.qs().type || 'single').trim()
 
-      const originFromReq = pickInputU(request, ['origin'])
-      const origin = toInt(originFromReq ?? env.get('KOMERCE_ORIGIN'), 0)
+      const cacheKey = `biteship:areas:${countries}:${type}:${input.toLowerCase()}`
+      const { data, cached } = await cachedFetch(cacheKey, TTL_SEARCH_MS, async () => {
+        const { data } = await biteship.get('/maps/areas', { params: { countries, input, type } })
+        return data
+      })
 
-      const priceIn = String(pickInputU(request, ['price'], 'lowest')).toLowerCase()
-const allowedPrice = new Set(['lowest', 'highest'])
-const price = allowedPrice.has(priceIn) ? priceIn : 'lowest'
+      return response.status(200).send({ message: 'Success', serve: data, meta: { cached } })
+    } catch (e: any) {
+      const status = e?.response?.status || 500
+      return response.status(status).send({ message: e.message || 'Internal Server Error', serve: e.response?.data || null })
+    }
+  }
 
-      const noCache = toInt(pickInputU(request, ['no_cache', 'noCache'], 0), 0) === 1
-
-      // courier: "all" -> pakai env KOMERCE_COURIERS atau default fallback
-      const courierRaw = String(pickInputU(request, ['courier'], 'all')).toLowerCase()
-      const courier = courierRaw === 'all' || !courierRaw ? getCourierAll() : cleanCourier(courierRaw)
-
-      if (!origin || !destination) {
-        return response.status(400).send({
-          message: 'Origin/Destination invalid. Pastikan KOMERCE_ORIGIN (district id) & destination (district id) valid.',
-          serve: null,
-          meta: { origin, destination, weight, courier, price },
-        })
+  /** ======================
+   *  Ongkir via Biteship Rates
+   *  POST /get-cost
+   *  Body recommended: { address_id, weight, value, quantity, couriers }
+   *  ====================== */
+  public async getCost({ request, response, auth }: HttpContext) {
+    try {
+      if (!BITESHIP_BASE_URL || !BITESHIP_API_KEY) {
+        return response.status(500).send({ message: 'BITESHIP config missing.', serve: null })
       }
 
-      const endpoint = '/calculate/district/domestic-cost'
+      const addressId = toInt(pickInput(request, ['address_id', 'addressId'], 0), 0)
 
-      const payload: Record<string, any> = { origin, destination, weight, courier, price }
+      let destinationAreaId = String(pickInput(request, ['destination_area_id', 'destinationAreaId'], '') || '').trim()
+      let destinationPostal = String(pickInput(request, ['destination_postal_code', 'destinationPostalCode'], '') || '').trim()
 
-      const cacheKey = `cost:${endpoint}:${origin}:${destination}:${weight}:${courier}:${price}`
+      if (addressId) {
+        const addr = await UserAddress.query()
+          .where('id', addressId)
+          .where('user_id', auth.user?.id ?? 0)
+          .first()
+
+        if (!addr) return response.status(404).send({ message: 'Address not found.', serve: null })
+
+        destinationAreaId = String((addr as any).biteshipAreaId || '').trim()
+        destinationPostal = String(addr.postalCode || '').trim()
+      }
+
+      const weight = Math.max(1, toInt(pickInput(request, ['weight'], 1), 1))
+      const value = Math.max(1, toInt(pickInput(request, ['value', 'amount', 'total'], 1), 1))
+      const quantity = Math.max(1, toInt(pickInput(request, ['quantity', 'qty'], 1), 1))
+
+      const courierRaw = String(pickInput(request, ['courier', 'couriers'], 'all')).toLowerCase()
+      const couriers = courierRaw === 'all' || !courierRaw ? getCourierAll() : courierRaw
+
+      const payload: any = {
+        couriers,
+        items: [{ name: 'Order', description: 'Ecommerce order', value, quantity, weight }],
+      }
+
+      if (ORIGIN_AREA_ID && destinationAreaId) {
+        payload.origin_area_id = ORIGIN_AREA_ID
+        payload.destination_area_id = destinationAreaId
+      } else {
+        if (!isPostalCode(ORIGIN_POSTAL_CODE)) {
+          return response.status(500).send({
+            message: 'Origin not configured. Set BITESHIP_ORIGIN_AREA_ID or valid COMPANY_POSTAL_CODE.',
+            serve: null,
+          })
+        }
+        if (!isPostalCode(destinationPostal)) {
+          return response.status(400).send({
+            message: 'Destination invalid. Provide destination_area_id OR destination_postal_code (or save postalCode in address).',
+            serve: null,
+            meta: { destinationAreaId, destinationPostal },
+          })
+        }
+        payload.origin_postal_code = toInt(ORIGIN_POSTAL_CODE, 0)
+        payload.destination_postal_code = toInt(destinationPostal, 0)
+      }
+
+      const noCache = toInt(pickInput(request, ['no_cache', 'noCache'], 0), 0) === 1
+      const cacheKey = `biteship:rates:${JSON.stringify(payload)}`
 
       const hit = async () => {
-        const body = qs.stringify(payload)
-        const { data } = await axios.post(`${BASE_URL}${endpoint}`, body, {
-          headers: { key: API_KEY, 'Content-Type': 'application/x-www-form-urlencoded', accept: 'application/json' },
-        })
-        // biasanya {meta, data}
-        return data?.data ?? data
+        const { data } = await biteship.post('/rates/couriers', payload)
+        return Array.isArray(data?.pricing) ? data.pricing : []
       }
 
       if (noCache) {
         const result = await hit()
-        return response.status(200).send({
-          message: 'Success',
-          serve: result,
-          meta: { ...payload, cached: false, noCache: true },
-        })
+        return response.status(200).send({ message: 'Success', serve: result, meta: { cached: false, noCache: true, payload } })
       }
 
       const { data: result, cached, coalesced } = await cachedFetch(cacheKey, TTL_COST_MS, hit)
@@ -565,17 +362,12 @@ const price = allowedPrice.has(priceIn) ? priceIn : 'lowest'
       return response.status(200).send({
         message: 'Success',
         serve: result,
-        meta: {
-          ...payload,
-          cached,
-          coalesced: !!coalesced,
-          ttlSec: Math.floor(TTL_COST_MS / 1000),
-        },
+        meta: { cached, coalesced: !!coalesced, ttlSec: Math.floor(TTL_COST_MS / 1000), payload },
       })
     } catch (e: any) {
       const status = e?.response?.status || 500
       return response.status(status).send({
-        message: e?.response?.data?.meta?.message || e.message || 'Internal Server Error',
+        message: e?.response?.data?.message || e.message || 'Internal Server Error',
         serve: e.response?.data || null,
       })
     }
