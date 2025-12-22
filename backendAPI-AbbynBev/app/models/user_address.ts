@@ -30,23 +30,31 @@ export default class UserAddress extends BaseModel {
   @column()
   declare isActive: number
 
+  // ✅ untuk alamat lama (RajaOngkir/Komerce) -> boleh null kalau alamat pakai Biteship
   @column()
-  declare city: number
+  declare city: number | null
 
   @column()
-  declare province: number
+  declare province: number | null
 
   @column()
-  declare district: number
+  declare district: number | null
 
   @column()
-  declare subDistrict: number
+  declare subDistrict: number | null
 
   @column()
-  declare postalCode: string
+  declare postalCode: string | null
 
   @column()
-  declare benchmark: string
+  declare benchmark: string | null
+
+  // ✅ alamat versi Biteship
+  @column()
+  declare biteshipAreaId: string | null
+
+  @column()
+  declare biteshipAreaName: string | null
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

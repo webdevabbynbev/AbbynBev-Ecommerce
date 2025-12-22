@@ -2,16 +2,20 @@ import axios from "@/lib/axios";
 import { unwrap } from "@/utils/unwrap";
 
 export async function fetchShippingCost({
-  destinationDistrict,
+  addressId,
   weight,
   courier = "all",
-  price = "all",
+  value = 1,
+  quantity = 1,
+  noCache = 0,
 }) {
   const res = await axios.post("/get-cost", {
-    destination: destinationDistrict,
+    address_id: addressId,
     weight,
     courier,
-    price,
+    value,
+    quantity,
+    no_cache: noCache ? 1 : 0,
   });
 
   return unwrap(res);

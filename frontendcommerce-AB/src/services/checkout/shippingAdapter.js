@@ -1,9 +1,44 @@
 import { n } from "@/utils/number";
 
 const FILTER_CARGO = /JTR|TRUCK|CARGO|KARGO/i;
-const PREFERRED = ["REG", "ECO", "YES", "OKE", "EZ", "CTC", "EXP"];
+
+// ✅ supaya groupByCourier gak error (di kode kamu PREFERRED belum ada)
+const PREFERRED = [
+  "REG",
+  "YES",
+  "CTC",
+  "ECO",
+  "OKE",
+  "ONS",
+  "SDS",
+  "SD",
+  "EXP",
+];
+
+function buildEtd(x) {
+  const range =
+    x?.shipment_duration_range ??
+    x?.duration_range ??
+    x?.durationRange ??
+    x?.etd ??
+    x?.estimate ??
+    "";
+  const unit =
+    x?.shipment_duration_unit ??
+    x?.duration_unit ??
+    x?.durationUnit ??
+    "";
+
+  const r = String(range || "").trim();
+  const u = String(unit || "").trim();
+
+  if (r && u) return `${r} ${u}`;
+  if (r) return r;
+  return "";
+}
 
 export function normalizeShipping(payload) {
+  // backend kamu: { message, serve: [...] }
   let base = payload;
   if (payload?.serve) base = payload.serve;
   if (payload?.data) base = payload.data;
@@ -13,7 +48,56 @@ export function normalizeShipping(payload) {
   list = Array.isArray(list) ? list : [];
 
   const flat = [];
+
   for (const x of list) {
+    // ✅ Biteship pricing item (paling penting)
+    const looksLikeBiteship =
+      x &&
+      (x?.courier_service_code ||
+        x?.courierServiceCode ||
+        x?.shipment_duration_unit ||
+        x?.shipmentDurationUnit ||
+        typeof x?.price !== "undefined");
+
+    if (looksLikeBiteship) {
+      const code = String(
+        x?.courier_code ?? x?.courierCode ?? x?.code ?? x?.courier ?? x?.name ?? ""
+      ).trim();
+
+      const service = String(
+        x?.courier_service_code ??
+          x?.courierServiceCode ??
+          x?.service_code ??
+          x?.serviceCode ??
+          x?.service ??
+          "REG"
+      ).trim();
+
+      const serviceName = String(
+        x?.courier_service_name ??
+          x?.courierServiceName ??
+          x?.service_name ??
+          x?.serviceName ??
+          ""
+      ).trim();
+
+      const desc = String(x?.description ?? x?.desc ?? serviceName ?? "").trim();
+
+      const cost = n(x?.price ?? x?.cost ?? x?.value ?? x?.amount ?? 0, 0);
+      const etd = buildEtd(x);
+
+      flat.push({
+        code,
+        service,
+        description: desc,
+        cost,
+        etd,
+        raw: x,
+      });
+      continue;
+    }
+
+    // ✅ RajaOngkir style (biar tetap kompatibel)
     if (Array.isArray(x?.costs)) {
       const code = String(x?.code ?? x?.courier ?? x?.name ?? "").trim();
       for (const c of x.costs) {
@@ -33,11 +117,14 @@ export function normalizeShipping(payload) {
           description: c?.description ?? c?.desc ?? "",
           cost: val,
           etd,
+          raw: { courier: x, service: c },
         });
       }
-    } else {
-      flat.push(x);
+      continue;
     }
+
+    // fallback
+    flat.push(x);
   }
 
   const seen = new Set();
@@ -59,6 +146,8 @@ export function normalizeShipping(payload) {
 
     const service = String(
       x?.service ??
+        x?.courier_service_code ??
+        x?.courierServiceCode ??
         x?.service_code ??
         x?.serviceCode ??
         x?.service_name ??
@@ -70,7 +159,13 @@ export function normalizeShipping(payload) {
 
     const cost = n(x?.cost ?? x?.price ?? x?.value ?? x?.amount ?? 0, 0);
     const etd = String(x?.etd ?? x?.estimate ?? "").trim();
-    const desc = String(x?.description ?? x?.desc ?? "").trim();
+    const desc = String(
+      x?.description ??
+        x?.desc ??
+        x?.courier_service_name ??
+        x?.courierServiceName ??
+        ""
+    ).trim();
 
     if (!code || cost <= 0) continue;
 
@@ -89,7 +184,7 @@ export function normalizeShipping(payload) {
       description: desc,
       price: cost,
       estimate: etd || "-",
-      raw: x,
+      raw: x?.raw ?? x,
     });
   }
 

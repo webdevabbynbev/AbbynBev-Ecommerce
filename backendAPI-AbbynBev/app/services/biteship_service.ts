@@ -11,10 +11,10 @@ export type BiteshipRateItem = {
   length?: number
   width?: number
   height?: number
+  category?: string // optional (sesuai docs)
 }
 
 export type BiteshipCourierRatesPayload = {
-  // pilih salah satu metode: postal_code / area_id / coordinate
   origin_postal_code?: number
   destination_postal_code?: number
 
@@ -26,7 +26,7 @@ export type BiteshipCourierRatesPayload = {
   destination_latitude?: number
   destination_longitude?: number
 
-  couriers: string // contoh: "jne,pos,sicepat"
+  couriers: string
   items: BiteshipRateItem[]
   courier_insurance?: number
 }
@@ -35,7 +35,8 @@ class BiteshipService {
   private client = axios.create({
     baseURL: this.baseUrlV1(),
     headers: {
-      Authorization: `Bearer ${env.get('BITESHIP_API_KEY')}`,
+      // ✅ sesuai docs: authorization = API KEY langsung (tanpa Bearer)
+      Authorization: String(env.get('BITESHIP_API_KEY')),
       Accept: 'application/json',
       'Content-Type': 'application/json',
     },
@@ -46,11 +47,9 @@ class BiteshipService {
     const raw = String(env.get('BITESHIP_BASE_URL') || 'https://api.biteship.com')
       .trim()
       .replace(/\/+$/, '')
-    // kalau user isi https://api.biteship.com/v1 ya jangan double
     return raw.endsWith('/v1') ? raw : `${raw}/v1`
   }
 
-  // ✅ INI YANG KURANG (biar error TS hilang)
   public async getCourierRates(payload: BiteshipCourierRatesPayload) {
     const { data } = await this.client.post('/rates/couriers', payload)
     return data

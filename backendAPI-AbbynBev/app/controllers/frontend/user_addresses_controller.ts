@@ -7,7 +7,10 @@ import db from '@adonisjs/lucid/services/db'
 /** =========================
  *  BITESHIP config
  *  ========================= */
-const BITESHIP_BASE_URL = String(env.get('BITESHIP_BASE_URL') || '').trim().replace(/\/+$/, '')
+const BITESHIP_BASE_URL = String(env.get('BITESHIP_BASE_URL') || 'https://api.biteship.com')
+  .trim()
+  .replace(/\/+$/, '')
+
 const BITESHIP_API_KEY = String(env.get('BITESHIP_API_KEY') || '').trim()
 
 // Origin (recommended: origin area id; fallback: postal code toko)
@@ -18,6 +21,7 @@ function toInt(v: unknown, fallback = 0) {
   const n = Number(v)
   return Number.isFinite(n) ? Math.trunc(n) : fallback
 }
+
 function pickInput(request: any, keys: string[], fallback: any = undefined) {
   for (const k of keys) {
     const v = request.input(k)
@@ -25,18 +29,35 @@ function pickInput(request: any, keys: string[], fallback: any = undefined) {
   }
   return fallback
 }
+
+function normalizePostal(v: unknown) {
+  return String(v ?? '').trim().replace(/\s+/g, '')
+}
+
 function isPostalCode(v: unknown) {
-  const s = String(v ?? '').trim()
+  const s = normalizePostal(v)
   return /^[0-9]{5}$/.test(s)
 }
+
 function getCourierAll(): string {
   const s = String(env.get('BITESHIP_COURIERS') || '').trim()
   return s || 'jne,sicepat,jnt,anteraja,pos,tiki,ninja,wahana,lion'
 }
 
+function normalizeCouriers(input: string): string {
+  const raw = String(input || '').toLowerCase().trim()
+  if (!raw || raw === 'all') return getCourierAll()
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join(',')
+}
+
 const biteship = axios.create({
   baseURL: `${BITESHIP_BASE_URL}/v1`,
   headers: {
+    // docs contoh pakai header `authorization: <API_KEY>` (tanpa Bearer) :contentReference[oaicite:3]{index=3}
     authorization: BITESHIP_API_KEY,
     accept: 'application/json',
     'content-type': 'application/json',
@@ -60,9 +81,11 @@ function cacheGet(key: string) {
   }
   return it.data
 }
+
 function cacheSet(key: string, data: unknown, ttlMs: number) {
   cacheStore.set(key, { exp: Date.now() + ttlMs, data })
 }
+
 async function cachedFetch<T>(key: string, ttlMs: number, fetcher: () => Promise<T>) {
   const cached = cacheGet(key)
   if (cached !== null) return { data: cached as T, cached: true as const }
@@ -108,22 +131,27 @@ export default class UserAddressesController {
   public async create({ response, request, auth }: HttpContext) {
     const trx = await db.transaction()
     try {
+      // SEARCH FLOW: area_id wajib (hasil dari /areas)
       const areaObj = pickInput(request, ['area'])
       const areaIdIn = pickInput(request, ['area_id', 'areaId', 'biteship_area_id', 'biteshipAreaId'])
       const areaNameIn = pickInput(request, ['area_name', 'areaName', 'biteship_area_name', 'biteshipAreaName'])
-      const postalIn = pickInput(request, ['postal_code', 'postalCode'])
 
       const areaId = String(areaObj?.id ?? areaIdIn ?? '').trim()
       const areaName = String(areaObj?.name ?? areaNameIn ?? '').trim()
+
       const postalFromArea = areaObj?.postal_code ?? areaObj?.postalCode
-      const postalCode = String(postalFromArea ?? postalIn ?? '').trim()
+      const postalIn = pickInput(request, ['postal_code', 'postalCode'])
+      const postalCode = normalizePostal(postalFromArea ?? postalIn ?? '')
 
       if (!areaId) {
         await trx.rollback()
-        return response.status(400).send({
-          message: 'area_id is required (ambil dari Biteship Maps /v1/maps/areas).',
-          serve: null,
-        })
+        return response.status(400).send({ message: 'area_id is required (pilih dari hasil /areas).', serve: null })
+      }
+
+      // maps/areas biasanya kasih postal_code; kita simpan buat fallback postal flow :contentReference[oaicite:4]{index=4}
+      if (postalCode && !isPostalCode(postalCode)) {
+        await trx.rollback()
+        return response.status(400).send({ message: 'postal_code must be 5 digit.', serve: null })
       }
 
       const isActive = toInt(pickInput(request, ['is_active', 'isActive'], 1), 1)
@@ -132,12 +160,15 @@ export default class UserAddressesController {
       dataAddress.userId = auth.user?.id ?? 0
       dataAddress.isActive = isActive
 
-      // ✅ simpan biteship area id/name (pakai any dulu supaya tidak error sebelum model diupdate)
-      ;(dataAddress as any).biteshipAreaId = areaId
-      ;(dataAddress as any).biteshipAreaName = areaName || ''
+      // dropdown lama kita kosongin (butuh kolom DB nullable)
+      dataAddress.province = null
+      dataAddress.city = null
+      dataAddress.district = null
+      dataAddress.subDistrict = null
 
-      // ✅ jangan set province/city/district/subDistrict ke null dulu (biar gak bentrok tipe/DB)
-      // biarkan field lama untouched
+      // ✅ simpan biteship area
+      dataAddress.biteshipAreaId = areaId
+      dataAddress.biteshipAreaName = areaName || ''
 
       dataAddress.address = String(pickInput(request, ['address'], '') || '')
       dataAddress.picName = String(pickInput(request, ['pic_name', 'picName'], '') || '')
@@ -145,7 +176,7 @@ export default class UserAddressesController {
       dataAddress.picLabel = String(pickInput(request, ['pic_label', 'picLabel'], '') || '')
       dataAddress.benchmark = String(pickInput(request, ['benchmark'], '') || '')
 
-      // ✅ TS-safe: jangan assign null
+      // boleh kosong, tapi kalau ada harus valid
       dataAddress.postalCode = postalCode || ''
 
       await dataAddress.useTransaction(trx).save()
@@ -162,14 +193,22 @@ export default class UserAddressesController {
       return response.status(200).send({ message: 'Successfully created address.', serve: dataAddress })
     } catch (error: any) {
       await trx.rollback()
-      return response.status(500).send({ message: error.message || 'Internal server error.', serve: error.response?.data || null })
+      return response.status(500).send({
+        message: error.message || 'Internal server error.',
+        serve: error.response?.data || null,
+      })
     }
   }
 
   public async update({ response, request, auth }: HttpContext) {
     const trx = await db.transaction()
     try {
-      const id = pickInput(request, ['id'])
+      const id = toInt(pickInput(request, ['id'], 0), 0)
+      if (!id) {
+        await trx.rollback()
+        return response.status(400).send({ message: 'id is required', serve: null })
+      }
+
       const dataAddress = await UserAddress.query({ client: trx })
         .where('id', id)
         .where('user_id', auth.user?.id ?? 0)
@@ -184,16 +223,17 @@ export default class UserAddressesController {
       const areaObj = pickInput(request, ['area'])
       const areaIdIn = pickInput(request, ['area_id', 'areaId', 'biteship_area_id', 'biteshipAreaId'])
       const areaNameIn = pickInput(request, ['area_name', 'areaName', 'biteship_area_name', 'biteshipAreaName'])
-      const postalIn = pickInput(request, ['postal_code', 'postalCode'])
 
       const areaId = String(areaObj?.id ?? areaIdIn ?? '').trim()
       const areaName = String(areaObj?.name ?? areaNameIn ?? '').trim()
+
       const postalFromArea = areaObj?.postal_code ?? areaObj?.postalCode
-      const postalCode = String(postalFromArea ?? postalIn ?? '').trim()
+      const postalIn = pickInput(request, ['postal_code', 'postalCode'])
+      const postalCode = normalizePostal(postalFromArea ?? postalIn ?? '')
 
       if (areaId) {
-        ;(dataAddress as any).biteshipAreaId = areaId
-        ;(dataAddress as any).biteshipAreaName = areaName || (dataAddress as any).biteshipAreaName || ''
+        dataAddress.biteshipAreaId = areaId
+        dataAddress.biteshipAreaName = areaName || dataAddress.biteshipAreaName || ''
       }
 
       const is_active = pickInput(request, ['is_active', 'isActive'])
@@ -210,7 +250,13 @@ export default class UserAddressesController {
       if (typeof picLabel !== 'undefined') dataAddress.picLabel = String(picLabel)
       if (typeof benchmark !== 'undefined') dataAddress.benchmark = String(benchmark)
 
-      if (postalCode) dataAddress.postalCode = postalCode
+      if (postalCode) {
+        if (!isPostalCode(postalCode)) {
+          await trx.rollback()
+          return response.status(400).send({ message: 'postal_code must be 5 digit.', serve: null })
+        }
+        dataAddress.postalCode = postalCode
+      }
 
       await dataAddress.useTransaction(trx).save()
 
@@ -226,14 +272,22 @@ export default class UserAddressesController {
       return response.status(200).send({ message: 'Successfully updated address.', serve: dataAddress })
     } catch (error: any) {
       await trx.rollback()
-      return response.status(500).send({ message: error.message || 'Internal server error.', serve: error.response?.data || null })
+      return response.status(500).send({
+        message: error.message || 'Internal server error.',
+        serve: error.response?.data || null,
+      })
     }
   }
 
   public async delete({ response, request, auth }: HttpContext) {
     const trx = await db.transaction()
     try {
-      const id = pickInput(request, ['id'])
+      const id = toInt(pickInput(request, ['id'], 0), 0)
+      if (!id) {
+        await trx.rollback()
+        return response.status(400).send({ message: 'id is required', serve: [] })
+      }
+
       const dataAddress = await UserAddress.query({ client: trx })
         .where('id', id)
         .where('user_id', auth.user?.id ?? 0)
@@ -250,7 +304,10 @@ export default class UserAddressesController {
       return response.status(200).send({ message: 'Successfully deleted address.', serve: [] })
     } catch (error: any) {
       await trx.rollback()
-      return response.status(500).send({ message: error.message || 'Internal Server Error', serve: error.response?.data || null })
+      return response.status(500).send({
+        message: error.message || 'Internal Server Error',
+        serve: error.response?.data || null,
+      })
     }
   }
 
@@ -276,17 +333,23 @@ export default class UserAddressesController {
         return data
       })
 
-      return response.status(200).send({ message: 'Success', serve: data, meta: { cached } })
+      // Biteship response: { success: true, areas: [...] } :contentReference[oaicite:5]{index=5}
+      const areas = Array.isArray((data as any)?.areas) ? (data as any).areas : []
+      return response.status(200).send({ message: 'Success', serve: areas, meta: { cached } })
     } catch (e: any) {
       const status = e?.response?.status || 500
-      return response.status(status).send({ message: e.message || 'Internal Server Error', serve: e.response?.data || null })
+      return response.status(status).send({
+        message: e.message || 'Internal Server Error',
+        serve: e.response?.data || null,
+      })
     }
   }
 
   /** ======================
    *  Ongkir via Biteship Rates
    *  POST /get-cost
-   *  Body recommended: { address_id, weight, value, quantity, couriers }
+   *  Body recommended:
+   *  { address_id, weight, value, quantity, couriers }
    *  ====================== */
   public async getCost({ request, response, auth }: HttpContext) {
     try {
@@ -297,7 +360,9 @@ export default class UserAddressesController {
       const addressId = toInt(pickInput(request, ['address_id', 'addressId'], 0), 0)
 
       let destinationAreaId = String(pickInput(request, ['destination_area_id', 'destinationAreaId'], '') || '').trim()
-      let destinationPostal = String(pickInput(request, ['destination_postal_code', 'destinationPostalCode'], '') || '').trim()
+      let destinationPostal = normalizePostal(
+        pickInput(request, ['destination_postal_code', 'destinationPostalCode', 'postal_code', 'postalCode'], '') || ''
+      )
 
       if (addressId) {
         const addr = await UserAddress.query()
@@ -307,26 +372,27 @@ export default class UserAddressesController {
 
         if (!addr) return response.status(404).send({ message: 'Address not found.', serve: null })
 
-        destinationAreaId = String((addr as any).biteshipAreaId || '').trim()
-        destinationPostal = String(addr.postalCode || '').trim()
+        destinationAreaId = String(addr.biteshipAreaId || '').trim()
+        destinationPostal = normalizePostal(addr.postalCode || '')
       }
 
-      const weight = Math.max(1, toInt(pickInput(request, ['weight'], 1), 1))
+      const weight = Math.max(1, toInt(pickInput(request, ['weight'], 1), 1)) // gram
       const value = Math.max(1, toInt(pickInput(request, ['value', 'amount', 'total'], 1), 1))
       const quantity = Math.max(1, toInt(pickInput(request, ['quantity', 'qty'], 1), 1))
 
-      const courierRaw = String(pickInput(request, ['courier', 'couriers'], 'all')).toLowerCase()
-      const couriers = courierRaw === 'all' || !courierRaw ? getCourierAll() : courierRaw
+      const couriers = normalizeCouriers(String(pickInput(request, ['courier', 'couriers'], 'all')))
 
       const payload: any = {
         couriers,
         items: [{ name: 'Order', description: 'Ecommerce order', value, quantity, weight }],
       }
 
+      // Prefer area_id kalau origin & destination area sama-sama ada (akurasi tinggi) :contentReference[oaicite:6]{index=6}
       if (ORIGIN_AREA_ID && destinationAreaId) {
         payload.origin_area_id = ORIGIN_AREA_ID
         payload.destination_area_id = destinationAreaId
       } else {
+        // fallback postal code (akurasi medium) :contentReference[oaicite:7]{index=7}
         if (!isPostalCode(ORIGIN_POSTAL_CODE)) {
           return response.status(500).send({
             message: 'Origin not configured. Set BITESHIP_ORIGIN_AREA_ID or valid COMPANY_POSTAL_CODE.',
@@ -335,7 +401,8 @@ export default class UserAddressesController {
         }
         if (!isPostalCode(destinationPostal)) {
           return response.status(400).send({
-            message: 'Destination invalid. Provide destination_area_id OR destination_postal_code (or save postalCode in address).',
+            message:
+              'Destination invalid. Provide destination_area_id OR destination_postal_code (or save postalCode in address).',
             serve: null,
             meta: { destinationAreaId, destinationPostal },
           })
@@ -349,12 +416,16 @@ export default class UserAddressesController {
 
       const hit = async () => {
         const { data } = await biteship.post('/rates/couriers', payload)
-        return Array.isArray(data?.pricing) ? data.pricing : []
+        return Array.isArray((data as any)?.pricing) ? (data as any).pricing : []
       }
 
       if (noCache) {
         const result = await hit()
-        return response.status(200).send({ message: 'Success', serve: result, meta: { cached: false, noCache: true, payload } })
+        return response.status(200).send({
+          message: 'Success',
+          serve: result,
+          meta: { cached: false, noCache: true, payload },
+        })
       }
 
       const { data: result, cached, coalesced } = await cachedFetch(cacheKey, TTL_COST_MS, hit)

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ssGet, ssSet } from "@/utils/storage";
-import { n } from "@/utils/number";
 import { fetchShippingCost } from "@/services/checkout/shipping";
 import { groupByCourier, normalizeShipping, pickCheapestBest } from "@/services/checkout/shippingAdapter";
 
@@ -22,24 +21,9 @@ export function useShippingOptions({ selectedAddress, selectedAddressId, weightR
 
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
-      if (!selectedAddress) return;
+      if (!selectedAddressId) return;
 
-      const destinationDistrict = n(
-        selectedAddress?.district ??
-          selectedAddress?.district_id ??
-          selectedAddress?.districtId ??
-          0,
-        0
-      );
-
-      if (!destinationDistrict) {
-        setShippingAll([]);
-        setSelectedShipping(null);
-        setShippingError("Alamat belum lengkap (district ID kosong).");
-        return;
-      }
-
-      const key = `ship:${selectedAddressId}|${destinationDistrict}|${weightRounded}`;
+      const key = `ship:${selectedAddressId}|${weightRounded}`;
 
       const cached = ssGet(key);
       if (cached) {
@@ -71,10 +55,9 @@ export function useShippingOptions({ selectedAddress, selectedAddressId, weightR
 
       try {
         const payload = await fetchShippingCost({
-          destinationDistrict,
+          addressId: selectedAddressId,
           weight: weightRounded,
           courier: "all",
-          price: "all",
         });
 
         if (reqId !== reqIdRef.current) return;
@@ -113,7 +96,7 @@ export function useShippingOptions({ selectedAddress, selectedAddressId, weightR
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [enabled, selectedAddress, selectedAddressId, weightRounded]);
+  }, [enabled, selectedAddressId, weightRounded]);
 
   const { shippingGroups, bestByCourier, courierKeys } = useMemo(() => {
     const { groups, best } = groupByCourier(shippingAll);
