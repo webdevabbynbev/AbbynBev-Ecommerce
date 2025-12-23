@@ -107,6 +107,50 @@ export default class TransactionsController {
   }
 
   /**
+   * ✅ Detail transaksi (untuk label/print)
+   * GET /api/v1/admin/transactions/:id
+   */
+  public async show({ params, response }: HttpContext) {
+    try {
+      const id = toNumber(params.id, 0)
+      if (!id) {
+        return response.status(400).send({ message: 'Invalid id', serve: [] })
+      }
+
+      const tx = await Transaction.query()
+        .where('id', id)
+        .preload('details', (detail) => {
+          detail.preload('product', (p) => p.preload('medias'))
+          detail.preload('variant')
+        })
+        .preload('shipments')
+        .preload('ecommerce', (ec) => {
+          ec.preload('userAddress', (addr) => {
+            addr.preload('provinceData')
+            addr.preload('cityData')
+            addr.preload('districtData')
+            addr.preload('subDistrictData')
+          })
+          ec.preload('user')
+        })
+        .preload('user')
+        .preload('pos')
+        .first()
+
+      if (!tx) {
+        return response.status(404).send({ message: 'Transaction not found', serve: [] })
+      }
+
+      return response.status(200).send({ message: 'success', serve: tx })
+    } catch (error: any) {
+      return response.status(500).send({
+        message: error.message || 'Internal Server Error.',
+        serve: [],
+      })
+    }
+  }
+
+  /**
    * ✅ Admin confirm:
    * dari "PAID_WAITING_ADMIN" -> "ON_PROCESS"
    * Body: { transaction_id: number }
@@ -130,7 +174,6 @@ export default class TransactionsController {
         return response.status(404).send({ message: 'Transaction not found.', serve: [] })
       }
 
-      // hanya boleh confirm kalau sudah bayar dan menunggu admin
       if (String(transaction.transactionStatus) !== TransactionStatus.PAID_WAITING_ADMIN.toString()) {
         await trx.rollback()
         return response.status(400).send({
@@ -193,7 +236,6 @@ export default class TransactionsController {
         return response.status(404).send({ message: 'Transaction not found.', serve: [] })
       }
 
-      // ✅ kunci flow: harus confirm admin dulu
       if (String(transaction.transactionStatus) !== TransactionStatus.ON_PROCESS.toString()) {
         await trx.rollback()
         return response.status(400).send({
@@ -208,7 +250,6 @@ export default class TransactionsController {
         return response.status(404).send({ message: 'Shipment not found.', serve: [] })
       }
 
-      // ✅ cegah double create resi
       if (shipment.resiNumber) {
         await trx.rollback()
         return response.status(400).send({ message: 'Resi sudah ada untuk transaksi ini.', serve: [] })
@@ -221,16 +262,12 @@ export default class TransactionsController {
         return response.status(400).send({ message: 'User address not found.', serve: [] })
       }
 
-      // total weight (buat info)
       const totalWeight = transaction.details.reduce((acc: number, d: any) => {
         const productWeight = Number(d.product?.weight || 0)
         const qty = Number(d.qty || 0)
         return acc + productWeight * qty
       }, 0)
 
-      // =========================
-      // ORIGIN (TOKO)
-      // =========================
       const originAreaId = String(env.get('BITESHIP_ORIGIN_AREA_ID') || '').trim()
       const originPostal = toPostalNumber(env.get('COMPANY_POSTAL_CODE'))
 
@@ -254,9 +291,6 @@ export default class TransactionsController {
         })
       }
 
-      // =========================
-      // DESTINATION (CUSTOMER)
-      // =========================
       const destAreaId = pickFirstString(userAddress, [
         'biteshipAreaId',
         'biteship_area_id',
@@ -291,12 +325,9 @@ export default class TransactionsController {
         })
       }
 
-      // =========================
-      // ITEMS
-      // =========================
       const items = transaction.details.map((d: any) => {
         const price = Number(d.variant?.price ?? d.price ?? 0)
-        const weight = Number(d.product?.weight ?? 0) || 1 // gram (pastikan DB gram)
+        const weight = Number(d.product?.weight ?? 0) || 1
         return {
           name: d.product?.name || 'Item',
           description: d.product?.description || undefined,
@@ -327,7 +358,6 @@ export default class TransactionsController {
         })
       }
 
-      // reference_id harus unik per order
       const referenceId = String(transaction.transactionNumber || transaction.id)
 
       const biteshipPayload: any = {
@@ -350,7 +380,6 @@ export default class TransactionsController {
         courier_company: courierCompany,
         courier_type: courierType,
 
-        // delivery_type "now" -> generate waybill instantly
         delivery_type: 'now',
         reference_id: referenceId,
         metadata: { transaction_id: transaction.id },
@@ -399,7 +428,6 @@ export default class TransactionsController {
       } catch (e: any) {
         const body = e?.response?.data
 
-        // kalau reference_id sudah pernah dipakai: code 40002060 + details.waybill_id
         if (body?.code === 40002060 && body?.details?.waybill_id) {
           shipment.resiNumber = body.details.waybill_id
           await shipment.useTransaction(trx).save()
@@ -434,12 +462,6 @@ export default class TransactionsController {
     }
   }
 
-  /**
-   * ✅ Cancel transaksi dari CMS
-   * - allowed: WAITING_PAYMENT / PAID_WAITING_ADMIN
-   * - set FAILED
-   * - restore stock variant + restore voucher qty
-   */
   public async cancelTransactions({ request, response }: HttpContext) {
     const trx = await db.transaction()
     try {
@@ -459,7 +481,6 @@ export default class TransactionsController {
         return response.status(404).json({ message: 'Ada transaksi yang tidak ditemukan.' })
       }
 
-      // validasi status
       for (const t of transactions) {
         const st = String(t.transactionStatus || '')
         const allowed =
@@ -475,7 +496,6 @@ export default class TransactionsController {
       }
 
       for (const t of transactions as any[]) {
-        // restore stock
         for (const detail of t.details) {
           if (!detail.productVariantId) continue
 
@@ -489,14 +509,12 @@ export default class TransactionsController {
             await pv.useTransaction(trx).save()
           }
 
-          // popularity rollback (optional)
           if (detail.product) {
             detail.product.popularity = Math.max(0, toNumber(detail.product.popularity) - 1)
             await detail.product.useTransaction(trx).save()
           }
         }
 
-        // restore voucher qty
         const voucherId = t.ecommerce?.voucherId
         if (voucherId) {
           const v = await Voucher.query({ client: trx }).where('id', voucherId).forUpdate().first()
@@ -506,7 +524,6 @@ export default class TransactionsController {
           }
         }
 
-        // set FAILED
         t.transactionStatus = TransactionStatus.FAILED.toString()
         await t.useTransaction(trx).save()
       }

@@ -1,13 +1,34 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Card, Modal, Space, Table, Tag, message } from "antd";
+import { Button, Card, Modal, Space, Table, Tag, message, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import api from "../../api/http"; // ✅ pakai axios instance CMS yang sudah pasang token dari "session"
+import api from "../../api/http";
+
+import { pdf } from "@react-pdf/renderer";
+import JsBarcode from "jsbarcode";
+import LabelPdf from "./LabelPdf"; // ⬅️ pastikan file ini ada di folder yang sama
 
 type TxUser = {
   id: number;
   firstName?: string;
   lastName?: string;
   email?: string;
+  phone?: string;
+  fullName?: string;
+  name?: string;
+};
+
+type TxDetail = {
+  qty: number;
+  product?: { name?: string };
+  variant?: { sku?: string };
+};
+
+type TxShipment = {
+  resiNumber?: string;
+  resi_number?: string;
+  service?: string;
+  serviceType?: string;
+  price?: number | string;
 };
 
 type Tx = {
@@ -18,7 +39,8 @@ type Tx = {
   createdAt?: string;
   created_at?: string;
   user?: TxUser;
-  shipments?: any[];
+  shipments?: TxShipment[];
+  details?: TxDetail[];
 };
 
 const STATUS_LABEL: Record<string, { text: string; color: string }> = {
@@ -34,6 +56,24 @@ function money(v: any) {
   const n = Number(v);
   if (!Number.isFinite(n)) return String(v ?? "");
   return new Intl.NumberFormat("id-ID").format(n);
+}
+
+function formatDate(v?: string) {
+  if (!v) return "-";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleString("id-ID");
+}
+
+function makeBarcodeDataUrl(text: string) {
+  const canvas = document.createElement("canvas");
+  JsBarcode(canvas, text, {
+    format: "CODE128",
+    displayValue: false,
+    margin: 0,
+    height: 50,
+  });
+  return canvas.toDataURL("image/png");
 }
 
 export default function TableTransaction() {
@@ -87,16 +127,51 @@ export default function TableTransaction() {
     });
   };
 
+  const downloadOrPrintLabel = async (transactionId: number, mode: "download" | "print") => {
+    try {
+      const { data } = await api.get(`/admin/transactions/${transactionId}`);
+      const tx = data?.serve;
+      if (!tx) throw new Error("Detail transaksi kosong");
+
+      const sh = tx?.shipments?.[0];
+      const resi = sh?.resiNumber || sh?.resi_number;
+      if (!resi) throw new Error("Resi belum ada. Generate resi dulu.");
+
+      const barcodeSrc = makeBarcodeDataUrl(String(resi));
+      const blob = await pdf(<LabelPdf tx={tx} barcodeSrc={barcodeSrc} />).toBlob();
+
+      const url = URL.createObjectURL(blob);
+
+      if (mode === "download") {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `label-${tx.transactionNumber || transactionId}.pdf`;
+        a.click();
+      } else {
+        const w = window.open(url);
+        setTimeout(() => w?.print(), 500);
+      }
+
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || e.message || "Gagal buat/download label");
+    }
+  };
+
   const generateResi = (transactionId: number) => {
     Modal.confirm({
       title: "Generate Resi",
-      content: "Yakin mau generate resi (Komerce) untuk pesanan ini?",
-      okText: "Generate",
+      content: "Generate resi (Biteship) dan download label A6 sekarang?",
+      okText: "Generate & Download",
       cancelText: "Batal",
       onOk: async () => {
         try {
           await api.put("/admin/transactions/update-receipt", { transaction_id: transactionId });
-          message.success("Resi berhasil dibuat, status jadi Dikirim.");
+
+          // auto download label setelah resi sukses
+          await downloadOrPrintLabel(transactionId, "download");
+
+          message.success("Resi berhasil dibuat dan label berhasil di-download.");
           fetchData();
         } catch (e: any) {
           message.error(e?.response?.data?.message || e.message || "Gagal generate resi");
@@ -126,27 +201,81 @@ export default function TableTransaction() {
 
   const columns: ColumnsType<Tx> = useMemo(
     () => [
-      { title: "No. Transaksi", dataIndex: "transactionNumber", key: "transactionNumber", width: 180 },
+      {
+        title: "No. Transaksi",
+        dataIndex: "transactionNumber",
+        key: "transactionNumber",
+        width: 180,
+      },
       {
         title: "Customer",
         key: "customer",
+        width: 260,
         render: (_, r) => {
           const u = r.user;
           const name = [u?.firstName, u?.lastName].filter(Boolean).join(" ").trim();
           return (
             <div>
-              <div style={{ fontWeight: 600 }}>{name || "-"}</div>
+              <div style={{ fontWeight: 600 }}>{name || u?.fullName || u?.name || "-"}</div>
               <div style={{ fontSize: 12, opacity: 0.7 }}>{u?.email || "-"}</div>
             </div>
           );
         },
       },
-      { title: "Amount", dataIndex: "amount", key: "amount", width: 140, render: (v) => `Rp ${money(v)}` },
+      {
+        title: "Produk",
+        key: "products",
+        width: 320,
+        render: (_, r) => {
+          const items =
+            (r.details || [])
+              .map((d) => `${d.product?.name || "Item"} x${d.qty}`)
+              .filter(Boolean);
+
+          if (!items.length) return "-";
+
+          const display = items.slice(0, 2).join(", ");
+          const rest = items.length - 2;
+
+          return (
+            <div
+              style={{
+                maxWidth: 300,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+              title={items.join("\n")}
+            >
+              {display}
+              {rest > 0 ? ` +${rest} lainnya` : ""}
+            </div>
+          );
+        },
+      },
+      {
+        title: "Resi",
+        key: "resi",
+        width: 220,
+        render: (_, r) => {
+          const sh = r.shipments?.[0];
+          const resi = sh?.resiNumber || (sh as any)?.resi_number;
+          if (!resi) return "-";
+          return <Typography.Text copyable>{resi}</Typography.Text>;
+        },
+      },
+      {
+        title: "Amount",
+        dataIndex: "amount",
+        key: "amount",
+        width: 140,
+        render: (v) => `Rp ${money(v)}`,
+      },
       {
         title: "Status",
         dataIndex: "transactionStatus",
         key: "transactionStatus",
-        width: 240,
+        width: 220,
         render: (s: any) => {
           const key = String(s ?? "");
           const cfg = STATUS_LABEL[key] || { text: `Unknown (${key})`, color: "default" };
@@ -156,21 +285,20 @@ export default function TableTransaction() {
       {
         title: "Tanggal",
         key: "createdAt",
-        width: 160,
-        render: (_, r) => {
-          const v = r.createdAt || r.created_at;
-          if (!v) return "-";
-          return new Date(v).toLocaleString("id-ID");
-        },
+        width: 170,
+        render: (_, r) => formatDate(r.createdAt || r.created_at),
       },
       {
         title: "Action",
         key: "action",
-        width: 320,
+        width: 520,
         render: (_, r) => {
           const st = String(r.transactionStatus ?? "");
+          const sh = r.shipments?.[0];
+          const hasResi = Boolean(sh?.resiNumber || (sh as any)?.resi_number);
+
           const canConfirm = st === "5";
-          const canResi = st === "2";
+          const canResi = st === "2" && !hasResi;
           const canCancel = st === "1" || st === "5";
 
           return (
@@ -178,9 +306,19 @@ export default function TableTransaction() {
               <Button type="primary" disabled={!canConfirm} onClick={() => confirmPaid(r.id)}>
                 Confirm
               </Button>
+
               <Button disabled={!canResi} onClick={() => generateResi(r.id)}>
                 Generate Resi
               </Button>
+
+              <Button disabled={!hasResi} onClick={() => downloadOrPrintLabel(r.id, "download")}>
+                Download Label
+              </Button>
+
+              <Button disabled={!hasResi} onClick={() => downloadOrPrintLabel(r.id, "print")}>
+                Print
+              </Button>
+
               <Button danger disabled={!canCancel} onClick={() => cancelTx(r.id)}>
                 Cancel
               </Button>

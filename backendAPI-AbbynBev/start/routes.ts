@@ -332,12 +332,11 @@ router
           router
   .group(() => {
     router.get('', [CmsTransactionsController, 'get'])
-
-    // ✅ NEW: admin confirm setelah status PAID_WAITING_ADMIN
     router.put('/confirm', [CmsTransactionsController, 'confirmPaidOrder'])
-
     router.put('/update-receipt', [CmsTransactionsController, 'updateReceipt'])
     router.put('/cancel', [CmsTransactionsController, 'cancelTransactions'])
+    router.get('/:id', [CmsTransactionsController, 'show'])
+
   })
   .use(middleware.roleAdmin())
   .prefix('/transactions')
