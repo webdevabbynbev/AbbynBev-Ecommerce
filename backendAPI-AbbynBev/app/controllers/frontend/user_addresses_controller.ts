@@ -41,7 +41,9 @@ function isPostalCode(v: unknown) {
 
 function getCourierAll(): string {
   const s = String(env.get('BITESHIP_COURIERS') || '').trim()
-  return s || 'jne,sicepat,jnt,anteraja,pos,tiki,ninja,wahana,lion'
+  // Default fallback (kalau BITESHIP_COURIERS belum diset)
+  // NOTE: beberapa akun/sandbox tidak support semua courier. Lebih aman isi lewat env.
+  return s || 'jne,sicepat,jnt,anteraja,pos,tiki,ninja,wahana'
 }
 
 function normalizeCouriers(input: string): string {
@@ -57,8 +59,10 @@ function normalizeCouriers(input: string): string {
 const biteship = axios.create({
   baseURL: `${BITESHIP_BASE_URL}/v1`,
   headers: {
-    // docs contoh pakai header `authorization: <API_KEY>` (tanpa Bearer) :contentReference[oaicite:3]{index=3}
+    // Biteship docs contoh: header `authorization: <<YOUR_API_KEY>>`
     authorization: BITESHIP_API_KEY,
+    // some proxies are picky, set both casing just in case
+    Authorization: BITESHIP_API_KEY,
     accept: 'application/json',
     'content-type': 'application/json',
   },
@@ -115,6 +119,34 @@ async function cachedFetch<T>(key: string, ttlMs: number, fetcher: () => Promise
 const TTL_SEARCH_MS = 24 * 60 * 60 * 1000
 const TTL_COST_MS = 5 * 60 * 1000
 
+function extractBiteshipError(body: any) {
+  // Biteship bisa ngirim error dalam beberapa bentuk:
+  // - { error: "..." }
+  // - { error: { message, code } }
+  // - { message: "..." }
+  // - { errors: [...] }
+  // - body string/html
+  const errField = body?.error
+  const msg =
+    (typeof body === 'string' ? body : null) ||
+    (typeof errField === 'string' ? errField : null) ||
+    errField?.message ||
+    body?.message ||
+    (Array.isArray(body?.errors) ? body.errors.join(', ') : null)
+
+  const code = body?.code || errField?.code || null
+  return { msg, code }
+}
+
+function safeJsonParse(v: any) {
+  try {
+    if (typeof v === 'string') return JSON.parse(v)
+    return v
+  } catch {
+    return null
+  }
+}
+
 export default class UserAddressesController {
   /** ======================
    *  Address CRUD
@@ -131,7 +163,6 @@ export default class UserAddressesController {
   public async create({ response, request, auth }: HttpContext) {
     const trx = await db.transaction()
     try {
-      // SEARCH FLOW: area_id wajib (hasil dari /areas)
       const areaObj = pickInput(request, ['area'])
       const areaIdIn = pickInput(request, ['area_id', 'areaId', 'biteship_area_id', 'biteshipAreaId'])
       const areaNameIn = pickInput(request, ['area_name', 'areaName', 'biteship_area_name', 'biteshipAreaName'])
@@ -148,7 +179,6 @@ export default class UserAddressesController {
         return response.status(400).send({ message: 'area_id is required (pilih dari hasil /areas).', serve: null })
       }
 
-      // maps/areas biasanya kasih postal_code; kita simpan buat fallback postal flow :contentReference[oaicite:4]{index=4}
       if (postalCode && !isPostalCode(postalCode)) {
         await trx.rollback()
         return response.status(400).send({ message: 'postal_code must be 5 digit.', serve: null })
@@ -160,24 +190,22 @@ export default class UserAddressesController {
       dataAddress.userId = auth.user?.id ?? 0
       dataAddress.isActive = isActive
 
-      // dropdown lama kita kosongin (butuh kolom DB nullable)
+      // legacy dropdown kosong (pastikan kolom DB nullable)
       dataAddress.province = null
       dataAddress.city = null
       dataAddress.district = null
       dataAddress.subDistrict = null
 
-      // ✅ simpan biteship area
+      // biteship
       dataAddress.biteshipAreaId = areaId
       dataAddress.biteshipAreaName = areaName || ''
+      dataAddress.postalCode = postalCode || ''
 
       dataAddress.address = String(pickInput(request, ['address'], '') || '')
       dataAddress.picName = String(pickInput(request, ['pic_name', 'picName'], '') || '')
       dataAddress.picPhone = String(pickInput(request, ['pic_phone', 'picPhone'], '') || '')
       dataAddress.picLabel = String(pickInput(request, ['pic_label', 'picLabel'], '') || '')
       dataAddress.benchmark = String(pickInput(request, ['benchmark'], '') || '')
-
-      // boleh kosong, tapi kalau ada harus valid
-      dataAddress.postalCode = postalCode || ''
 
       await dataAddress.useTransaction(trx).save()
 
@@ -219,7 +247,6 @@ export default class UserAddressesController {
         return response.status(404).send({ message: 'Address not found.', serve: null })
       }
 
-      // optional update area
       const areaObj = pickInput(request, ['area'])
       const areaIdIn = pickInput(request, ['area_id', 'areaId', 'biteship_area_id', 'biteshipAreaId'])
       const areaNameIn = pickInput(request, ['area_name', 'areaName', 'biteship_area_name', 'biteshipAreaName'])
@@ -250,12 +277,12 @@ export default class UserAddressesController {
       if (typeof picLabel !== 'undefined') dataAddress.picLabel = String(picLabel)
       if (typeof benchmark !== 'undefined') dataAddress.benchmark = String(benchmark)
 
-      if (postalCode) {
-        if (!isPostalCode(postalCode)) {
+      if (typeof postalCode !== 'undefined') {
+        if (postalCode && !isPostalCode(postalCode)) {
           await trx.rollback()
           return response.status(400).send({ message: 'postal_code must be 5 digit.', serve: null })
         }
-        dataAddress.postalCode = postalCode
+        dataAddress.postalCode = postalCode || ''
       }
 
       await dataAddress.useTransaction(trx).save()
@@ -333,14 +360,15 @@ export default class UserAddressesController {
         return data
       })
 
-      // Biteship response: { success: true, areas: [...] } :contentReference[oaicite:5]{index=5}
       const areas = Array.isArray((data as any)?.areas) ? (data as any).areas : []
       return response.status(200).send({ message: 'Success', serve: areas, meta: { cached } })
     } catch (e: any) {
       const status = e?.response?.status || 500
+      const body = e?.response?.data
+      const { msg, code } = extractBiteshipError(body)
       return response.status(status).send({
-        message: e.message || 'Internal Server Error',
-        serve: e.response?.data || null,
+        message: code ? `${msg || e.message} (code: ${code})` : (msg || e.message || 'Internal Server Error'),
+        serve: body || null,
       })
     }
   }
@@ -352,6 +380,8 @@ export default class UserAddressesController {
    *  { address_id, weight, value, quantity, couriers }
    *  ====================== */
   public async getCost({ request, response, auth }: HttpContext) {
+    let payloadUsed: any = null
+
     try {
       if (!BITESHIP_BASE_URL || !BITESHIP_API_KEY) {
         return response.status(500).send({ message: 'BITESHIP config missing.', serve: null })
@@ -359,11 +389,13 @@ export default class UserAddressesController {
 
       const addressId = toInt(pickInput(request, ['address_id', 'addressId'], 0), 0)
 
+      // destination dari request (fallback)
       let destinationAreaId = String(pickInput(request, ['destination_area_id', 'destinationAreaId'], '') || '').trim()
       let destinationPostal = normalizePostal(
         pickInput(request, ['destination_postal_code', 'destinationPostalCode', 'postal_code', 'postalCode'], '') || ''
       )
 
+      // kalau address_id ada, ambil destination dari DB (jangan timpa kalau DB kosong)
       if (addressId) {
         const addr = await UserAddress.query()
           .where('id', addressId)
@@ -372,12 +404,12 @@ export default class UserAddressesController {
 
         if (!addr) return response.status(404).send({ message: 'Address not found.', serve: null })
 
-        destinationAreaId = String(addr.biteshipAreaId || '').trim()
-        destinationPostal = normalizePostal(addr.postalCode || '')
+        if (addr.biteshipAreaId) destinationAreaId = String(addr.biteshipAreaId).trim()
+        if (addr.postalCode) destinationPostal = normalizePostal(addr.postalCode)
       }
 
       const weight = Math.max(1, toInt(pickInput(request, ['weight'], 1), 1)) // gram
-      const value = Math.max(1, toInt(pickInput(request, ['value', 'amount', 'total'], 1), 1))
+      const value = Math.max(1, toInt(pickInput(request, ['value', 'amount', 'total'], 1000), 1000))
       const quantity = Math.max(1, toInt(pickInput(request, ['quantity', 'qty'], 1), 1))
 
       const couriers = normalizeCouriers(String(pickInput(request, ['courier', 'couriers'], 'all')))
@@ -387,29 +419,34 @@ export default class UserAddressesController {
         items: [{ name: 'Order', description: 'Ecommerce order', value, quantity, weight }],
       }
 
-      // Prefer area_id kalau origin & destination area sama-sama ada (akurasi tinggi) :contentReference[oaicite:6]{index=6}
+      // Prefer area_id (akurasi tinggi)
       if (ORIGIN_AREA_ID && destinationAreaId) {
         payload.origin_area_id = ORIGIN_AREA_ID
         payload.destination_area_id = destinationAreaId
       } else {
-        // fallback postal code (akurasi medium) :contentReference[oaicite:7]{index=7}
+        // fallback postal code
         if (!isPostalCode(ORIGIN_POSTAL_CODE)) {
           return response.status(500).send({
             message: 'Origin not configured. Set BITESHIP_ORIGIN_AREA_ID or valid COMPANY_POSTAL_CODE.',
             serve: null,
+            meta: { originAreaId: ORIGIN_AREA_ID || null, originPostal: ORIGIN_POSTAL_CODE || null },
           })
         }
+
         if (!isPostalCode(destinationPostal)) {
           return response.status(400).send({
             message:
               'Destination invalid. Provide destination_area_id OR destination_postal_code (or save postalCode in address).',
             serve: null,
-            meta: { destinationAreaId, destinationPostal },
+            meta: { destinationAreaId: destinationAreaId || null, destinationPostal: destinationPostal || null },
           })
         }
+
         payload.origin_postal_code = toInt(ORIGIN_POSTAL_CODE, 0)
         payload.destination_postal_code = toInt(destinationPostal, 0)
       }
+
+      payloadUsed = payload
 
       const noCache = toInt(pickInput(request, ['no_cache', 'noCache'], 0), 0) === 1
       const cacheKey = `biteship:rates:${JSON.stringify(payload)}`
@@ -424,7 +461,7 @@ export default class UserAddressesController {
         return response.status(200).send({
           message: 'Success',
           serve: result,
-          meta: { cached: false, noCache: true, payload },
+          meta: { cached: false, noCache: true, payload: payloadUsed },
         })
       }
 
@@ -433,13 +470,25 @@ export default class UserAddressesController {
       return response.status(200).send({
         message: 'Success',
         serve: result,
-        meta: { cached, coalesced: !!coalesced, ttlSec: Math.floor(TTL_COST_MS / 1000), payload },
+        meta: { cached, coalesced: !!coalesced, ttlSec: Math.floor(TTL_COST_MS / 1000), payload: payloadUsed },
       })
     } catch (e: any) {
       const status = e?.response?.status || 500
+      const body = e?.response?.data
+
+      // ambil payload yg bener-bener terkirim (kalau payloadUsed belum sempet ke-set)
+      const sentPayload = payloadUsed || safeJsonParse(e?.config?.data)
+
+      const { msg, code } = extractBiteshipError(body)
+      const message = code ? `${msg || e.message} (code: ${code})` : (msg || e.message || 'Internal Server Error')
+
       return response.status(status).send({
-        message: e?.response?.data?.message || e.message || 'Internal Server Error',
-        serve: e.response?.data || null,
+        message,
+        serve: body || null,
+        meta: {
+          biteship: { status, code: code || null },
+          payload: sentPayload || null,
+        },
       })
     }
   }
