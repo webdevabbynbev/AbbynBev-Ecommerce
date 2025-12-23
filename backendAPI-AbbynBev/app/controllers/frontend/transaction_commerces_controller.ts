@@ -12,8 +12,6 @@ import UserAddress from '#models/user_address'
 import axios from 'axios'
 import env from '#start/env'
 import { TransactionStatus } from '../../enums/transaction_status.js'
-import qs from 'qs'
-import PickupService from '#services/pickup_service'
 import { createHash } from 'node:crypto'
 
 function toNumber(v: any, fallback = 0) {
@@ -29,22 +27,6 @@ function toSortDir(v: any): 'asc' | 'desc' {
 function normalizeInt(v: any, fallback = 0) {
   const n = toNumber(v, fallback)
   return Math.max(0, Math.round(n))
-}
-
-function pickEtdFromKomerceRows(rows: any[], courierService: string) {
-  if (!Array.isArray(rows) || rows.length === 0) return null
-
-  const want = String(courierService || '').trim().toLowerCase()
-  if (!want) return rows[0]?.etd ?? null
-
-  const matched =
-    rows.find((r) => String(r?.service || '').toLowerCase() === want) ||
-    rows.find((r) => String(r?.service_name || '').toLowerCase() === want) ||
-    rows.find((r) => String(r?.courier_service || '').toLowerCase() === want) ||
-    rows.find((r) => String(r?.service_code || '').toLowerCase() === want) ||
-    rows.find((r) => String(r?.serviceType || '').toLowerCase() === want)
-
-  return (matched?.etd ?? rows[0]?.etd ?? null) as any
 }
 
 function pickReceiptFromMidtrans(payload: any) {
@@ -148,6 +130,12 @@ export default class TransactionEcommerceController {
     }
   }
 
+  /**
+   * ✅ CREATE TRANSACTION (Biteship-based)
+   * - Tidak pakai RajaOngkir/Komerce sama sekali
+   * - shipping_price & service diambil dari frontend (hasil rates biteship)
+   * - etd optional: shipping_etd / etd
+   */
   public async create({ response, request, auth }: HttpContext) {
     const trx = await db.transaction()
 
@@ -167,14 +155,18 @@ export default class TransactionEcommerceController {
       const voucher = request.input('voucher')
       const userAddressId = toNumber(request.input('user_address_id'), 0)
 
-      const courierName = String(request.input('shipping_service_type') || '').trim()
-      const courierService = String(request.input('shipping_service') || '').trim()
+      // NOTE: ini harus konsisten sama payload FE
+      const courierName = String(request.input('shipping_service_type') || '').trim() // contoh: jne / sicepat
+      const courierService = String(request.input('shipping_service') || '').trim() // contoh: REG / BEST / OKE
 
       const shippingPriceInput = normalizeInt(request.input('shipping_price'), 0)
       const isProtected = !!request.input('is_protected')
       const protectionFee = normalizeInt(request.input('protection_fee'), 0)
 
       const weightFromReq = normalizeInt(request.input('weight'), 0)
+
+      // etd optional dari FE (hasil rates biteship)
+      const etd = String(request.input('shipping_etd') || request.input('etd') || '').trim() || null
 
       if (!cartIds.length) {
         await trx.rollback()
@@ -194,6 +186,14 @@ export default class TransactionEcommerceController {
         })
       }
 
+      if (shippingPriceInput <= 0) {
+        await trx.rollback()
+        return response.status(400).send({
+          message: 'shipping_price wajib diisi dan harus > 0',
+          serve: null,
+        })
+      }
+
       // ========= carts =========
       const carts = await TransactionCart.query({ client: trx })
         .whereIn('id', cartIds)
@@ -209,7 +209,7 @@ export default class TransactionEcommerceController {
         })
       }
 
-      const subTotal = carts.reduce((acc, cart) => {
+      const subTotal = carts.reduce((acc, cart: any) => {
         const qty = cart.qtyCheckout > 0 ? cart.qtyCheckout : cart.qty
         return acc + (toNumber(cart.price) - toNumber(cart.discount)) * qty
       }, 0)
@@ -220,11 +220,14 @@ export default class TransactionEcommerceController {
         await trx.rollback()
         return response.status(400).send({ message: 'Address not found.', serve: [] })
       }
+
+      // postal_code tetap disarankan untuk pengiriman + administrasi
       if (!userAddress.postalCode) {
         await trx.rollback()
-        return response
-          .status(400)
-          .send({ message: 'Postal code not found. Please update your address.', serve: [] })
+        return response.status(400).send({
+          message: 'Postal code not found. Please update your address.',
+          serve: [],
+        })
       }
 
       // ========= weight =========
@@ -237,47 +240,6 @@ export default class TransactionEcommerceController {
       }, 0)
 
       const totalWeight = Math.max(1, weightFromReq || weightFromCart || 1)
-
-      // ========= komerce etd =========
-      const komerceClient = axios.create({
-        baseURL: env.get('KOMERCE_COST_BASE_URL'),
-        headers: { key: env.get('KOMERCE_COST_API_KEY') },
-      })
-
-      const origin = normalizeInt(env.get('KOMERCE_ORIGIN'), 0)
-      const originType = String(env.get('KOMERCE_ORIGIN_TYPE') || 'district')
-
-      const destinationSubdistrict = normalizeInt(userAddress.subDistrict, 0)
-      if (!destinationSubdistrict) {
-        await trx.rollback()
-        return response
-          .status(400)
-          .send({ message: 'Subdistrict not found. Please update your address.', serve: [] })
-      }
-
-      const komerceBody = qs.stringify({
-        origin,
-        originType,
-        destination: destinationSubdistrict,
-        destinationType: 'subdistrict',
-        weight: totalWeight,
-        courier: courierName,
-        price: 'lowest',
-      })
-
-      const { data: komerceResp } = await komerceClient.post('/calculate/district/domestic-cost', komerceBody, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
-      })
-
-      if (!komerceResp?.data || !Array.isArray(komerceResp.data) || komerceResp.data.length === 0) {
-        await trx.rollback()
-        return response.status(400).send({
-          message: 'Shipping service not available for this destination.',
-          serve: [],
-        })
-      }
-
-      const etd = pickEtdFromKomerceRows(komerceResp.data, courierService)
 
       const shippingPrice = shippingPriceInput
 
@@ -398,22 +360,32 @@ export default class TransactionEcommerceController {
         await cart.useTransaction(trx).delete()
       }
 
-      // ========= shipment =========
+      // ========= shipment (Biteship address fields) =========
+      const areaName = String((userAddress as any).biteshipAreaName || '').trim()
+      const postal = String(userAddress.postalCode || '').trim()
+      const addrText = [userAddress.address, areaName, postal].filter(Boolean).join(', ')
+
       const transactionShipment = new TransactionShipment()
       transactionShipment.transactionId = transaction.id
       transactionShipment.service = courierName
       transactionShipment.serviceType = courierService
       transactionShipment.price = shippingPrice
-      transactionShipment.address = `${userAddress.address}, ${userAddress.subDistrict}, ${userAddress.district}, ${userAddress.city}, ${userAddress.province}, ${userAddress.postalCode}`
-      transactionShipment.provinceId = userAddress.province
-      transactionShipment.cityId = userAddress.city
-      transactionShipment.districtId = userAddress.district
-      transactionShipment.subdistrictId = userAddress.subDistrict
-      transactionShipment.postalCode = userAddress.postalCode
-      transactionShipment.pic = userAddress.picName
-      transactionShipment.pic_phone = userAddress.picPhone
+      transactionShipment.address = addrText
+
+      // legacy ids -> null (karena sekarang pakai biteship area)
+      transactionShipment.provinceId = (userAddress as any).province ?? null
+      transactionShipment.cityId = (userAddress as any).city ?? null
+      transactionShipment.districtId = (userAddress as any).district ?? null
+      transactionShipment.subdistrictId = (userAddress as any).subDistrict ?? null
+
+      transactionShipment.postalCode = postal || ''
+      transactionShipment.pic = userAddress.picName || ''
+      transactionShipment.pic_phone = userAddress.picPhone || ''
+
       transactionShipment.estimationArrival = etd
-      transactionShipment.protectionFee = protectionFee
+      ;(transactionShipment as any).isProtected = isProtected ? 1 : 0
+      transactionShipment.protectionFee = isProtected ? protectionFee : 0
+
       await transactionShipment.useTransaction(trx).save()
 
       await trx.commit()
@@ -424,14 +396,15 @@ export default class TransactionEcommerceController {
           ...transaction.toJSON(),
           ecommerce: transactionEcommerce.toJSON(),
           shipment: transactionShipment.toJSON(),
+          meta: { totalWeight },
         },
       })
     } catch (e: any) {
-      console.log(e)
+      console.log(e?.response?.data || e)
       await trx.rollback()
       return response.status(500).send({
-        message: e.message || 'Internal Server Error',
-        serve: null,
+        message: e?.response?.data?.message || e.message || 'Internal Server Error',
+        serve: e?.response?.data || null,
       })
     }
   }
@@ -560,7 +533,11 @@ export default class TransactionEcommerceController {
       }
 
       // ✅ kalau berubah jadi FAILED, restore stock + voucher sekali
-      if (changed && nextStatus === TransactionStatus.FAILED.toString() && prevStatus !== TransactionStatus.FAILED.toString()) {
+      if (
+        changed &&
+        nextStatus === TransactionStatus.FAILED.toString() &&
+        prevStatus !== TransactionStatus.FAILED.toString()
+      ) {
         const voucherId = transactionEcommerce?.voucherId ?? null
         await this.restoreStockAndVoucher(trx, transaction.id, voucherId)
       }
@@ -597,30 +574,8 @@ export default class TransactionEcommerceController {
         })
       }
 
-      let waybill = null
-      const firstShipment = dataTransaction.transaction?.shipments?.[0]
-
-      if (firstShipment?.resiNumber) {
-        try {
-          const client = axios.create({
-            baseURL: env.get('KOMERCE_DELIVERY_BASE_URL'),
-            headers: {
-              'x-api-key': env.get('KOMERCE_DELIVERY_API_KEY'),
-              'Content-Type': 'application/json',
-            },
-          })
-
-          const res = await client.get(`/order/api/v1/orders/detail?order_no=${firstShipment.resiNumber}`)
-          waybill = res.data?.data ?? null
-
-          if (waybill && waybill.order_status === 'Diajukan' && firstShipment.status) {
-            waybill.order_status = firstShipment.status
-          }
-        } catch (error: any) {
-          console.log('Error fetching waybill:', error.response?.data || error.message)
-          waybill = null
-        }
-      }
+      // RajaOngkir/Komerce removed => waybill lookup disabled (return null)
+      const waybill = null
 
       return response.status(200).send({
         message: 'success',
@@ -693,43 +648,15 @@ export default class TransactionEcommerceController {
     }
   }
 
+  /**
+   * RajaOngkir/Komerce pickup removed.
+   * Kalau mau pickup, integrasikan ke Biteship order/pickup flow nanti.
+   */
   public async requestPickup({ request, response }: HttpContext) {
-    try {
-      const transactionNumber = request.input('transaction_number')
-      const pickupDate = request.input('pickup_date')
-      const pickupTime = request.input('pickup_time')
-      const pickupVehicle = request.input('pickup_vehicle')
-
-      const transaction = await Transaction.query().where('transaction_number', transactionNumber).preload('shipments').first()
-
-      if (!transaction || transaction.shipments.length === 0) {
-        return response.status(400).send({
-          message: 'Transaction or shipment not found',
-          serve: [],
-        })
-      }
-
-      const shipment = transaction.shipments[0]
-      if (!shipment.resiNumber) {
-        return response.status(400).send({
-          message: 'Resi number not found, cannot request pickup',
-          serve: [],
-        })
-      }
-
-      const pickupService = new PickupService()
-      const data = await pickupService.requestPickup(shipment.resiNumber, pickupDate, pickupTime, pickupVehicle)
-
-      return response.status(200).send({
-        message: 'Pickup request processed',
-        serve: data,
-      })
-    } catch (error: any) {
-      return response.status(500).send({
-        message: error.message || 'Pickup request failed',
-        serve: [],
-      })
-    }
+    return response.status(501).send({
+      message: 'Pickup request is not implemented (RajaOngkir/Komerce removed).',
+      serve: null,
+    })
   }
 
   public async updateWaybillStatus({ request, response }: HttpContext) {
