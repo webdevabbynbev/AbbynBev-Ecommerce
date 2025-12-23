@@ -6,6 +6,7 @@ import { BtnIconToggle, RegularCardSkeleton } from ".";
 import { formatToRupiah } from "@/utils";
 import { DataReview } from "@/data";
 import { getAverageRating } from "@/utils";
+import { slugify } from "@/utils";
 
 export function RegularCard({ item: raw }) {
   // stop kalau item belum ada
@@ -80,12 +81,17 @@ export function RegularCard({ item: raw }) {
 
   if (loading) return <RegularCardSkeleton />;
 
+  const productSlug = raw.slug
+    ? slugify(raw.slug)
+    : slugify(raw.name ?? raw.productName ?? raw.title ?? "");
+
+  const categorySlug = slugify(raw.categorySlug ?? raw.category ?? "");
+
   const path =
-    item?.path ??
-    item?.product?.path ??
-    item?.slug ??
-    item?.product?.slug ??
-    "";
+    raw.path ??
+    raw.product?.path ??
+    (categorySlug ? `${categorySlug}/${productSlug}` : productSlug);
+
   const href = path
     ? `/product-detail/${String(path)
         .split("/")

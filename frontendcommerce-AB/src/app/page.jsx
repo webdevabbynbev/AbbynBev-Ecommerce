@@ -12,7 +12,7 @@ import {
   FlashSaleCarousel,
 } from "@/components";
 import { DataCategoryCard, DataBrand, DataArticleBlog } from "@/data";
-import { getProducts } from "@/services";
+import { getProducts } from "@/services/api/product.services";
 import { RegularCard } from "@/components";
 
 export default function Home() {

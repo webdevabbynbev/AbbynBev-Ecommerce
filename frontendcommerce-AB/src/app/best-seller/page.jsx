@@ -39,10 +39,12 @@ const BestSeller = () => {
         const brand = String(p.brand ?? "").toLowerCase();
         return name.includes(q) || brand.includes(q);
       });
-    }
+    } 
 
     return products;
   }, [mixedData, debounceSearch]);
+
+   
 
   // Pagination pakai filteredProducts
   const [currentPage, setCurrentPage] = useState(1);
@@ -60,8 +62,8 @@ const BestSeller = () => {
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage));
 
   return (
-    <div className="flex w-full mx-auto justify-between xl:max-w-[1280px] lg:max-w-[960px]">
-      <div className="w-[400px] pl-10 pr-5 py-6">
+    <div className="flex w-full mx-auto justify-between xl:max-w-[1280px] lg:max-w-[1136px]">
+      <div className="w-[320px] xl:w-[400px] pl-10 pr-2 py-6">
         <Filter showBrandFilter={true} className="w-full py-24" />
       </div>
 

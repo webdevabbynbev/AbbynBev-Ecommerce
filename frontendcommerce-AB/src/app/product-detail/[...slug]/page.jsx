@@ -10,18 +10,23 @@ function toBackendImageUrl(url) {
 
 export default async function ProductDetail({ params }) {
   const slugArr = params?.slug ?? [];
-  const path = Array.isArray(slugArr) ? slugArr.join("/") : String(slugArr);
+  const segments = Array.isArray(slugArr) ? slugArr : [String(slugArr)];
+
+  // slug produk = segmen terakhir
+  const productSlug = segments[segments.length - 1] || "";
 
   const apiUrl =
     process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333/api/v1";
 
-  const res = await fetch(`${apiUrl}/products/${path}`, { cache: "no-store" });
+  const res = await fetch(`${apiUrl}/products/${encodeURIComponent(productSlug)}`, {
+    cache: "no-store",
+  });
 
   if (!res.ok) {
     return (
       <div className="container w-full py-16 text-center">
         <h2 className="text-2xl font-bold">Product not found</h2>
-        <p className="mt-2 text-sm text-gray-500">{path}</p>
+        <p className="mt-2 text-sm text-gray-500">{productSlug}</p>
       </div>
     );
   }

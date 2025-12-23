@@ -36,6 +36,7 @@ const RATING_OPTIONS = [
 ];
 
 export default function ProductDetailClient({ product }) {
+  
   const variants = product.variantItems ?? []; // [{ id, label, price, stock }]
   const [selectedVariant, setSelectedVariant] = useState(
     variants.length === 1 ? variants[0].label : null

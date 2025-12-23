@@ -14,7 +14,7 @@ import {
   CarouselIndicators,
 } from "@/components";
 import { getImageUrl } from "@/utils/getImageUrl";
-import { getBanners } from "@/services";
+import { getBanners } from "@/services/api/banners";
 
 export function HeroCarousel() {
   const autoplay = React.useRef(
