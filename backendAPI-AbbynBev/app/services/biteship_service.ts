@@ -157,8 +157,8 @@ class BiteshipService {
   private client = axios.create({
     baseURL: this.baseUrlV1(),
     headers: {
-      // sesuai contoh docs: header 'authorization' berisi API key langsung
-      Authorization: String(env.get('BITESHIP_API_KEY')),
+      // ✅ paling aman: pakai header "authorization" (lowercase)
+      authorization: String(env.get('BITESHIP_API_KEY')),
       Accept: 'application/json',
       'Content-Type': 'application/json',
     },
@@ -195,7 +195,9 @@ class BiteshipService {
    * GET /v1/trackings/:id
    */
   public async retrieveTracking(trackingId: string) {
-    const { data } = await this.client.get<BiteshipTrackingResponse>(`/trackings/${trackingId}`)
+    const { data } = await this.client.get<BiteshipTrackingResponse>(
+      `/trackings/${encodeURIComponent(trackingId)}`
+    )
     return data
   }
 
@@ -205,7 +207,7 @@ class BiteshipService {
    */
   public async retrievePublicTracking(waybillId: string, courierCode: string) {
     const { data } = await this.client.get<BiteshipTrackingResponse>(
-      `/trackings/${waybillId}/couriers/${courierCode}`
+      `/trackings/${encodeURIComponent(waybillId)}/couriers/${encodeURIComponent(courierCode)}`
     )
     return data
   }
@@ -219,10 +221,13 @@ class BiteshipService {
     cancellation_reason_code: string,
     cancellation_reason?: string
   ) {
-    const { data } = await this.client.post<BiteshipCancelOrderResponse>(`/orders/${orderId}/cancel`, {
-      cancellation_reason_code,
-      ...(cancellation_reason ? { cancellation_reason } : {}),
-    })
+    const { data } = await this.client.post<BiteshipCancelOrderResponse>(
+      `/orders/${encodeURIComponent(orderId)}/cancel`,
+      {
+        cancellation_reason_code,
+        ...(cancellation_reason ? { cancellation_reason } : {}),
+      }
+    )
     return data
   }
 
@@ -232,7 +237,7 @@ class BiteshipService {
    */
   public async getCancellationReasons(lang: 'id' | 'en' = 'id') {
     const { data } = await this.client.get<BiteshipCancellationReasonsResponse>(
-      `/orders/cancellation_reasons?lang=${lang}`
+      `/orders/cancellation_reasons?lang=${encodeURIComponent(lang)}`
     )
     return data
   }

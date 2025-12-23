@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { n } from "@/utils/number";
 
-// ===== Config (biar ga hardcode nyebar) =====
+// ===== Config =====
 const ACCOUNT_NAV = [
   { href: "/account", label: "Profile management" },
   { href: "/account/wishlist", label: "Wishlist" },
@@ -30,12 +30,18 @@ const STATUS_UI = {
   pending: {
     bgColor: "bg-yellow-50",
     textColor: "text-yellow-700",
-    message: "Waiting for payment confirmation",
+    message: "Waiting for payment",
+    icon: "",
+  },
+  waiting_admin: {
+    bgColor: "bg-blue-50",
+    textColor: "text-blue-600",
+    message: "Payment received - waiting admin confirmation",
     icon: "",
   },
   processing: {
-    bgColor: "bg-blue-50",
-    textColor: "text-blue-600",
+    bgColor: "bg-indigo-50",
+    textColor: "text-indigo-600",
     message: "Your order is being processed",
     icon: "⚙",
   },
@@ -59,10 +65,11 @@ const STATUS_UI = {
   },
 };
 
-// backend enum: 1 waiting_payment, 2 on_process, 3 on_delivery, 4 completed, 9 failed
+// backend enum: 1 waiting_payment, 5 paid_waiting_admin, 2 on_process, 3 on_delivery, 4 completed, 9 failed
 const mapTransactionStatus = (trxStatus) => {
   const s = Number(trxStatus);
   if (s === 1) return "pending";
+  if (s === 5) return "waiting_admin";
   if (s === 2) return "processing";
   if (s === 3) return "on_delivery";
   if (s === 4) return "finished";
@@ -70,7 +77,17 @@ const mapTransactionStatus = (trxStatus) => {
   return "unknown";
 };
 
-// normalize response GET /transaction -> UI shape
+function safeDateString(v) {
+  if (!v) return "-";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleDateString("en-GB");
+}
+
+/**
+ * Normalize response GET /transaction
+ * Backend return: TransactionEcommerce[] with preload(transaction.details.product.medias) + preload(shipments)
+ */
 const normalizeOrders = (rows) => {
   const arr = Array.isArray(rows) ? rows : [];
 
@@ -88,24 +105,35 @@ const normalizeOrders = (rows) => {
         p?.image ||
         "/placeholder.png";
 
+      const variantName =
+        d?.variant?.sku ||
+        d?.variant?.name ||
+        d?.attributes || // kalau kamu simpan variant text di attributes
+        "-";
+
       return {
-        id: d?.id ?? `${trx?.transactionNumber || "trx"}-${d?.productId || "item"}`,
+        id: d?.id ?? `${trx?.transactionNumber || trx?.id || "trx"}-${d?.productId || "item"}`,
         product: {
           name: p?.name || p?.title || "-",
           thumbnail: thumb,
-          variant_name: d?.attributes || "-", // attributes nyimpen variant text
+          variant_name: variantName,
           price: n(d?.price, 0),
         },
         quantity: n(d?.qty, 0),
       };
     });
 
+    const total =
+      n(trx?.grandTotal, 0) ||
+      n(trx?.amount, 0) ||
+      items.reduce((sum, it) => sum + n(it?.product?.price, 0) * n(it?.quantity, 0), 0);
+
     return {
       id: row?.id ?? trx?.id ?? trx?.transactionNumber,
       transaction_number: trx?.transactionNumber || "-",
       status: mapTransactionStatus(trx?.transactionStatus),
-      created_at: trx?.createdAt || trx?.created_at || new Date().toISOString(),
-      total_price: n(trx?.grandTotal ?? trx?.amount, 0),
+      created_at: trx?.createdAt || trx?.created_at || row?.createdAt || row?.created_at,
+      total_price: total,
       items,
     };
   });
@@ -122,12 +150,12 @@ export default function OrderHistoryPage() {
       setLoading(true);
       setErrorMsg("");
 
-      // backend paginate default 10, jadi kita minta lebih besar
+      // ambil lebih banyak biar list ga kepotong
       const res = await axios.get("/transaction", {
         params: { page: 1, per_page: 50, field: "created_at", value: "desc" },
       });
 
-      const rows = res.data?.serve?.data ?? [];
+      const rows = res?.data?.serve?.data ?? [];
       setOrders(normalizeOrders(rows));
     } catch (err) {
       console.log("Error order:", err?.response?.data || err);
@@ -148,7 +176,7 @@ export default function OrderHistoryPage() {
     return list.filter((o) => {
       const st = o?.status || "unknown";
       if (filter === "all") return true;
-      if (filter === "ongoing") return ["pending", "processing", "on_delivery"].includes(st);
+      if (filter === "ongoing") return ["pending", "waiting_admin", "processing", "on_delivery"].includes(st);
       if (filter === "success") return ["finished"].includes(st);
       if (filter === "cancelled") return ["cancelled"].includes(st);
       return true;
@@ -216,7 +244,6 @@ export default function OrderHistoryPage() {
             </div>
           )}
 
-          {/* Order List */}
           {loading ? (
             <div className="text-center py-20">
               <p className="text-gray-400 text-lg">Loading orders...</p>
@@ -243,8 +270,7 @@ export default function OrderHistoryPage() {
                         <span className="text-sm font-medium">{statusInfo.message}</span>
                       </div>
                       <div className="text-xs">
-                        Order created:{" "}
-                        {new Date(order.created_at).toLocaleDateString("en-GB")}
+                        Order created: {safeDateString(order.created_at)}
                       </div>
                     </div>
 
