@@ -4,8 +4,8 @@ import Transaction from '#models/transaction'
 import ProductVariant from '#models/product_variant'
 import Voucher from '#models/voucher'
 import { TransactionStatus } from '../../enums/transaction_status.js'
-import axios from 'axios'
 import env from '#start/env'
+import BiteshipService from '#services/biteship_service'
 
 function toNumber(v: any, fallback = 0) {
   const n = Number(v)
@@ -15,6 +15,22 @@ function toNumber(v: any, fallback = 0) {
 function parseIds(input: any): number[] {
   if (!Array.isArray(input)) return []
   return input.map((x) => toNumber(x)).filter((x) => x > 0)
+}
+
+function pickFirstString(obj: any, keys: string[]) {
+  for (const k of keys) {
+    const v = obj?.[k]
+    if (typeof v === 'string' && v.trim()) return v.trim()
+    if (typeof v === 'number' && Number.isFinite(v)) return String(v)
+  }
+  return ''
+}
+
+function toPostalNumber(v: any): number | undefined {
+  const s = String(v ?? '').replace(/\D/g, '')
+  if (!s) return undefined
+  const n = Number(s)
+  return Number.isFinite(n) ? n : undefined
 }
 
 export default class TransactionsController {
@@ -141,7 +157,7 @@ export default class TransactionsController {
   }
 
   /**
-   * ✅ Generate resi (Komerce)
+   * ✅ Generate resi (Biteship)
    * hanya boleh kalau status sudah ON_PROCESS (sudah confirm admin)
    */
   public async updateReceipt({ response, request }: HttpContext) {
@@ -155,6 +171,7 @@ export default class TransactionsController {
 
       const transaction = await Transaction.query({ client: trx })
         .where('id', transactionId)
+        .forUpdate()
         .preload('details', (detail) => {
           detail.preload('product')
           detail.preload('variant')
@@ -185,7 +202,7 @@ export default class TransactionsController {
         })
       }
 
-      const shipment = transaction.shipments[0]
+      const shipment: any = transaction.shipments?.[0]
       if (!shipment) {
         await trx.rollback()
         return response.status(404).send({ message: 'Shipment not found.', serve: [] })
@@ -197,112 +214,217 @@ export default class TransactionsController {
         return response.status(400).send({ message: 'Resi sudah ada untuk transaksi ini.', serve: [] })
       }
 
-      const user = transaction.ecommerce?.user
-      const userAddress = transaction.ecommerce?.userAddress
+      const user: any = transaction.ecommerce?.user
+      const userAddress: any = transaction.ecommerce?.userAddress
       if (!user || !userAddress) {
         await trx.rollback()
         return response.status(400).send({ message: 'User address not found.', serve: [] })
       }
 
-      const totalWeight = transaction.details.reduce((acc, d) => {
-        const productWeight = d.product?.weight || 0
-        return acc + productWeight * d.qty
+      // total weight (buat info)
+      const totalWeight = transaction.details.reduce((acc: number, d: any) => {
+        const productWeight = Number(d.product?.weight || 0)
+        const qty = Number(d.qty || 0)
+        return acc + productWeight * qty
       }, 0)
 
-      const orderDetails = transaction.details.map((d) => {
-        const variantPrice = Number(d.variant?.price ?? d.price)
+      // =========================
+      // ORIGIN (TOKO)
+      // =========================
+      const originAreaId = String(env.get('BITESHIP_ORIGIN_AREA_ID') || '').trim()
+      const originPostal = toPostalNumber(env.get('COMPANY_POSTAL_CODE'))
 
-        return {
-          product_name: d.product?.name || 'Unknown',
-          product_variant_name: d.variant?.sku || '-',
-          product_price: variantPrice,
-          product_weight: Number(d.product?.weight) || 0,
-          product_width: Number(d.variant?.width) || 0,
-          product_height: Number(d.variant?.height) || 0,
-          product_length: Number(d.variant?.length) || 0,
-          qty: Number(d.qty),
-          subtotal: variantPrice * Number(d.qty),
-        }
-      })
-
-      const komercePayload = {
-        order_date: new Date().toISOString().slice(0, 10),
-        brand_name: 'Abby n Bev',
-        shipper_name: 'Abby n Bev Store',
-        shipper_phone: '628123456789',
-        shipper_destination_id: env.get('KOMERCE_ORIGIN_ID') || 423,
-        shipper_address: env.get('COMPANY_ADDRESS') || 'Jl. Dummy Bandung',
-        shipper_email: 'support@abbynbev.com',
-        origin_pin_point: env.get('COMPANY_PINPOINT') || '-6.914744, 107.609810',
-
-        receiver_name: shipment.pic,
-        receiver_phone: shipment.pic_phone,
-        receiver_destination_id: userAddress.subDistrict,
-        receiver_address: userAddress.address,
-        receiver_email: user.email,
-        destination_pin_point: '',
-
-        shipping: shipment.service?.toUpperCase() || 'JNE',
-        shipping_type: shipment.serviceType?.toUpperCase() || 'REG',
-        shipping_cost: Number(shipment.price),
-        shipping_cashback: 0,
-        payment_method:
-          env.get('NODE_ENV') === 'development'
-            ? 'COD'
-            : (transaction.ecommerce?.paymentMethod || 'COD').toUpperCase().replace('_', ' '),
-
-        service_fee: Math.round(Number(transaction.amount) * 0.028),
-        additional_cost: 0,
-        grand_total: Number(transaction.amount),
-        cod_value: Number(transaction.amount),
-        insurance_value: (() => {
-          const hasEligibleProduct = transaction.details.some((d) => {
-            const variantPrice = Number(d.variant?.price ?? d.price)
-            return variantPrice >= 300000
-          })
-          return hasEligibleProduct ? Number(shipment.protectionFee ?? 0) : 0
-        })(),
-
-        order_details: orderDetails,
-      }
-
-      const client = axios.create({
-        baseURL: env.get('KOMERCE_DELIVERY_BASE_URL'),
-        headers: {
-          'x-api-key': env.get('KOMERCE_DELIVERY_API_KEY'),
-          'Content-Type': 'application/json',
-        },
-        timeout: 10000,
-      })
-
-      const { data } = await client.post('/order/api/v1/orders/store', komercePayload)
-
-      if (data?.meta?.status === 'failed' || !data?.data?.order_no) {
+      if (!originAreaId && !originPostal) {
         await trx.rollback()
-        return response.status(400).send({
-          message: data?.meta?.message || 'Failed to generate resi from Komerce API.',
-          serve: data,
+        return response.status(500).send({
+          message: 'Origin Biteship belum diset. Isi BITESHIP_ORIGIN_AREA_ID atau COMPANY_POSTAL_CODE',
+          serve: [],
         })
       }
 
-      shipment.resiNumber = data.data.order_no
-      await shipment.useTransaction(trx).save()
+      const originContactName = String(env.get('COMPANY_CONTACT_NAME') || 'Abby n Bev Store')
+      const originContactPhone = String(env.get('COMPANY_CONTACT_PHONE') || env.get('COMPANY_PHONE') || '')
+      const originAddress = String(env.get('COMPANY_ADDRESS') || '')
 
-      // setelah resi berhasil dibuat -> dikirim
-      transaction.transactionStatus = TransactionStatus.ON_DELIVERY.toString()
-      await transaction.useTransaction(trx).save()
+      if (!originContactPhone || !originAddress) {
+        await trx.rollback()
+        return response.status(500).send({
+          message: 'COMPANY_CONTACT_PHONE/COMPANY_PHONE dan COMPANY_ADDRESS wajib ada untuk create order Biteship.',
+          serve: [],
+        })
+      }
 
-      await trx.commit()
-      return response.status(200).send({
-        message: 'Shipment created successfully.',
-        serve: {
-          transaction_number: transaction.transactionNumber,
-          resi_number: shipment.resiNumber,
-          courier: shipment.service,
-          service_type: shipment.serviceType,
-          total_weight: totalWeight,
-        },
+      // =========================
+      // DESTINATION (CUSTOMER)
+      // =========================
+      const destAreaId = pickFirstString(userAddress, [
+        'biteshipAreaId',
+        'biteship_area_id',
+        'destinationAreaId',
+        'destination_area_id',
+        'areaId',
+        'area_id',
+      ])
+
+      const destPostal = toPostalNumber(
+        pickFirstString(userAddress, ['postalCode', 'postal_code', 'zipCode', 'zip', 'kodePos', 'kode_pos'])
+      )
+
+      if (!destAreaId && !destPostal) {
+        await trx.rollback()
+        return response.status(400).send({
+          message:
+            'Alamat customer harus punya biteship area_id atau postal_code (kode pos) untuk create order Biteship.',
+          serve: [],
+        })
+      }
+
+      const destinationContactName = String(shipment.pic || user.fullName || user.name || 'Customer')
+      const destinationContactPhone = String(shipment.pic_phone || user.phone || '')
+      const destinationAddress = String(userAddress.address || '')
+
+      if (!destinationContactPhone || !destinationAddress) {
+        await trx.rollback()
+        return response.status(400).send({
+          message: 'PIC phone / alamat tujuan wajib ada untuk create order Biteship.',
+          serve: [],
+        })
+      }
+
+      // =========================
+      // ITEMS
+      // =========================
+      const items = transaction.details.map((d: any) => {
+        const price = Number(d.variant?.price ?? d.price ?? 0)
+        const weight = Number(d.product?.weight ?? 0) || 1 // gram (pastikan DB gram)
+        return {
+          name: d.product?.name || 'Item',
+          description: d.product?.description || undefined,
+          category: 'beauty',
+          value: Math.max(0, Math.round(price)),
+          quantity: Math.max(1, toNumber(d.qty, 1)),
+          weight: Math.max(1, Math.round(weight)),
+          length: Number(d.variant?.length) || undefined,
+          width: Number(d.variant?.width) || undefined,
+          height: Number(d.variant?.height) || undefined,
+          sku: d.variant?.sku || undefined,
+        }
       })
+
+      if (!items.length) {
+        await trx.rollback()
+        return response.status(400).send({ message: 'Order items kosong.', serve: [] })
+      }
+
+      const courierCompany = String(shipment.service || '').toLowerCase()
+      const courierType = String(shipment.serviceType || '').toLowerCase()
+
+      if (!courierCompany || !courierType) {
+        await trx.rollback()
+        return response.status(400).send({
+          message: 'Courier company / type kosong di shipment. Pastikan user memilih shipping method saat checkout.',
+          serve: [],
+        })
+      }
+
+      // reference_id harus unik per order
+      const referenceId = String(transaction.transactionNumber || transaction.id)
+
+      const biteshipPayload: any = {
+        shipper_contact_name: String(env.get('COMPANY_NAME') || 'Abby n Bev'),
+        shipper_contact_phone: String(env.get('COMPANY_PHONE') || originContactPhone),
+        shipper_contact_email: String(env.get('COMPANY_EMAIL') || 'support@abbynbev.com'),
+        shipper_organization: String(env.get('COMPANY_ORG') || 'Abby n Bev'),
+
+        origin_contact_name: originContactName,
+        origin_contact_phone: originContactPhone,
+        origin_address: originAddress,
+        ...(originAreaId ? { origin_area_id: originAreaId } : { origin_postal_code: originPostal }),
+
+        destination_contact_name: destinationContactName,
+        destination_contact_phone: destinationContactPhone,
+        destination_contact_email: user.email || undefined,
+        destination_address: destinationAddress,
+        ...(destAreaId ? { destination_area_id: destAreaId } : { destination_postal_code: destPostal }),
+
+        courier_company: courierCompany,
+        courier_type: courierType,
+
+        // delivery_type "now" -> generate waybill instantly
+        delivery_type: 'now',
+        reference_id: referenceId,
+        metadata: { transaction_id: transaction.id },
+
+        items,
+      }
+
+      try {
+        const data: any = await BiteshipService.createOrder(biteshipPayload)
+
+        if (!data?.success) {
+          await trx.rollback()
+          return response.status(400).send({
+            message: data?.error || 'Gagal create order Biteship.',
+            serve: data,
+          })
+        }
+
+        const waybillId = data?.courier?.waybill_id
+        if (!waybillId) {
+          await trx.rollback()
+          return response.status(400).send({
+            message: 'Waybill (resi) tidak ditemukan dari response Biteship.',
+            serve: data,
+          })
+        }
+
+        shipment.resiNumber = waybillId
+        await shipment.useTransaction(trx).save()
+
+        transaction.transactionStatus = TransactionStatus.ON_DELIVERY.toString()
+        await transaction.useTransaction(trx).save()
+
+        await trx.commit()
+        return response.status(200).send({
+          message: 'Resi berhasil dibuat (Biteship).',
+          serve: {
+            transaction_number: transaction.transactionNumber,
+            resi_number: waybillId,
+            tracking_id: data?.courier?.tracking_id,
+            courier: courierCompany,
+            service_type: courierType,
+            total_weight: totalWeight,
+          },
+        })
+      } catch (e: any) {
+        const body = e?.response?.data
+
+        // kalau reference_id sudah pernah dipakai: code 40002060 + details.waybill_id
+        if (body?.code === 40002060 && body?.details?.waybill_id) {
+          shipment.resiNumber = body.details.waybill_id
+          await shipment.useTransaction(trx).save()
+
+          transaction.transactionStatus = TransactionStatus.ON_DELIVERY.toString()
+          await transaction.useTransaction(trx).save()
+
+          await trx.commit()
+          return response.status(200).send({
+            message: 'Order Biteship sudah pernah dibuat (reference_id pernah dipakai).',
+            serve: {
+              transaction_number: transaction.transactionNumber,
+              resi_number: body.details.waybill_id,
+              order_id: body.details.order_id,
+              total_weight: totalWeight,
+            },
+          })
+        }
+
+        await trx.rollback()
+        return response.status(400).send({
+          message: body?.error || e.message || 'Gagal create order Biteship.',
+          serve: body || null,
+        })
+      }
     } catch (error: any) {
       await trx.rollback()
       return response.status(500).send({

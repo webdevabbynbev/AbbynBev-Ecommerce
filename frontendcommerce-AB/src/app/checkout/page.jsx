@@ -5,14 +5,11 @@ import Image from "next/image";
 import Script from "next/script";
 import { useRouter } from "next/navigation";
 import axios from "@/lib/axios";
-
 import { AddressCard } from "@/app/account";
 import { NewAddress } from "@/app/account/popup";
-
 import { PAYMENT_METHODS } from "@/data/paymentMethods";
 import { n, isNumericLike } from "@/utils/number";
 import { calcWeightRounded } from "@/utils/checkoutWeight";
-
 import { useCheckoutCartServer } from "@/app/hook/useCheckoutCartServer";
 import { useCartMutations } from "@/app/hook/useCartMutations";
 import { useAddresses } from "@/app/hook/useAddresses";
@@ -21,16 +18,11 @@ import { useShippingOptions } from "@/app/hook/useShippingOptions";
 
 export default function CheckoutPage() {
   const router = useRouter();
-
-  // ✅ cart checkout dari server (is_checkout=2)
   const { checkoutItems, subtotal, loadingCart, reloadCart } = useCheckoutCartServer();
-
-  // ✅ mutations cart
   const { loadingItemId, handleUpdateQty, handleDelete } = useCartMutations({
     reloadCart,
   });
 
-  // addresses
   const {
     addresses,
     selectedAddressId,
@@ -40,13 +32,8 @@ export default function CheckoutPage() {
     selectAsMain,
   } = useAddresses();
 
-  // location name maps
   const { provinceMap, cityMap } = useLocationNames(addresses);
-
-  // weight
   const weightRounded = useMemo(() => calcWeightRounded(checkoutItems), [checkoutItems]);
-
-  // shipping (ini masih boleh auto-select di hook sebagai "rekomendasi")
   const {
     shippingAll,
     selectedShipping, // <- anggap "recommended" oleh sistem
@@ -64,23 +51,14 @@ export default function CheckoutPage() {
     weightRounded,
     enabled: !loadingCart && !loadingAddr && checkoutItems.length > 0,
   });
-
-  // ✅ CONFIRMED shipping (baru terisi kalau user klik)
   const [confirmedShipping, setConfirmedShipping] = useState(null);
-
-  // reset confirmed shipping kalau address/berat/cart berubah
   useEffect(() => {
     setConfirmedShipping(null);
   }, [selectedAddressId, weightRounded, checkoutItems.length]);
-
-  // payment
+  
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [loadingPay, setLoadingPay] = useState(false);
-
-  // ✅ Total pakai confirmedShipping (bukan selectedShipping)
   const total = subtotal + n(confirmedShipping?.price, 0);
-
-  // address display list
   const displayAddresses = useMemo(() => {
     return (Array.isArray(addresses) ? addresses : []).map((a) => {
       const cityVal = a?.city;
@@ -113,8 +91,6 @@ export default function CheckoutPage() {
       setLoadingPay(true);
 
       const cartIds = checkoutItems.map((x) => x?.id).filter(Boolean);
-
-      // ✅ payload pakai confirmedShipping
       const payload = {
         cart_ids: cartIds,
         user_address_id: selectedAddressId,
@@ -128,10 +104,8 @@ export default function CheckoutPage() {
 
       const res = await axios.post("/transaction", payload);
       const serve = res?.data?.serve;
-
       const token = serve?.ecommerce?.tokenMidtrans;
       const redirectUrl = serve?.ecommerce?.redirectUrl;
-
       const orderId =
         serve?.transactionNumber ||
         serve?.transaction_number ||
@@ -175,7 +149,7 @@ export default function CheckoutPage() {
 
   return (
     <>
-      {/* ✅ Midtrans Snap.js (SANDBOX) */}
+      {/* Midtrans Snap.js (SANDBOX) */}
       <Script
         src="https://app.sandbox.midtrans.com/snap/snap.js"
         data-client-key={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY}
@@ -389,9 +363,7 @@ export default function CheckoutPage() {
                               key={opt.id}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                // ✅ confirm shipping by user
                                 setConfirmedShipping(opt);
-                                // optional: keep hook state in sync
                                 setSelectedShipping(opt);
                               }}
                               className={`p-3 rounded-xl border transition ${
