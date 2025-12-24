@@ -13,6 +13,7 @@ import axios from 'axios'
 import env from '#start/env'
 import { TransactionStatus } from '../../enums/transaction_status.js'
 import { createHash } from 'node:crypto'
+import BiteshipService from '#services/biteship_service'
 
 function toNumber(v: any, fallback = 0) {
   const n = Number(v)
@@ -44,13 +45,34 @@ function normalizeMidtransStatus(v: any) {
   return String(v || '').trim().toLowerCase()
 }
 
+function isBiteshipDelivered(status: any) {
+  const s = String(status || '').toLowerCase()
+  return s.includes('delivered') || s.includes('completed') || s.includes('selesai') || s.includes('success')
+}
+
+function isBiteshipFailed(status: any) {
+  const s = String(status || '').toLowerCase()
+  return s.includes('cancel') || s.includes('failed') || s.includes('return')
+}
+
+function isBiteshipInTransit(status: any) {
+  const s = String(status || '').toLowerCase()
+  return (
+    s.includes('in_transit') ||
+    s.includes('out_for_delivery') ||
+    s.includes('on_delivery') ||
+    s.includes('picked') ||
+    s.includes('pickup') ||
+    s.includes('dropped') ||
+    s.includes('shipping')
+  )
+}
+
 export default class TransactionEcommerceController {
-  // ✅ restore stock + voucher kalau order jadi FAILED (expire/cancel/deny)
   private async restoreStockAndVoucher(trx: any, transactionId: number, voucherId: number | null) {
     const details = await TransactionDetail.query({ client: trx }).where('transaction_id', transactionId)
 
     for (const d of details as any[]) {
-      // restore variant stock
       if (d.productVariantId) {
         const pv = await ProductVariant.query({ client: trx }).where('id', d.productVariantId).forUpdate().first()
         if (pv) {
@@ -59,7 +81,6 @@ export default class TransactionEcommerceController {
         }
       }
 
-      // optional: rollback popularity (sebelumnya create +1 per item)
       if (d.productId) {
         const p = await Product.query({ client: trx }).where('id', d.productId).forUpdate().first()
         if (p) {
@@ -69,7 +90,6 @@ export default class TransactionEcommerceController {
       }
     }
 
-    // restore voucher qty
     if (voucherId) {
       const v = await Voucher.query({ client: trx }).where('id', voucherId).forUpdate().first()
       if (v) {
@@ -130,12 +150,6 @@ export default class TransactionEcommerceController {
     }
   }
 
-  /**
-   * ✅ CREATE TRANSACTION (Biteship-based)
-   * - Tidak pakai RajaOngkir/Komerce sama sekali
-   * - shipping_price & service diambil dari frontend (hasil rates biteship)
-   * - etd optional: shipping_etd / etd
-   */
   public async create({ response, request, auth }: HttpContext) {
     const trx = await db.transaction()
 
@@ -146,7 +160,6 @@ export default class TransactionEcommerceController {
         return response.status(401).send({ message: 'Unauthorized', serve: null })
       }
 
-      // ========= payload =========
       const rawCartIds = request.input('cart_ids') ?? []
       const cartIds: number[] = Array.isArray(rawCartIds)
         ? rawCartIds.map((x) => toNumber(x)).filter((x) => x > 0)
@@ -155,7 +168,6 @@ export default class TransactionEcommerceController {
       const voucher = request.input('voucher')
       const userAddressId = toNumber(request.input('user_address_id'), 0)
 
-      // NOTE: ini harus konsisten sama payload FE
       const courierName = String(request.input('shipping_service_type') || '').trim() // contoh: jne / sicepat
       const courierService = String(request.input('shipping_service') || '').trim() // contoh: REG / BEST / OKE
 
@@ -165,7 +177,6 @@ export default class TransactionEcommerceController {
 
       const weightFromReq = normalizeInt(request.input('weight'), 0)
 
-      // etd optional dari FE (hasil rates biteship)
       const etd = String(request.input('shipping_etd') || request.input('etd') || '').trim() || null
 
       if (!cartIds.length) {
@@ -194,7 +205,6 @@ export default class TransactionEcommerceController {
         })
       }
 
-      // ========= carts =========
       const carts = await TransactionCart.query({ client: trx })
         .whereIn('id', cartIds)
         .where('user_id', user.id)
@@ -214,14 +224,12 @@ export default class TransactionEcommerceController {
         return acc + (toNumber(cart.price) - toNumber(cart.discount)) * qty
       }, 0)
 
-      // ========= address =========
       const userAddress = await UserAddress.query({ client: trx }).where('id', userAddressId).first()
       if (!userAddress) {
         await trx.rollback()
         return response.status(400).send({ message: 'Address not found.', serve: [] })
       }
 
-      // postal_code tetap disarankan untuk pengiriman + administrasi
       if (!userAddress.postalCode) {
         await trx.rollback()
         return response.status(400).send({
@@ -230,7 +238,6 @@ export default class TransactionEcommerceController {
         })
       }
 
-      // ========= weight =========
       const weightFromCart = carts.reduce((acc, cart: any) => {
         const qty = cart.qtyCheckout > 0 ? cart.qtyCheckout : cart.qty
         const vWeight = toNumber(cart?.variant?.weight, 0)
@@ -246,7 +253,6 @@ export default class TransactionEcommerceController {
       const discount = this.calculateVoucher(voucher, subTotal, shippingPrice)
       const grandTotal = this.generateGrandTotal(voucher, subTotal, shippingPrice) + (isProtected ? protectionFee : 0)
 
-      // ========= transaction =========
       const transaction = new Transaction()
       transaction.userId = user.id
       transaction.amount = grandTotal
@@ -259,7 +265,6 @@ export default class TransactionEcommerceController {
       transaction.channel = 'ecommerce'
       await transaction.useTransaction(trx).save()
 
-      // ========= MIDTRANS SNAP =========
       const parameter = {
         transaction_details: {
           order_id: transaction.transactionNumber,
@@ -289,7 +294,6 @@ export default class TransactionEcommerceController {
         },
       })
 
-      // ========= ecommerce record =========
       const transactionEcommerce = new TransactionEcommerce()
       transactionEcommerce.transactionId = transaction.id
       transactionEcommerce.voucherId = voucher?.id ?? null
@@ -446,16 +450,6 @@ export default class TransactionEcommerceController {
     return `AB${tahun}${bulan}${tanggal}${random}`
   }
 
-  /**
-   * Webhook Midtrans:
-   * - capture+accept / settlement => PAID_WAITING_ADMIN
-   * - pending => WAITING_PAYMENT
-   * - deny/cancel/expire/failure => FAILED
-   *
-   * Guard:
-   * - Kalau status order sudah ON_PROCESS / ON_DELIVERY / COMPLETED, webhook tidak boleh override.
-   * - Kalau status sudah FAILED, jangan diubah lagi.
-   */
   public async webhookMidtrans({ request, response }: HttpContext) {
     const trx = await db.transaction()
 
@@ -550,11 +544,17 @@ export default class TransactionEcommerceController {
     }
   }
 
+  /**
+   * ✅ RETRIEVE TRANSACTION DETAIL
+   * + auto sync status dari Biteship (kalau ada resi & courier)
+   */
   public async getByTransactionNumber({ response, request }: HttpContext) {
     try {
+      const transactionNumber = request.input('transaction_number')
+
       const dataTransaction = await TransactionEcommerce.query()
         .whereHas('transaction', (trxQuery) => {
-          trxQuery.where('transaction_number', request.input('transaction_number'))
+          trxQuery.where('transaction_number', transactionNumber)
         })
         .preload('transaction', (trxLoader) => {
           trxLoader
@@ -565,6 +565,9 @@ export default class TransactionEcommerceController {
             })
             .preload('shipments')
         })
+        .preload('shipments')
+        .preload('userAddress')
+        .preload('user')
         .first()
 
       if (!dataTransaction) {
@@ -572,6 +575,50 @@ export default class TransactionEcommerceController {
           message: 'Transaction not found.',
           serve: [],
         })
+      }
+
+      // =========================
+      // ✅ SYNC STATUS DARI BITESHIP
+      // =========================
+      try {
+        const trxModel: any = dataTransaction.transaction
+        const current = String(trxModel?.transactionStatus || '')
+
+        const trxShipments = Array.isArray(trxModel?.shipments) ? trxModel.shipments : []
+        const ecoShipments = Array.isArray((dataTransaction as any)?.shipments) ? (dataTransaction as any).shipments : []
+        const shipment: any = trxShipments[0] || ecoShipments[0] || null
+
+        const isFinal =
+          current === TransactionStatus.COMPLETED.toString() || current === TransactionStatus.FAILED.toString()
+
+        if (!isFinal && shipment?.resiNumber && shipment?.service) {
+          const waybillId = String(shipment.resiNumber).trim()
+          const courierCode = String(shipment.service).trim().toLowerCase()
+
+          const tracking = await BiteshipService.retrievePublicTracking(waybillId, courierCode)
+
+          if (tracking?.success && tracking?.status) {
+            const bsStatus = String(tracking.status)
+
+            // simpan status tracking ke shipment.status
+            shipment.status = bsStatus
+            await shipment.save()
+
+            // update transaksi sesuai status biteship
+            if (isBiteshipDelivered(bsStatus)) {
+              trxModel.transactionStatus = TransactionStatus.COMPLETED.toString()
+              await trxModel.save()
+            } else if (isBiteshipFailed(bsStatus)) {
+              trxModel.transactionStatus = TransactionStatus.FAILED.toString()
+              await trxModel.save()
+            } else if (current === TransactionStatus.ON_PROCESS.toString() && isBiteshipInTransit(bsStatus)) {
+              trxModel.transactionStatus = TransactionStatus.ON_DELIVERY.toString()
+              await trxModel.save()
+            }
+          }
+        }
+      } catch (e: any) {
+        console.log('Biteship sync error:', e?.response?.data || e?.message || e)
       }
 
       // RajaOngkir/Komerce removed => waybill lookup disabled (return null)
@@ -664,7 +711,10 @@ export default class TransactionEcommerceController {
       const transactionNumber = request.input('transaction_number')
       const newStatus = request.input('status')
 
-      const transaction = await Transaction.query().where('transaction_number', transactionNumber).preload('shipments').first()
+      const transaction = await Transaction.query()
+        .where('transaction_number', transactionNumber)
+        .preload('shipments')
+        .first()
 
       if (!transaction || transaction.shipments.length === 0) {
         return response.status(404).send({

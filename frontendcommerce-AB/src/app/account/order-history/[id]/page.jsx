@@ -55,11 +55,40 @@ function safeDate(v) {
   return d.toLocaleDateString("en-GB");
 }
 
+function arr(v) {
+  if (!v) return [];
+  return Array.isArray(v) ? v : [v];
+}
+
+function unwrapResponse(raw) {
+  // handle: { message, serve: { data, waybill } }
+  if (raw?.serve) raw = raw.serve;
+  // handle: { data: TransactionEcommerce, waybill }
+  if (raw?.data && (raw?.waybill !== undefined || raw?.data?.transaction || raw?.data?.transactionId)) {
+    raw = raw.data;
+  }
+  return raw;
+}
+
 function buildAddressText(userAddress) {
   if (!userAddress) return { line1: "-", line2: "-", postal: "" };
 
-  const addr = userAddress?.address || userAddress?.line1 || "-";
+  const addr =
+    userAddress?.address ||
+    userAddress?.line1 ||
+    userAddress?.detail ||
+    userAddress?.street ||
+    "-";
 
+  // biteship style
+  const areaName =
+    userAddress?.biteshipAreaName ||
+    userAddress?.biteship_area_name ||
+    userAddress?.areaName ||
+    userAddress?.area_name ||
+    "";
+
+  // komerce style fallback
   const subDistrict =
     userAddress?.subDistrictData?.name ||
     userAddress?.sub_district_data?.name ||
@@ -95,24 +124,29 @@ function buildAddressText(userAddress) {
     userAddress?.zipCode ||
     "";
 
-  const line2 = [subDistrict, district, city, province].filter(Boolean).join(", ");
+  const line2Old = [subDistrict, district, city, province].filter(Boolean).join(", ");
+  const line2 = areaName || line2Old;
 
   return { line1: addr, line2: line2 || "-", postal: postal ? String(postal) : "" };
 }
 
-function normalizeOrder(row) {
-  // support beberapa bentuk response:
-  // - row.transaction (TransactionEcommerce)
-  // - row langsung transaction object
-  const trx = row?.transaction || row || {};
-  const details = Array.isArray(trx?.details) ? trx.details : [];
-  const shipments = Array.isArray(trx?.shipments) ? trx.shipments : trx?.shipments ? [trx.shipments] : [];
+function normalizeOrder(rawInput) {
+  const raw = unwrapResponse(rawInput);
+
+  // raw biasanya TransactionEcommerce (punya .transaction, .userAddress, .shipments)
+  const ecommerce = raw || {};
+  const trx = ecommerce?.transaction || raw?.transaction || {};
+
+  const details = arr(trx?.details);
+  const trxShipments = arr(trx?.shipments);
+  const ecoShipments = arr(ecommerce?.shipments);
+  const shipments = trxShipments.length ? trxShipments : ecoShipments;
   const sh = shipments?.[0] || {};
 
-  const ecommerce = trx?.ecommerce || row?.ecommerce || {};
-  const userAddress = ecommerce?.userAddress || ecommerce?.user_address || trx?.userAddress || null;
+  const userAddress = ecommerce?.userAddress || ecommerce?.user_address || null;
+  const user = ecommerce?.user || trx?.user || {};
 
-  const statusKey = mapTransactionStatus(trx?.transactionStatus);
+  const statusKey = mapTransactionStatus(trx?.transactionStatus ?? trx?.transaction_status ?? trx?.status);
   const badge = STATUS_BADGE[statusKey] || STATUS_BADGE.unknown;
 
   const items = details.map((d) => {
@@ -120,41 +154,76 @@ function normalizeOrder(row) {
     const medias = Array.isArray(p?.medias) ? p.medias : [];
     const thumb = medias?.[0]?.url || p?.thumbnail || p?.image || "/placeholder.png";
 
-    const variantText = d?.variant?.sku || d?.variant?.name || d?.attributes || "-";
-
     return {
-      id: d?.id ?? `${trx?.transactionNumber || trx?.id}-${d?.productId || "item"}`,
+      id: d?.id ?? `${trx?.transactionNumber || trx?.transaction_number || "trx"}-${d?.productId || "item"}`,
       name: p?.name || p?.title || "-",
-      variant: variantText,
+      variant: d?.variant?.sku || d?.variant?.name || d?.attributes || "-",
       qty: n(d?.qty, 0),
       price: n(d?.price, 0),
       image: thumb,
     };
   });
 
-  const subtotal = items.reduce((sum, it) => sum + n(it.price, 0) * n(it.qty, 0), 0);
-  const shipmentFee = n(sh?.price, 0);
-  const total = n(trx?.grandTotal, 0) || n(trx?.amount, 0) || subtotal + shipmentFee;
+  const computedSubtotal = items.reduce((sum, it) => sum + n(it.price, 0) * n(it.qty, 0), 0);
+  const subtotal = n(trx?.subTotal ?? trx?.sub_total, 0) || computedSubtotal;
+
+  const shipmentFee = n(sh?.price ?? ecommerce?.shippingCost ?? ecommerce?.shipping_cost, 0);
+  const total =
+    n(trx?.grandTotal ?? trx?.grand_total ?? trx?.amount ?? trx?.total, 0) ||
+    subtotal + shipmentFee;
 
   const addrText = buildAddressText(userAddress);
 
-  // nama/phone penerima biasanya di shipment (pic, pic_phone)
-  const receiverName = sh?.pic || ecommerce?.user?.fullName || ecommerce?.user?.name || "-";
-  const receiverPhone = sh?.pic_phone || ecommerce?.user?.phone || "-";
+  const receiverName =
+    userAddress?.picName ||
+    userAddress?.pic_name ||
+    userAddress?.name ||
+    sh?.pic ||
+    user?.fullName ||
+    user?.name ||
+    "-";
+
+  const receiverPhone =
+    userAddress?.picPhone ||
+    userAddress?.pic_phone ||
+    userAddress?.phone ||
+    sh?.pic_phone ||
+    user?.phone ||
+    "-";
+
+  const courierName =
+    sh?.service ||
+    ecommerce?.courierName ||
+    ecommerce?.courier_name ||
+    "-";
+
+  const courierService =
+    sh?.serviceType ||
+    sh?.service_type ||
+    ecommerce?.courierService ||
+    ecommerce?.courier_service ||
+    "";
+
+  const resi =
+    sh?.resiNumber ||
+    sh?.resi_number ||
+    "";
+
+  const estimated = sh?.estimationArrival || sh?.estimation_arrival || "";
 
   return {
-    transactionNumber: trx?.transactionNumber || "-",
+    transactionNumber: trx?.transactionNumber || trx?.transaction_number || "-",
     statusKey,
     statusLabel: badge.text,
     statusCls: badge.cls,
 
     shipping: {
       orderDate: safeDate(trx?.createdAt || trx?.created_at),
-      deliveryDate: "-", // kalau belum ada dari biteship tracking, kasih "-"
-      estimatedDelivery: "-", // idem
-      courier: (sh?.service || "-").toUpperCase(),
-      serviceType: (sh?.serviceType || "").toUpperCase(),
-      resi: sh?.resiNumber || sh?.resi_number || "",
+      deliveryDate: "-",
+      estimatedDelivery: estimated || "-",
+      courier: String(courierName || "-").toUpperCase(),
+      serviceType: String(courierService || "").toUpperCase(),
+      resi,
     },
 
     address: {
@@ -190,32 +259,38 @@ export default function OrderTrackingPage() {
       setLoading(true);
       setErrorMsg("");
 
-      // 1) coba by filter (paling aman karena kamu udah pakai /transaction di list)
+      // ✅ 1) retrieve (paling lengkap) — FIX: ambil serve.data
+      try {
+        const res0 = await axios.post("/transaction/retrieve", {
+          transaction_number: transactionNumberFromUrl,
+        });
+
+        const payload =
+          res0?.data?.serve?.data ||
+          res0?.data?.data ||
+          res0?.data;
+
+        if (payload) {
+          setOrder(normalizeOrder(payload));
+          return;
+        }
+      } catch {
+        // ignore -> fallback
+      }
+
+      // ✅ 2) fallback list by filter
       const res = await axios.get("/transaction", {
         params: { transaction_number: transactionNumberFromUrl, page: 1, per_page: 1 },
       });
 
       const row = res?.data?.serve?.data?.[0];
-
-      // 2) fallback kalau backend kamu ternyata punya endpoint detail
-      if (!row) {
-        try {
-          const res2 = await axios.get(`/transaction/${encodeURIComponent(transactionNumberFromUrl)}`);
-          const row2 = res2?.data?.serve || res2?.data?.data || res2?.data;
-          setOrder(normalizeOrder(row2));
-          return;
-        } catch {
-          // ignore
-        }
-      }
-
-      if (!row) {
-        setOrder(null);
-        setErrorMsg("Order tidak ditemukan.");
+      if (row) {
+        setOrder(normalizeOrder(row));
         return;
       }
 
-      setOrder(normalizeOrder(row));
+      setOrder(null);
+      setErrorMsg("Order tidak ditemukan.");
     } catch (err) {
       console.log("Error order detail:", err?.response?.data || err);
       setOrder(null);
@@ -270,7 +345,6 @@ export default function OrderTrackingPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
-      {/* Back */}
       <button
         onClick={() => router.push("/account/order-history")}
         className="text-sm text-gray-500 hover:text-gray-700 mb-4"
@@ -280,7 +354,6 @@ export default function OrderTrackingPage() {
 
       <h1 className="text-2xl font-semibold text-gray-900 mb-6">Order Tracking</h1>
 
-      {/* STEP BAR */}
       <div className="bg-white border border-pink-100 rounded-xl p-6 mb-8 shadow-sm">
         <div className="flex items-center justify-between gap-2">
           {STEPS.map((step, index) => {
@@ -325,9 +398,7 @@ export default function OrderTrackingPage() {
         </div>
       </div>
 
-      {/* MAIN CARD */}
       <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Order Detail</h2>
@@ -342,7 +413,6 @@ export default function OrderTrackingPage() {
           </div>
         </div>
 
-        {/* Shipping Info */}
         <div className="border border-gray-100 rounded-lg p-4 mb-6">
           <h3 className="text-sm font-semibold text-gray-900 mb-3">Shipping</h3>
 
@@ -370,31 +440,24 @@ export default function OrderTrackingPage() {
 
           <div className="mt-3 text-xs">
             <p className="text-gray-400 mb-1">Resi</p>
-            <p className="text-gray-800 font-medium">
-              {order.shipping.resi ? order.shipping.resi : "-"}
-            </p>
+            <p className="text-gray-800 font-medium">{order.shipping.resi ? order.shipping.resi : "-"}</p>
           </div>
         </div>
 
-        {/* Shipping Address */}
         <div className="border border-gray-100 rounded-lg p-4 mb-6">
           <h3 className="text-sm font-semibold text-gray-900 mb-2">Shipping Address</h3>
           <div className="text-xs text-gray-700 space-y-1">
             <p className="font-medium">{order.address.name}</p>
             <p>{order.address.line1}</p>
             <p>{order.address.line2}</p>
-            <p>{order.address.postal ? `Postal: ${order.address.postal}` : ""}</p>
+            {order.address.postal ? <p>{`Postal: ${order.address.postal}`}</p> : null}
             <p>{order.address.phone}</p>
           </div>
         </div>
 
-        {/* Items */}
         <div className="space-y-4 mb-6">
           {order.items.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-start gap-4 border border-gray-100 rounded-lg p-3"
-            >
+            <div key={item.id} className="flex items-start gap-4 border border-gray-100 rounded-lg p-3">
               <div className="relative w-16 h-16 flex-shrink-0 bg-gray-50 rounded-md overflow-hidden">
                 <Image src={item.image} alt={item.name} fill className="object-cover" />
               </div>
@@ -405,14 +468,11 @@ export default function OrderTrackingPage() {
                 <p className="text-xs text-gray-500 mt-0.5">x{item.qty}</p>
               </div>
 
-              <div className="text-sm font-medium text-gray-900">
-                Rp {money(item.price)}
-              </div>
+              <div className="text-sm font-medium text-gray-900">Rp {money(item.price)}</div>
             </div>
           ))}
         </div>
 
-        {/* Summary */}
         <div className="border-t border-gray-100 pt-4 space-y-1 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-500">Subtotal Product</span>
