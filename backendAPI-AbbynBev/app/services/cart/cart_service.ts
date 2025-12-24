@@ -20,7 +20,10 @@ export class CartService {
   async getList(userId: number, qs: any, request: any) {
     const sortBy = qs.field || 'created_at'
     const sortType = qs.value || 'DESC'
-    const isCheckout = qs.is_checkout ?? ''
+
+    // ✅ support snake_case & camelCase
+    const isCheckout = typeof qs.is_checkout !== 'undefined' ? qs.is_checkout : qs.isCheckout ?? ''
+
     const page = isNaN(parseInt(qs.page)) ? 1 : parseInt(qs.page)
     const perPage = isNaN(parseInt(qs.per_page)) ? 10 : parseInt(qs.per_page)
 
@@ -165,10 +168,32 @@ export class CartService {
 
   async updateSelection(userId: number, cartIds: any[], isCheckout: any) {
     const ids = Array.isArray(cartIds) ? cartIds.map((x) => Number(x)).filter((x) => x > 0) : []
-    if (ids.length > 0) {
-      await TransactionCart.query().whereIn('id', ids).where('user_id', userId).update({ isCheckout })
+    const next = Number(isCheckout)
+
+    if (!userId) {
+      const err: any = new Error('Unauthenticated')
+      err.httpStatus = 401
+      throw err
     }
-    return { message: 'Cart selection updated', serve: [] }
+
+    // FE kamu kadang kirim unselected = [] → jangan error
+    if (!ids.length) {
+      return { message: 'Cart selection updated', serve: { affected: 0 } }
+    }
+
+    if (!Number.isFinite(next)) {
+      const err: any = new Error('is_checkout invalid')
+      err.httpStatus = 400
+      throw err
+    }
+
+    // ✅ KRUSIAL: update kolom DB snake_case
+    const affected = await TransactionCart.query()
+      .whereIn('id', ids)
+      .where('user_id', userId)
+      .update({ is_checkout: next })
+
+    return { message: 'Cart selection updated', serve: { affected } }
   }
 
   async miniCart(userId: number, request: any) {
