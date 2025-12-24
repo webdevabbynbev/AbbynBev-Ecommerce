@@ -250,6 +250,10 @@ export default function OrderTrackingPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [order, setOrder] = useState(null);
 
+  // ✅ tambahan (tanpa ubah yang lain)
+  const [confirming, setConfirming] = useState(false);
+  const [infoMsg, setInfoMsg] = useState("");
+
   const transactionNumberFromUrl = params?.id ? decodeURIComponent(params.id) : "";
 
   const fetchOrder = async () => {
@@ -297,6 +301,32 @@ export default function OrderTrackingPage() {
       setErrorMsg(err?.response?.data?.message || "Failed to load order detail");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ✅ tambahan (tanpa ubah yang lain)
+  const handleConfirmDone = async () => {
+    if (!order?.transactionNumber || confirming) return;
+
+    const ok = window.confirm("Selesaikan pesanan ini? Status akan jadi Completed.");
+    if (!ok) return;
+
+    try {
+      setConfirming(true);
+      setErrorMsg("");
+      setInfoMsg("");
+
+      await axios.post("/transaction/confirm", {
+        transaction_number: order.transactionNumber,
+      });
+
+      setInfoMsg("Pesanan berhasil diselesaikan.");
+      await fetchOrder();
+    } catch (err) {
+      console.log("Confirm error:", err?.response?.data || err);
+      setErrorMsg(err?.response?.data?.message || "Gagal menyelesaikan pesanan.");
+    } finally {
+      setConfirming(false);
     }
   };
 
@@ -398,6 +428,13 @@ export default function OrderTrackingPage() {
         </div>
       </div>
 
+      {/* ✅ tambahan info sukses (optional, gak ngubah layout utama) */}
+      {infoMsg ? (
+        <div className="mb-4 border border-green-200 bg-green-50 text-green-700 rounded-lg p-3 text-sm">
+          {infoMsg}
+        </div>
+      ) : null}
+
       <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
@@ -405,11 +442,27 @@ export default function OrderTrackingPage() {
             <p className="text-xs text-gray-500 mt-1">Order ID: {order.transactionNumber}</p>
           </div>
 
-          <div className="text-right space-y-1">
+          <div className="text-right space-y-2">
             <p className="text-xs text-gray-500">No pesanan: {order.transactionNumber}</p>
             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${order.statusCls}`}>
               {order.statusLabel}
             </span>
+
+            {/* ✅ tambahan tombol (hanya on_delivery) */}
+            {order.statusKey === "on_delivery" && (
+              <button
+                onClick={handleConfirmDone}
+                disabled={confirming}
+                className={[
+                  "inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-semibold",
+                  confirming
+                    ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    : "bg-pink-600 text-white hover:bg-pink-700",
+                ].join(" ")}
+              >
+                {confirming ? "Memproses..." : "Selesaikan Pesanan"}
+              </button>
+            )}
           </div>
         </div>
 
