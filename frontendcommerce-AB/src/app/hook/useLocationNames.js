@@ -1,51 +1,79 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchCities, fetchProvinces } from "@/services/checkout/address";
-import { isNumericLike } from "@/utils/number";
 
+/**
+ * Biteship migration:
+ * - RajaOngkir: province & city di-hydrate lewat endpoint /province & /city
+ * - Biteship: kita sudah punya biteship_area_name / biteshipAreaName di address (atau bisa parse)
+ *
+ * Output tetap sama: { provinceMap, cityMap }
+ * supaya komponen yang sudah ada tidak perlu banyak diubah.
+ */
 export function useLocationNames(addresses) {
   const [provinceMap, setProvinceMap] = useState({});
   const [cityMap, setCityMap] = useState({});
 
   useEffect(() => {
-    let cancelled = false;
+    const provMap = {};
+    const cMap = {};
 
-    async function run() {
-      try {
-        const provinces = await fetchProvinces();
-        const provMap = {};
-        provinces.forEach((p) => (provMap[String(p.id)] = p.name));
-        if (!cancelled) setProvinceMap(provMap);
+    const list = Array.isArray(addresses) ? addresses : [];
 
-        const provinceIds = Array.from(
-          new Set(
-            (addresses || [])
-              .map((a) => a?.province)
-              .filter((p) => isNumericLike(p))
-              .map((p) => Number(p))
-          )
-        );
+    for (const a of list) {
+      // coba ambil field biteship area name dari berbagai kemungkinan penamaan
+      const areaName =
+        a?.biteshipAreaName ||
+        a?.biteship_area_name ||
+        a?.areaName ||
+        a?.area_name ||
+        "";
 
-        const nextCityMap = {};
-        await Promise.all(
-          provinceIds.map(async (pid) => {
-            const cities = await fetchCities(pid);
-            cities.forEach((c) => (nextCityMap[String(c.id)] = c.name));
-          })
-        );
+      // kalau backend kamu sudah simpan province/city name terpisah, pakai itu
+      const provinceName =
+        a?.provinceName ||
+        a?.province_name ||
+        parseProvinceFromAreaName(areaName) ||
+        (typeof a?.province === "string" ? a.province : "");
 
-        if (!cancelled) setCityMap(nextCityMap);
-      } catch (e) {
-        console.warn("Hydrate location names failed:", e?.response?.data || e);
-      }
+      const cityName =
+        a?.cityName ||
+        a?.city_name ||
+        parseCityFromAreaName(areaName) ||
+        (typeof a?.city === "string" ? a.city : "");
+
+      // key untuk mapping: tetap pakai value "province" / "city" yang dipakai komponen sekarang
+      const provKey = a?.province != null ? String(a.province) : "";
+      const cityKey = a?.city != null ? String(a.city) : "";
+
+      if (provKey && provinceName) provMap[provKey] = provinceName;
+      if (cityKey && cityName) cMap[cityKey] = cityName;
     }
 
-    run();
-    return () => {
-      cancelled = true;
-    };
+    setProvinceMap(provMap);
+    setCityMap(cMap);
   }, [addresses]);
 
   return { provinceMap, cityMap };
+}
+
+function parseProvinceFromAreaName(areaName) {
+  const parts = splitAreaName(areaName);
+  // biasanya format: "Kecamatan, Kota/Kab, Provinsi" atau "Kelurahan, Kecamatan, Kota, Provinsi"
+  // provinsi umumnya elemen terakhir
+  return parts.length >= 1 ? parts[parts.length - 1] : "";
+}
+
+function parseCityFromAreaName(areaName) {
+  const parts = splitAreaName(areaName);
+  // city/kab biasanya elemen kedua terakhir
+  return parts.length >= 2 ? parts[parts.length - 2] : "";
+}
+
+function splitAreaName(areaName) {
+  if (!areaName) return [];
+  return String(areaName)
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
