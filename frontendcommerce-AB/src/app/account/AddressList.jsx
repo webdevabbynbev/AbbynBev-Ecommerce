@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import api from "@/lib/axios";
-import { getAddressByQuery, getUser } from "@/utils/auth";
+import { getAddressByQuery, getUser } from "@/services/auth";
 import { AddressCard } from ".";
 
 const toNum = (v) => {

@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { loginUser, regis, OtpRegis, LoginGoogle } from "@/utils/auth";
+import { loginUser, regis, OtpRegis, LoginGoogle } from "@/services/auth";
 import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";

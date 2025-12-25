@@ -93,7 +93,7 @@ export function RegularCard({ item: raw }) {
     (categorySlug ? `${categorySlug}/${productSlug}` : productSlug);
 
   const href = path
-    ? `/product-detail/${String(path)
+    ? `/${String(path)
         .split("/")
         .map(encodeURIComponent)
         .join("/")}`

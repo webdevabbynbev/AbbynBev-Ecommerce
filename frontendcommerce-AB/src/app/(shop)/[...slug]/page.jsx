@@ -9,11 +9,12 @@ function toBackendImageUrl(url) {
 }
 
 export default async function ProductDetail({ params }) {
-  const slugArr = params?.slug ?? [];
-  const segments = Array.isArray(slugArr) ? slugArr : [String(slugArr)];
-
-  // slug produk = segmen terakhir
-  const productSlug = segments[segments.length - 1] || "";
+  const resolvedParams = await params; 
+  const slugArray = resolvedParams.slug || [];
+  const productSlug = Array.isArray(slugArray) 
+    ? slugArray[slugArray.length - 1] 
+    : slugArray;
+  console.log("Mencari produk dengan slug:", productSlug);
 
   const apiUrl =
     process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333/api/v1";
