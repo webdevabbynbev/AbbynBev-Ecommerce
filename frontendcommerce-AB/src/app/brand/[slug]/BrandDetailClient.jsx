@@ -32,11 +32,11 @@ export default function BrandDetailClient({ brandData }) {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/">Home</BreadcrumbLink>
+              <BreadcrumbLink href="/brand">Brand</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem className="capitalize">
-              {brandData.slug}
+              {brandData.slug || brandData.brandname}
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>

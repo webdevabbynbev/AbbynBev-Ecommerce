@@ -6,6 +6,7 @@ import { useDebounce } from "../hook/useDebounce";
 import { getProducts } from "@/services/api/product.services";
 import { getBrands } from "@/services/api/brands.services";
 
+
 const BestSeller = () => {
   const [products, setProducts] = useState([]);
   const [brands, setBrands] = useState([]);
@@ -17,17 +18,12 @@ const BestSeller = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-
-        // 1. Ambil data secara paralel
         const [resProducts, resBrands] = await Promise.all([
-          getProducts({}), // Gunakan objek kosong agar tidak ada filter nyangkut
+          getProducts({}),
           getBrands(),
         ]);
 
-        // 2. Debugging: Cek apakah data produk benar-benar ada isinya
         console.log("Data Produk dari API:", resProducts.data);
-
-        // 3. Set state (Pastikan resProducts.data adalah array hasil normalize)
         setProducts(resProducts.data || []);
         setBrands(resBrands.data || []);
       } catch (error) {

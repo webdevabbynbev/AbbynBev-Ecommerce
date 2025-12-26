@@ -75,7 +75,7 @@ export default async function Page({ params }) {
   const normalized = {
     ...p,
     
-    brand: brandName,
+    brand: brandName, // Tambahkan ini agar variabel brandName di atas terpakai
     brand_id: p?.brand_id,
     brandSlug,
 
