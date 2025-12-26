@@ -173,11 +173,13 @@ export class BiteshipTrackingService {
 
     // update transaction status
     if (this.isDelivered(bsStatus)) {
-      trx.transactionStatus = TransactionStatus.COMPLETED.toString() as any
-      await trx.save()
+      if (current !== TransactionStatus.ON_DELIVERY.toString()) {
+        trx.transactionStatus = TransactionStatus.ON_DELIVERY.toString() as any
+        await trx.save()
+      }
       return
     }
-
+    
     if (this.isFailed(bsStatus)) {
       trx.transactionStatus = TransactionStatus.FAILED.toString() as any
       await trx.save()

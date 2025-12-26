@@ -64,7 +64,10 @@ function unwrapResponse(raw) {
   // handle: { message, serve: { data, waybill } }
   if (raw?.serve) raw = raw.serve;
   // handle: { data: TransactionEcommerce, waybill }
-  if (raw?.data && (raw?.waybill !== undefined || raw?.data?.transaction || raw?.data?.transactionId)) {
+  if (
+    raw?.data &&
+    (raw?.waybill !== undefined || raw?.data?.transaction || raw?.data?.transactionId)
+  ) {
     raw = raw.data;
   }
   return raw;
@@ -127,7 +130,11 @@ function buildAddressText(userAddress) {
   const line2Old = [subDistrict, district, city, province].filter(Boolean).join(", ");
   const line2 = areaName || line2Old;
 
-  return { line1: addr, line2: line2 || "-", postal: postal ? String(postal) : "" };
+  return {
+    line1: addr,
+    line2: line2 || "-",
+    postal: postal ? String(postal) : "",
+  };
 }
 
 function normalizeOrder(rawInput) {
@@ -146,7 +153,9 @@ function normalizeOrder(rawInput) {
   const userAddress = ecommerce?.userAddress || ecommerce?.user_address || null;
   const user = ecommerce?.user || trx?.user || {};
 
-  const statusKey = mapTransactionStatus(trx?.transactionStatus ?? trx?.transaction_status ?? trx?.status);
+  const statusKey = mapTransactionStatus(
+    trx?.transactionStatus ?? trx?.transaction_status ?? trx?.status
+  );
   const badge = STATUS_BADGE[statusKey] || STATUS_BADGE.unknown;
 
   const items = details.map((d) => {
@@ -155,7 +164,9 @@ function normalizeOrder(rawInput) {
     const thumb = medias?.[0]?.url || p?.thumbnail || p?.image || "/placeholder.png";
 
     return {
-      id: d?.id ?? `${trx?.transactionNumber || trx?.transaction_number || "trx"}-${d?.productId || "item"}`,
+      id:
+        d?.id ??
+        `${trx?.transactionNumber || trx?.transaction_number || "trx"}-${d?.productId || "item"}`,
       name: p?.name || p?.title || "-",
       variant: d?.variant?.sku || d?.variant?.name || d?.attributes || "-",
       qty: n(d?.qty, 0),
@@ -169,8 +180,7 @@ function normalizeOrder(rawInput) {
 
   const shipmentFee = n(sh?.price ?? ecommerce?.shippingCost ?? ecommerce?.shipping_cost, 0);
   const total =
-    n(trx?.grandTotal ?? trx?.grand_total ?? trx?.amount ?? trx?.total, 0) ||
-    subtotal + shipmentFee;
+    n(trx?.grandTotal ?? trx?.grand_total ?? trx?.amount ?? trx?.total, 0) || subtotal + shipmentFee;
 
   const addrText = buildAddressText(userAddress);
 
@@ -191,11 +201,7 @@ function normalizeOrder(rawInput) {
     user?.phone ||
     "-";
 
-  const courierName =
-    sh?.service ||
-    ecommerce?.courierName ||
-    ecommerce?.courier_name ||
-    "-";
+  const courierName = sh?.service || ecommerce?.courierName || ecommerce?.courier_name || "-";
 
   const courierService =
     sh?.serviceType ||
@@ -204,11 +210,7 @@ function normalizeOrder(rawInput) {
     ecommerce?.courier_service ||
     "";
 
-  const resi =
-    sh?.resiNumber ||
-    sh?.resi_number ||
-    "";
-
+  const resi = sh?.resiNumber || sh?.resi_number || "";
   const estimated = sh?.estimationArrival || sh?.estimation_arrival || "";
 
   return {
@@ -250,7 +252,6 @@ export default function OrderTrackingPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [order, setOrder] = useState(null);
 
-  // ✅ tambahan (tanpa ubah yang lain)
   const [confirming, setConfirming] = useState(false);
   const [infoMsg, setInfoMsg] = useState("");
 
@@ -259,20 +260,17 @@ export default function OrderTrackingPage() {
   const fetchOrder = async () => {
     if (!transactionNumberFromUrl) return;
 
-    try {
-      setLoading(true);
-      setErrorMsg("");
+    setLoading(true);
+    setErrorMsg("");
 
-      // ✅ 1) retrieve (paling lengkap) — FIX: ambil serve.data
+    try {
+      // 1) retrieve (paling lengkap)
       try {
         const res0 = await axios.post("/transaction/retrieve", {
           transaction_number: transactionNumberFromUrl,
         });
 
-        const payload =
-          res0?.data?.serve?.data ||
-          res0?.data?.data ||
-          res0?.data;
+        const payload = res0?.data?.serve?.data || res0?.data?.data || res0?.data;
 
         if (payload) {
           setOrder(normalizeOrder(payload));
@@ -282,7 +280,7 @@ export default function OrderTrackingPage() {
         // ignore -> fallback
       }
 
-      // ✅ 2) fallback list by filter
+      // 2) fallback list by filter
       const res = await axios.get("/transaction", {
         params: { transaction_number: transactionNumberFromUrl, page: 1, per_page: 1 },
       });
@@ -304,7 +302,6 @@ export default function OrderTrackingPage() {
     }
   };
 
-  // ✅ tambahan (tanpa ubah yang lain)
   const handleConfirmDone = async () => {
     if (!order?.transactionNumber || confirming) return;
 
@@ -417,8 +414,7 @@ export default function OrderTrackingPage() {
                 {!isLast && (
                   <div
                     className={
-                      "flex-1 h-[2px] mx-2 " +
-                      (index < currentStep ? "bg-pink-600" : "bg-gray-200")
+                      "flex-1 h-[2px] mx-2 " + (index < currentStep ? "bg-pink-600" : "bg-gray-200")
                     }
                   />
                 )}
@@ -428,10 +424,17 @@ export default function OrderTrackingPage() {
         </div>
       </div>
 
-      {/* ✅ tambahan info sukses (optional, gak ngubah layout utama) */}
+      {/* ✅ sukses */}
       {infoMsg ? (
         <div className="mb-4 border border-green-200 bg-green-50 text-green-700 rounded-lg p-3 text-sm">
           {infoMsg}
+        </div>
+      ) : null}
+
+      {/* ✅ error (ini yang sebelumnya belum keliatan pas order ada) */}
+      {errorMsg ? (
+        <div className="mb-4 border border-red-200 bg-red-50 text-red-700 rounded-lg p-3 text-sm">
+          {errorMsg}
         </div>
       ) : null}
 
@@ -444,11 +447,13 @@ export default function OrderTrackingPage() {
 
           <div className="text-right space-y-2">
             <p className="text-xs text-gray-500">No pesanan: {order.transactionNumber}</p>
-            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${order.statusCls}`}>
+            <span
+              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${order.statusCls}`}
+            >
               {order.statusLabel}
             </span>
 
-            {/* ✅ tambahan tombol (hanya on_delivery) */}
+            {/* tombol hanya saat on_delivery */}
             {order.statusKey === "on_delivery" && (
               <button
                 onClick={handleConfirmDone}

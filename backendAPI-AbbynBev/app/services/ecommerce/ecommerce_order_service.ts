@@ -123,8 +123,8 @@ export class EcommerceOrderService {
     await shipment.save()
 
     // opsional: sekalian update transaction status biar konsisten
-    if (delivered && transaction.transactionStatus !== TransactionStatus.COMPLETED.toString()) {
-      transaction.transactionStatus = TransactionStatus.COMPLETED.toString()
+        if (delivered && transaction.transactionStatus !== TransactionStatus.ON_DELIVERY.toString()) {
+      transaction.transactionStatus = TransactionStatus.ON_DELIVERY.toString()
       await transaction.save()
     }
 

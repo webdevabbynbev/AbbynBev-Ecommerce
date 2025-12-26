@@ -53,7 +53,10 @@ if (!g.__AUTO_COMPLETE_ORDERS_TIMER__) {
           const st = track?.status || ''
 
           if (isDeliveredStatus(st)) {
-            sh.status = 'Delivered'
+             sh.status = 'Delivered'
+            if (!sh.deliveredAt) {
+              sh.deliveredAt = DateTime.now()
+            }
             await sh.useTransaction(trxDb).save()
           } else if (st && String(sh.status || '') !== String(st)) {
             // optional: simpan status progress (Pickup/On Process/dll)
@@ -71,7 +74,7 @@ if (!g.__AUTO_COMPLETE_ORDERS_TIMER__) {
       const toComplete = await Transaction.query({ client: trxDb })
         .where('transactionStatus', TransactionStatus.ON_DELIVERY.toString())
         .whereHas('shipments', (q) => {
-          q.where('status', 'Delivered').where('updated_at', '<=', cutoff)
+          q.whereNotNull('delivered_at').where('delivered_at', '<=', cutoff)
         })
         .preload('shipments')
         .limit(200)

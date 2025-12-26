@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { FaStar } from "react-icons/fa";
 import { formatToRupiah, getDiscountPercent } from "@/utils";
@@ -36,6 +37,7 @@ const RATING_OPTIONS = [
 ];
 
 export default function ProductDetailClient({ product }) {
+  const router = useRouter();
   const variants = product.variantItems ?? []; // [{ id, label, price, stock }]
   const [selectedVariant, setSelectedVariant] = useState(
     variants.length === 1 ? variants[0].label : null
@@ -79,6 +81,18 @@ export default function ProductDetailClient({ product }) {
   const brandSlug = brandObj?.slug || product.brandSlug || "";
   const handleAddToCart = async () => {
     try {
+         const token =
+        typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+      if (!token) {
+        alert("Silakan login dulu untuk menambahkan ke keranjang.");
+        if (typeof window !== "undefined") {
+          window.location.href = "/sign-in";
+        } else {
+          router.push("/sign-in");
+        }
+        return;
+      }
       if (!product?.id) {
         alert("Product id tidak ditemukan");
         return;
@@ -112,10 +126,20 @@ export default function ProductDetailClient({ product }) {
       alert(res.data?.message || "Produk berhasil dimasukkan ke keranjang");
     } catch (error) {
       console.error("Gagal menambah ke keranjang", error);
-      const msg =
-        error?.response?.data?.message ||
-        "Terjadi kesalahan saat menambah ke keranjang";
+      const isUnauthorized = error?.response?.status === 401;
+      const msg = isUnauthorized
+        ? "Sesi kamu habis. Silakan login ulang."
+        : error?.response?.data?.message ||
+          "Terjadi kesalahan saat menambah ke keranjang";
       alert(msg);
+      if (isUnauthorized) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("token");
+          window.location.href = "/sign-in";
+        } else {
+          router.push("/sign-in");
+        }
+      }
     }
   };
 
