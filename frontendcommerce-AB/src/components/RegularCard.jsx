@@ -8,8 +8,8 @@ import { DataReview } from "@/data";
 import { getAverageRating } from "@/utils";
 import { slugify } from "@/utils";
 
-export function RegularCard({ item: raw }) {
-  // stop kalau item belum ada
+export function RegularCard({ product }) {
+  const raw = product;
   if (!raw) return null;
 
   // Normalisasi & fallback data agar aman
@@ -19,7 +19,7 @@ export function RegularCard({ item: raw }) {
     // ambil harga prioritas: price → realprice → salePrice → prices[0] → 0
     price: Number(
       raw.price ??
-        raw.realprice ??
+        raw.basePrice ??
         raw.salePrice ??
         (Array.isArray(raw.prices) ? raw.prices[0] : undefined) ??
         0
@@ -85,18 +85,16 @@ export function RegularCard({ item: raw }) {
     ? slugify(raw.slug)
     : slugify(raw.name ?? raw.productName ?? raw.title ?? "");
 
-  const categorySlug = slugify(raw.categorySlug ?? raw.category ?? "");
+  const brandSlug = slugify(
+    raw.brandSlug ?? raw.brand?.slug ?? raw.brand?.name ?? raw.brand ?? ""
+  );
 
-  const path =
-    raw.path ??
-    raw.product?.path ??
-    (categorySlug ? `${categorySlug}/${productSlug}` : productSlug);
+  const path = brandSlug ? `${brandSlug}/${productSlug}` : productSlug;
 
-  const href = path
-    ? `/${String(path)
-        .split("/")
-        .map(encodeURIComponent)
-        .join("/")}`
+  const normalizedPath = path ? String(path).replace(/^\/+|\/+$/g, "") : "";
+
+  const href = normalizedPath
+    ? `/${normalizedPath.split("/").map(encodeURIComponent).join("/")}`
     : "#";
 
   return (

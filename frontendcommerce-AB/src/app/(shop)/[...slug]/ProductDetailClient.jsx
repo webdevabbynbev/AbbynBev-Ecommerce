@@ -5,6 +5,8 @@ import { formatDistanceToNow } from "date-fns";
 import { FaStar } from "react-icons/fa";
 import { formatToRupiah, getDiscountPercent } from "@/utils";
 import axios from "@/lib/axios";
+import { getProducts } from "@/services/api/product.services";
+import { getBrands } from "@/services/api/brands.services";
 
 import {
   Select,

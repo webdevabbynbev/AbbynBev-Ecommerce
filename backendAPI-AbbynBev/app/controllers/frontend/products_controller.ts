@@ -11,6 +11,7 @@ export default class ProductsController {
           ? queryString.category_type.split(',')
           : queryString.category_type
       const sortBy = queryString.field || 'position'
+      const isFlashSale = queryString.is_flash_sale
       const sortType = queryString.value || 'ASC'
       const page = isNaN(parseInt(queryString.page)) ? 1 : parseInt(queryString.page)
       const perPage = isNaN(parseInt(queryString.per_page)) ? 10 : parseInt(queryString.per_page)
@@ -24,6 +25,12 @@ export default class ProductsController {
         .join('products', 'products.id', '=', 'product_onlines.product_id')
         .if(name, (q) => q.where('products.name', 'like', `%${name}%`))
         .if(categoryType, (q) => q.whereIn('products.category_type_id', categoryType))
+        .if(isFlashSale, (q) => {
+          // Jika isFlashSale bernilai 'true' atau '1', filter produknya
+          q.where('products.is_flash_sale', isFlashSale === 'true' ? 1 : isFlashSale)
+        })
+        // ----------------------------------
+
         .preload('product', (q) => {
           q.apply((scopes) => scopes.active())
             .withCount('reviews', (reviewQuery) => reviewQuery.as('review_count'))

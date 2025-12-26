@@ -3,20 +3,15 @@ import { normalizeProduct } from "./normalizers/product";
 
 export async function getProducts(params = {}) {
   const json = await getApi(`/products${toQuery(params)}`);
-
-  const serve = json?.serve;
-  const rows = Array.isArray(serve?.data) ? serve.data : [];
-  const products = rows
-    .map((r) => normalizeProduct(r?.product ?? r))
-    .filter(Boolean);
+  
+  // Ambil data dari 'serve'
+  const rawRows = json?.serve?.data || []; 
+  
+  // Petakan ke normalizer
+  const normalizedData = rawRows.map(normalizeProduct).filter(Boolean);
 
   return {
-    data: products,
-    meta: {
-      total: serve?.total,
-      perPage: serve?.perPage,
-      currentPage: serve?.currentPage,
-      lastPage: serve?.lastPage,
-    },
+    data: normalizedData,
+    meta: json?.serve || {}
   };
 }
