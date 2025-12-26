@@ -10,13 +10,16 @@ export class BiteshipOrderService {
   async createReceiptForTransaction(trx: any, transaction: any) {
     const shipment: any = transaction.shipments?.[0]
     if (!shipment) throw new Error('Shipment not found.')
-    if (shipment.resiNumber) throw new Error('Resi sudah ada untuk transaksi ini.')
+
+    // ✅ kompatibel model baru/lama
+    const existingResi = String(shipment.resiNumber ?? shipment.resi_number ?? '').trim()
+    if (existingResi) throw new Error('Resi sudah ada untuk transaksi ini.')
 
     const user: any = transaction.ecommerce?.user
     const userAddress: any = transaction.ecommerce?.userAddress
     if (!user || !userAddress) throw new Error('User address not found.')
 
-    const totalWeight = transaction.details.reduce((acc: number, d: any) => {
+    const totalWeight = (transaction.details || []).reduce((acc: number, d: any) => {
       const productWeight = Number(d.product?.weight || 0)
       const qty = Number(d.qty || 0)
       return acc + productWeight * qty
@@ -35,7 +38,14 @@ export class BiteshipOrderService {
     ])
 
     const destPostal = toPostalNumber(
-      pickFirstString(userAddress, ['postalCode', 'postal_code', 'zipCode', 'zip', 'kodePos', 'kode_pos'])
+      pickFirstString(userAddress, [
+        'postalCode',
+        'postal_code',
+        'zipCode',
+        'zip',
+        'kodePos',
+        'kode_pos',
+      ])
     )
 
     if (!destAreaId && !destPostal) {
@@ -44,15 +54,32 @@ export class BiteshipOrderService {
       )
     }
 
-    const destinationContactName = String(shipment.pic || user.fullName || user.name || 'Customer')
-    const destinationContactPhone = String(shipment.pic_phone || user.phone || '')
-    const destinationAddress = String(userAddress.address || '')
+    // ✅ FIX UTAMA: picPhone (model baru) + pic_phone (lama)
+    const destinationContactName = String(
+      pickFirstString(shipment, ['pic']) ||
+        pickFirstString(user, ['fullName', 'full_name', 'name']) ||
+        'Customer'
+    ).trim()
+
+    const destinationContactPhone = String(
+      pickFirstString(shipment, ['picPhone', 'pic_phone', 'phone']) ||
+        pickFirstString(userAddress, ['phone', 'receiverPhone', 'receiver_phone', 'picPhone', 'pic_phone']) ||
+        pickFirstString(user, ['phone', 'phoneNumber', 'phone_number']) ||
+        ''
+    ).trim()
+
+    // ✅ alamat: prioritas shipment.address (karena itu yang dipakai saat checkout), fallback ke userAddress
+    const destinationAddress = String(
+      pickFirstString(shipment, ['address']) ||
+        pickFirstString(userAddress, ['address', 'line1', 'addressLine1', 'detail', 'fullAddress']) ||
+        ''
+    ).trim()
 
     if (!destinationContactPhone || !destinationAddress) {
       throw new Error('PIC phone / alamat tujuan wajib ada untuk create order Biteship.')
     }
 
-    const items = transaction.details.map((d: any) => {
+    const items = (transaction.details || []).map((d: any) => {
       const price = Number(d.variant?.price ?? d.price ?? 0)
       const weight = Number(d.product?.weight ?? 0) || 1
       return {
@@ -71,14 +98,15 @@ export class BiteshipOrderService {
 
     if (!items.length) throw new Error('Order items kosong.')
 
-    const courierCompany = String(shipment.service || '').toLowerCase()
-    const courierType = String(shipment.serviceType || '').toLowerCase()
+    // ✅ kompatibel serviceType / service_type
+    const courierCompany = String(shipment.service || '').trim().toLowerCase()
+    const courierType = String(shipment.serviceType ?? shipment.service_type ?? '').trim().toLowerCase()
 
     if (!courierCompany || !courierType) {
       throw new Error('Courier company / type kosong di shipment. Pastikan user memilih shipping method saat checkout.')
     }
 
-    const referenceId = String(transaction.transactionNumber || transaction.id)
+    const referenceId = String(transaction.transactionNumber || transaction.transaction_number || transaction.id)
 
     const biteshipPayload: any = {
       shipper_contact_name: String(env.get('COMPANY_NAME') || 'Abby n Bev'),

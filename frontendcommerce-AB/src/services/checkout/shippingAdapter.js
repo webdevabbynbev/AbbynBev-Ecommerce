@@ -2,29 +2,21 @@ import { n } from "@/utils/number";
 
 const FILTER_CARGO = /JTR|TRUCK|CARGO|KARGO/i;
 
-// ✅ supaya groupByCourier gak error (di kode kamu PREFERRED belum ada)
-const PREFERRED = [
-  "REG",
-  "YES",
-  "CTC",
-  "ECO",
-  "OKE",
-  "ONS",
-  "SDS",
-  "SD",
-  "EXP",
-];
+const PREFERRED = ["REG", "YES", "CTC", "ECO", "OKE", "ONS", "SDS", "SD", "EXP"];
 
 function buildEtd(x) {
   const range =
     x?.shipment_duration_range ??
+    x?.shipmentDurationRange ??
     x?.duration_range ??
     x?.durationRange ??
     x?.etd ??
     x?.estimate ??
     "";
+
   const unit =
     x?.shipment_duration_unit ??
+    x?.shipmentDurationUnit ??
     x?.duration_unit ??
     x?.durationUnit ??
     "";
@@ -32,6 +24,16 @@ function buildEtd(x) {
   const r = String(range || "").trim();
   const u = String(unit || "").trim();
 
+  // ✅ biteship native format
+  if (r && u) return `${r} ${u}`;
+  if (r) return r;
+  return "";
+}
+
+function buildEtdFromRaw(raw) {
+  if (!raw) return "";
+  const r = String(raw?.shipment_duration_range ?? raw?.shipmentDurationRange ?? "").trim();
+  const u = String(raw?.shipment_duration_unit ?? raw?.shipmentDurationUnit ?? "").trim();
   if (r && u) return `${r} ${u}`;
   if (r) return r;
   return "";
@@ -50,7 +52,7 @@ export function normalizeShipping(payload) {
   const flat = [];
 
   for (const x of list) {
-    // ✅ Biteship pricing item (paling penting)
+    // ✅ Biteship pricing item
     const looksLikeBiteship =
       x &&
       (x?.courier_service_code ||
@@ -82,48 +84,47 @@ export function normalizeShipping(payload) {
       ).trim();
 
       const desc = String(x?.description ?? x?.desc ?? serviceName ?? "").trim();
-
       const cost = n(x?.price ?? x?.cost ?? x?.value ?? x?.amount ?? 0, 0);
-      const etd = buildEtd(x);
+
+      const estimate = buildEtd(x); // ✅ format asli biteship
 
       flat.push({
         code,
         service,
         description: desc,
         cost,
-        etd,
+        estimate,
         raw: x,
       });
       continue;
     }
 
-    // ✅ RajaOngkir style (biar tetap kompatibel)
+    // ✅ RajaOngkir style (compat)
     if (Array.isArray(x?.costs)) {
       const code = String(x?.code ?? x?.courier ?? x?.name ?? "").trim();
       for (const c of x.costs) {
         let val = 0;
-        let etd = "";
+        let estimate = "";
         if (Array.isArray(c?.cost) && c.cost[0]) {
           val = n(c.cost[0]?.value ?? c.cost[0]?.cost ?? c.cost[0]?.amount ?? 0, 0);
-          etd = String(c.cost[0]?.etd ?? c.cost[0]?.estimate ?? "").trim();
+          estimate = String(c.cost[0]?.etd ?? c.cost[0]?.estimate ?? "").trim();
         } else {
           val = n(c?.cost ?? c?.price ?? c?.value ?? 0, 0);
-          etd = String(c?.etd ?? c?.estimate ?? "").trim();
+          estimate = String(c?.etd ?? c?.estimate ?? "").trim();
         }
 
         flat.push({
           code,
-          service: c?.service ?? c?.service_code ?? c?.serviceCode,
+          service: c?.service ?? c?.service_code ?? c?.serviceCode ?? "REG",
           description: c?.description ?? c?.desc ?? "",
           cost: val,
-          etd,
+          estimate,
           raw: { courier: x, service: c },
         });
       }
       continue;
     }
 
-    // fallback
     flat.push(x);
   }
 
@@ -158,7 +159,16 @@ export function normalizeShipping(payload) {
       .toUpperCase();
 
     const cost = n(x?.cost ?? x?.price ?? x?.value ?? x?.amount ?? 0, 0);
-    const etd = String(x?.etd ?? x?.estimate ?? "").trim();
+
+    const estimate = String(
+      x?.estimate ??
+        x?.etd ??
+        x?.estimate_text ??
+        x?.estimateText ??
+        buildEtdFromRaw(x?.raw) ??
+        ""
+    ).trim();
+
     const desc = String(
       x?.description ??
         x?.desc ??
@@ -183,7 +193,7 @@ export function normalizeShipping(payload) {
       name: `${code} - ${service}`,
       description: desc,
       price: cost,
-      estimate: etd || "-",
+      estimate: estimate || "-",
       raw: x?.raw ?? x,
     });
   }

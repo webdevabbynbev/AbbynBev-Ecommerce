@@ -97,7 +97,7 @@ export default function CheckoutPage() {
         shipping_service_type: confirmedShipping.courier,
         shipping_service: confirmedShipping.service,
         shipping_price: confirmedShipping.price,
-         shipping_etd: shippingEtd,
+        shipping_etd: confirmedShipping.estimate ?? null,
         weight: weightRounded,
         is_protected: false,
         protection_fee: 0,
