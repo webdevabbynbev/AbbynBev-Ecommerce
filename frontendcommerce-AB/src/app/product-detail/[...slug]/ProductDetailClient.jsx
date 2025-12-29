@@ -505,3 +505,6 @@ export default function ProductDetailClient({ product }) {
     </div>
   );
 }
+
+
+//
