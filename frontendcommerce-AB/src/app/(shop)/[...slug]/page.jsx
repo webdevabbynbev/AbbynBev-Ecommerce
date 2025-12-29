@@ -13,30 +13,33 @@ function toBackendImageUrl(url) {
 
 export default async function Page({ params }) {
   const { slug } = await params;
-  
+
   if (slug.length === 1) {
-  const brandSlug = slug[0];
-  const brands = await getBrands({ slug: brandSlug });
-  const brandInfo = brands[0]; 
+    const brandSlug = slug[0];
+    const brands = await getBrands({ slug: brandSlug });
+    const brandInfo = brands[0];
 
-  if (!brandInfo) return <div>Brand Not Found</div>;
+    if (!brandInfo) return <div>Brand Not Found</div>;
 
-  const brandProducts = await getProducts({ brand: brandSlug });
+    const brandProducts = await getProducts({ brand: brandSlug });
 
-  const dataForClient = {
-    ...brandInfo,
-    products: brandProducts.data || []
-  };
+    const dataForClient = {
+      ...brandInfo,
+      products: brandProducts.data || [],
+    };
 
-  return <BrandDetailClient brandData={dataForClient} />;
-}
+    return <BrandDetailClient brandData={dataForClient} />;
+  }
 
   // 2. LOGIKA HALAMAN PRODUK (Jika slug 2 segment atau lebih, misal: /emina/sun-battle)
   const productSlug = slug[slug.length - 1];
 
   // Gunakan fungsi getProducts dengan filter slug produk
   const result = await getProducts({ slug: productSlug });
-  const product = result.data[0]; // Ambil hasil pertama dari array data
+  const product =
+    result.data.find(
+      (item) => item.slug === productSlug || item.path === productSlug
+    ) || result.data[0];
 
   if (!product) {
     return (
@@ -47,7 +50,14 @@ export default async function Page({ params }) {
     );
   }
 
-  const p = result.dataRaw?.[0] || result.data?.[0];
+  const rawRow =
+    result.dataRaw?.find((item) => {
+      const rawItem = item?.product || item;
+      return rawItem?.slug === productSlug || rawItem?.path === productSlug;
+    }) ||
+    result.dataRaw?.[0] ||
+    product;
+  const p = rawRow?.product || rawRow;
 
   const medias = (p?.medias ?? []).map((m) => ({
     ...m,
@@ -69,15 +79,18 @@ export default async function Page({ params }) {
     ? variantItems.reduce((s, v) => s + (Number(v.stock) || 0), 0)
     : Number(p?.stock ?? 0);
 
-  const brandName = p?.brand?.name ?? "";
-  const brandSlug = p?.brand?.slug ?? "";
+  const brandName = p?.brand?.name ?? p?.brand ?? product?.brand ?? "";
+  const brandSlug =
+    p?.brand?.slug ?? p?.brandSlug ?? p?.brand_slug ?? product?.brandSlug ?? "";
 
   const normalized = {
     ...p,
-    
+
     brand: brandName, // Tambahkan ini agar variabel brandName di atas terpakai
     brand_id: p?.brand_id,
     brandSlug,
+    name: p?.name ?? product?.name ?? "Unnamed Product",
+    slug: p?.slug ?? p?.path ?? product?.slug ?? "",
 
     image: medias?.[0]?.url ?? "/images/sample-product.jpg",
     images: medias.map((m) => m.url),
@@ -87,7 +100,6 @@ export default async function Page({ params }) {
     realprice: basePrice,
     price: basePrice, // belum ada discount → samain dulu
     sale: Boolean(p?.is_flashsale),
-    
 
     variant_value: variantItems.length ? "Variant" : "",
     variant: variantItems.map((v) => v.label),

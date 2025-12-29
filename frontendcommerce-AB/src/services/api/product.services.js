@@ -12,6 +12,7 @@ export async function getProducts(params = {}) {
 
   return {
     data: normalizedData,
+    dataRaw: rawRows,
     meta: json?.serve || {}
   };
 }
