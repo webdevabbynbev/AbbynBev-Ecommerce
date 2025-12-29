@@ -64,7 +64,7 @@ export class EcommerceOrderService {
       }
 
       // cuma boleh confirm kalau sedang ON_DELIVERY
-      if (transaction.transactionStatus !== TransactionStatus.ON_DELIVERY.toString()) {
+      if (Number(transaction.transactionStatus) !== TransactionStatus.ON_DELIVERY) {
         const err: any = new Error('Pesanan belum dikirim, belum bisa dikonfirmasi selesai.')
         err.httpStatus = 400
         throw err
