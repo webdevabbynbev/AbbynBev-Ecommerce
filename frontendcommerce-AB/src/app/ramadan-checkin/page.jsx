@@ -159,7 +159,7 @@ export default function RamadanCheckinPage() {
   }, []);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-10">
+    <div className="max-w-6xl mx-auto px-4 py-10">
       {successModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
@@ -218,19 +218,31 @@ export default function RamadanCheckinPage() {
           </div>
         </div>
       )}
-      <h1 className="text-2xl font-semibold text-gray-900">Ramadan Check-in</h1>
-      <p className="text-sm text-gray-500 mt-1">
-        Kumpulkan check-in harian selama Ramadan untuk mendapatkan reward di akhir.
-      </p>
+      <div className="rounded-3xl border border-pink-100 bg-gradient-to-br from-pink-50 via-white to-amber-50 p-6 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-widest text-pink-600">
+          Ramadan Challenge
+        </p>
+        <h1 className="mt-2 text-3xl font-semibold text-gray-900">Ramadan Check-in</h1>
+        <p className="mt-2 text-sm text-gray-600 max-w-2xl">
+          Kumpulkan check-in harian selama Ramadan untuk mendapatkan reward di akhir.
+          Tandai juga hari exempt jika sedang sakit, perjalanan, atau periode.
+        </p>
+      </div>
 
-      <div className="mt-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
         {loading ? (
           <p className="text-gray-400">Memuat status check-in...</p>
         ) : (
           <>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="text-lg font-semibold text-gray-900">
-                {status.checkedCount}/{status.totalDays} hari
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-lg font-semibold text-gray-900">
+                  {status.checkedCount}/{status.totalDays} hari
+                </div>
+                <p className="text-xs text-gray-500">
+                  Target harian check-in & exempt
+                </p>
               </div>
               {isSelectedChecked ? (
                 <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
@@ -264,11 +276,11 @@ export default function RamadanCheckinPage() {
             )}
 
             <div className="mt-6 flex flex-col gap-4">
-              <div>
-                <div className="flex items-center justify-between mb-3">
+              <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                   <div>
                     <p className="text-sm text-gray-600">Pilih tanggal check-in</p>
-                    <p className="text-sm font-semibold text-gray-900">
+                    <p className="text-base font-semibold text-gray-900">
                       {format(currentMonth, "MMMM yyyy")}
                     </p>
                   </div>
@@ -276,14 +288,14 @@ export default function RamadanCheckinPage() {
                     <button
                       type="button"
                       onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                      className="px-3 py-1 text-sm border rounded-lg hover:bg-gray-50"
+                      className="h-9 w-9 rounded-full border bg-white text-sm hover:bg-gray-50"
                     >
                       ←
                     </button>
                     <button
                       type="button"
                       onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                      className="px-3 py-1 text-sm border rounded-lg hover:bg-gray-50"
+                      className="h-9 w-9 rounded-full border bg-white text-sm hover:bg-gray-50"
                     >
                       →
                     </button>
@@ -300,7 +312,7 @@ export default function RamadanCheckinPage() {
 
                 <div className="grid grid-cols-7 gap-2">
                   {calendarDays.leadingEmpty.map((_, idx) => (
-                    <div key={`empty-${idx}`} className="h-10" />
+                    <div key={`empty-${idx}`} className="h-11" />
                   ))}
                   {calendarDays.days.map((day) => {
                     const value = format(day, "yyyy-MM-dd");
@@ -313,9 +325,9 @@ export default function RamadanCheckinPage() {
                         key={value}
                         type="button"
                         onClick={() => setSelectedDate(value)}
-                        className={`h-10 rounded-lg border text-sm font-medium transition ${
+                        className={`h-11 rounded-xl border text-sm font-medium transition ${
                           isSelected
-                            ? "bg-pink-600 text-white border-pink-600"
+                            ? "bg-pink-600 text-white border-pink-600 shadow-sm"
                             : isChecked
                             ? "bg-green-100 text-green-700 border-green-200"
                             : isExempt
@@ -328,13 +340,28 @@ export default function RamadanCheckinPage() {
                     );
                   })}
                 </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full bg-green-200" />
+                    Check-in
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full bg-yellow-200" />
+                    Exempt
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full bg-pink-500" />
+                    Dipilih
+                  </div>
+                </div>
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <button
-                onClick={handleCheckin}
-                disabled={isSelectedChecked || isSelectedExempt || submitting}
-                className={`w-full sm:w-auto px-6 py-2 rounded-lg text-white font-medium ${
+                <button
+                  onClick={handleCheckin}
+                  disabled={isSelectedChecked || isSelectedExempt || submitting}
+                  className={`w-full sm:w-auto px-6 py-2 rounded-lg text-white font-medium ${
                   isSelectedChecked || isSelectedExempt || submitting
                     ? "bg-gray-300 cursor-not-allowed"
                     : "bg-pink-600 hover:bg-pink-700"
@@ -417,6 +444,38 @@ export default function RamadanCheckinPage() {
             )}
           </>
         )}
+        </div>
+
+        <aside className="space-y-6">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <p className="text-sm font-semibold text-gray-900">Ringkasan</p>
+            <div className="mt-3 space-y-2 text-sm text-gray-600">
+              <div className="flex items-center justify-between">
+                <span>Total check-in</span>
+                <span className="font-semibold text-gray-900">{status.checkedCount}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Total exempt</span>
+                <span className="font-semibold text-gray-900">{status.exemptCount}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Hari terpilih</span>
+                <span className="font-semibold text-gray-900">
+                  {format(new Date(selectedDate), "dd MMM yyyy")}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <p className="text-sm font-semibold text-gray-900">Tips Ramadan</p>
+            <ul className="mt-3 space-y-2 text-sm text-gray-600">
+              <li>Atur jadwal check-in di waktu yang sama setiap hari.</li>
+              <li>Gunakan exempt jika sedang sakit atau perjalanan.</li>
+              <li>Lengkapi 30 hari untuk reward spesial.</li>
+            </ul>
+          </div>
+        </aside>
       </div>
     </div>
   );
