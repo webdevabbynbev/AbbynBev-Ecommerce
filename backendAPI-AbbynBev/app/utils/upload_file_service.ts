@@ -1,9 +1,9 @@
 import path from 'path'
 import fs from 'fs'
 import drive from '@adonisjs/drive/services/main'
-import env from '#start/env'
 import { cuid } from '@adonisjs/core/helpers'
 import { replaceUrlUnsafeCharacters, stripFileExtension } from './helpers.js'
+import { v2 as cloudinary } from 'cloudinary'
 
 export const uploadFile = async (file: any, options: { folder: string; type: string }) => {
   try {
@@ -29,7 +29,26 @@ export const uploadFile = async (file: any, options: { folder: string; type: str
 
     const newFile = `${folder}/${fileType}${filename}-${cuid()}.${fileExtension}`
 
-    await drive.use(env.get('DRIVE_DISK')).put(newFile, await fs.promises.readFile(file.tmpPath), {
+    if (
+      process.env.CLOUDINARY_CLOUD_NAME &&
+      process.env.CLOUDINARY_API_KEY &&
+      process.env.CLOUDINARY_API_SECRET
+    ) {
+      cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET,
+      })
+
+      const uploaded = await cloudinary.uploader.upload(file.tmpPath, {
+        folder,
+        resource_type: 'auto',
+      })
+
+      return uploaded.secure_url
+    }
+
+    await drive.use('fs').put(newFile, await fs.promises.readFile(file.tmpPath), {
       contentType: fileMimeType,
       visibility: 'private',
     })

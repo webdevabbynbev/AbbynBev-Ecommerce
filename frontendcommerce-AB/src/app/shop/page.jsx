@@ -65,6 +65,7 @@ function HeartButton() {
 }
 
 export default function ShopPage() {
+  const perPage = 20;
   const [activeCategory, setActiveCategory] = useState("All");
   const [sortBy, setSortBy] = useState("recommended");
   const [minRating, setMinRating] = useState(0);
@@ -73,6 +74,9 @@ export default function ShopPage() {
 
   const [dbProducts, setDbProducts] = useState([]);
   const [loadingDb, setLoadingDb] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
   useEffect(() => {
     let ignore = false;
@@ -83,9 +87,12 @@ export default function ShopPage() {
 
         const apiUrl =
           process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333/api/v1";
-          const res = await fetch(`${apiUrl}/products?page=1&per_page=50`, {
-          cache: "no-store",
-        });
+        const res = await fetch(
+          `${apiUrl}/products?page=${currentPage}&per_page=${perPage}`,
+          {
+            cache: "no-store",
+          }
+        );
 
         const json = await res.json();
         const rows = json?.serve?.data ?? [];
@@ -125,8 +132,25 @@ export default function ShopPage() {
           });
 
         if (!ignore) setDbProducts(mapped);
+        const total =
+          Number(json?.serve?.total ?? json?.serve?.meta?.total) || mapped.length;
+        const lastPage =
+          Number(
+            json?.serve?.last_page ??
+              json?.serve?.meta?.last_page ??
+              json?.serve?.total_pages
+          ) || Math.max(1, Math.ceil(total / perPage));
+
+        if (!ignore) {
+          setTotalItems(total);
+          setTotalPages(lastPage);
+        }
       } catch (e) {
-        if (!ignore) setDbProducts([]);
+        if (!ignore) {
+          setDbProducts([]);
+          setTotalItems(0);
+          setTotalPages(1);
+        }
       } finally {
         if (!ignore) setLoadingDb(false);
       }
@@ -136,7 +160,24 @@ export default function ShopPage() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [currentPage]);
+
+  const pageNumbers = useMemo(() => {
+    const maxButtons = 5;
+    const start = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+    const end = Math.min(totalPages, start + maxButtons - 1);
+    const adjustedStart = Math.max(1, end - maxButtons + 1);
+    return Array.from(
+      { length: end - adjustedStart + 1 },
+      (_, i) => adjustedStart + i
+    );
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const categories = useMemo(() => {
     const uniq = Array.from(
@@ -321,7 +362,7 @@ export default function ShopPage() {
           <p className="text-xs text-gray-500 mb-3">
             {loadingDb
               ? "Loading products..."
-              : `Showing ${filteredProducts.length} products`}
+              : `Showing ${filteredProducts.length} of ${totalItems} products`}
           </p>
 
           {!loadingDb && filteredProducts.length === 0 ? (
@@ -404,6 +445,43 @@ export default function ShopPage() {
                   </Link>
                 );
               })}
+            </div>
+          )}
+
+          {!loadingDb && totalPages > 1 && (
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-xs rounded-full border border-gray-200 text-gray-600 disabled:opacity-40"
+              >
+                Prev
+              </button>
+              {pageNumbers.map((page) => (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                  className={`px-3 py-1 text-xs rounded-full border ${
+                    page === currentPage
+                      ? "border-pink-500 bg-pink-50 text-pink-600"
+                      : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                }
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 text-xs rounded-full border border-gray-200 text-gray-600 disabled:opacity-40"
+              >
+                Next
+              </button>
             </div>
           )}
         </section>
