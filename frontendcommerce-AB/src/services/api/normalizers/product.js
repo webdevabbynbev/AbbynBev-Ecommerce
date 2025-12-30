@@ -12,7 +12,7 @@ export function normalizeProduct(raw) {
     id: raw.id || item.id,
     name: item.name || "Unnamed Product",
     price: Number(item.base_price || item.price || 0),
-    image: item.image || medias[0]?.url || "/placeholder.png",
+    image: item.image || medias[0]?.url || "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png",
     brand: brandName,
     brandSlug,
     slug: item.slug || item.path || "",

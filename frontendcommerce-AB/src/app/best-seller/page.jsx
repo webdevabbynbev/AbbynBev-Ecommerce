@@ -1,11 +1,16 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { RegularCard, Button, TxtField, Filter } from "@/components";
+import {
+  RegularCard,
+  Button,
+  TxtField,
+  Filter,
+  RegularCardSkeleton,
+} from "@/components";
 import { useDebounce } from "../hook/useDebounce";
 import { getProducts } from "@/services/api/product.services";
 import { getBrands } from "@/services/api/brands.services";
-
 
 const BestSeller = () => {
   const [products, setProducts] = useState([]);
@@ -50,7 +55,7 @@ const BestSeller = () => {
   }, [debounceSearch, products]);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 12;
+  const itemsPerPage = 20;
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -59,10 +64,11 @@ const BestSeller = () => {
     indexOfLastItem
   );
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage) || 1;
+  const skeleton_card = itemsPerPage;
 
   return (
     <div className="flex w-full mx-auto justify-between xl:max-w-[1280px] lg:max-w-[1136px]">
-      <div className="w-[320px] xl:w-[400px] pl-10 pr-2 py-6">
+      <div className="w-[300px] xl:w-[300px] pl-10 pr-2 py-6">
         <TxtField
           placeholder="Search products..."
           value={search}
@@ -77,11 +83,11 @@ const BestSeller = () => {
       </div>
 
       <div className="flex-1 p-6">
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-4 lg:grid-cols-4 gap-6">
           {loading ? (
-            <p className="col-span-full text-center py-20 text-neutral-500">
-              Loading products...
-            </p>
+            [...Array(skeleton_card)].map((_, i) => (
+              <RegularCardSkeleton key={i} />
+            ))
           ) : currentItems.length > 0 ? (
             currentItems.map((product) => (
               <RegularCard key={product.id} product={product} />

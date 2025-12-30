@@ -22,7 +22,7 @@ export function PickCarousel({ product }) {
       try {
         setLoading(true);
 
-        const res = await getProducts({ is_flash_sale: true });
+        const res = await getProducts();
         setProducts(res.data || []);
       } catch (error) {
         console.error("Gagal memuat Flash Sale:", error);

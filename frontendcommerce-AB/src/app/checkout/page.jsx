@@ -151,7 +151,9 @@ export default function CheckoutPage() {
       await loadCart();
     } catch (err) {
       console.error("Error delete cart item:", err);
-      alert(err?.response?.data?.message || "Gagal menghapus produk dari keranjang");
+      alert(
+        err?.response?.data?.message || "Gagal menghapus produk dari keranjang"
+      );
     } finally {
       setLoadingItemId(null);
     }
@@ -228,7 +230,11 @@ export default function CheckoutPage() {
       throw new Error("Token/redirectUrl Midtrans tidak ada dari backend");
     } catch (err) {
       console.error("Pay error:", err);
-      alert(err?.response?.data?.message || err.message || "Gagal memulai pembayaran");
+      alert(
+        err?.response?.data?.message ||
+          err.message ||
+          "Gagal memulai pembayaran"
+      );
     } finally {
       setPaying(false);
     }
@@ -254,7 +260,9 @@ export default function CheckoutPage() {
           <div className="bg-white border rounded-xl p-6 shadow-sm">
             <h2 className="text-xl font-semibold mb-5">Your order</h2>
 
-            {loadingCart && <p className="text-gray-400 italic">Loading cart...</p>}
+            {loadingCart && (
+              <p className="text-gray-400 italic">Loading cart...</p>
+            )}
 
             {!loadingCart && checkoutItems.length === 0 && (
               <p className="text-gray-400 italic">No selected products</p>
@@ -262,12 +270,20 @@ export default function CheckoutPage() {
 
             {checkoutItems.map((item, idx) => {
               const product = item.product || {};
-              const image = product.thumbnail || product.image || "/placeholder.png";
+              const image =
+                product.thumbnail ||
+                product.image ||
+                "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png";
               const quantity = getQuantity(item);
-              const isBusy = loadingItemId !== null && loadingItemId === item.id;
+              const isBusy =
+                loadingItemId !== null && loadingItemId === item.id;
 
               const productName =
-                product.name || product.title || item.product_name || item.productName || "-";
+                product.name ||
+                product.title ||
+                item.product_name ||
+                item.productName ||
+                "-";
 
               const variantName =
                 item?.variant?.name ||
@@ -294,7 +310,9 @@ export default function CheckoutPage() {
 
                     <div>
                       <p className="font-medium">{productName}</p>
-                      <p className="text-sm text-gray-500">Variant: {variantName}</p>
+                      <p className="text-sm text-gray-500">
+                        Variant: {variantName}
+                      </p>
 
                       <div className="mt-2 flex items-center gap-3">
                         <div className="flex items-center gap-2">
@@ -306,7 +324,9 @@ export default function CheckoutPage() {
                             -
                           </button>
 
-                          <span className="min-w-[32px] text-center">{quantity}</span>
+                          <span className="min-w-[32px] text-center">
+                            {quantity}
+                          </span>
 
                           <button
                             disabled={isBusy}
@@ -402,7 +422,12 @@ export default function CheckoutPage() {
                 className="flex items-center justify-between cursor-pointer"
               >
                 <div className="flex items-center gap-3">
-                  <Image src={method.icon} width={42} height={42} alt={method.name} />
+                  <Image
+                    src={method.icon}
+                    width={42}
+                    height={42}
+                    alt={method.name}
+                  />
                   <span>{method.name}</span>
                 </div>
 
@@ -427,13 +452,17 @@ export default function CheckoutPage() {
             <div className="flex justify-between">
               <span>Shipment:</span>
               <span>
-                {selectedShipping ? `Rp ${selectedShipping.price.toLocaleString("id-ID")}` : "-"}
+                {selectedShipping
+                  ? `Rp ${selectedShipping.price.toLocaleString("id-ID")}`
+                  : "-"}
               </span>
             </div>
 
             <div className="flex justify-between font-semibold text-lg">
               <span>Total:</span>
-              <span className="text-pink-600">Rp {total.toLocaleString("id-ID")}</span>
+              <span className="text-pink-600">
+                Rp {total.toLocaleString("id-ID")}
+              </span>
             </div>
           </div>
 

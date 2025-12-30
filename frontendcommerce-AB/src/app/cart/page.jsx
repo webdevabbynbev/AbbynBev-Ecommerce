@@ -53,7 +53,6 @@ export default function CartPage() {
     }
   }, []);
 
-  
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedIds));
@@ -67,7 +66,6 @@ export default function CartPage() {
   useEffect(() => {
     const idsInCart = new Set(safeCart.map((x) => x?.id).filter(Boolean));
     setSelectedIds((prev) => prev.filter((id) => idsInCart.has(id)));
-
   }, [safeCart.length]);
 
   const isSelected = (item) => selectedIds.includes(item?.id);
@@ -123,7 +121,9 @@ export default function CartPage() {
       await loadCart();
     } catch (err) {
       console.error("Error delete cart item:", err);
-      alert(err?.response?.data?.message || "Gagal menghapus produk dari keranjang");
+      alert(
+        err?.response?.data?.message || "Gagal menghapus produk dari keranjang"
+      );
     } finally {
       setLoadingItemId(null);
     }
@@ -181,7 +181,9 @@ export default function CartPage() {
             </label>
           </div>
 
-          {loadingCart && <p className="text-gray-400 italic">Loading cart...</p>}
+          {loadingCart && (
+            <p className="text-gray-400 italic">Loading cart...</p>
+          )}
 
           {!loadingCart && safeCart.length === 0 && (
             <p className="text-gray-400 italic">No products in cart</p>
@@ -190,13 +192,20 @@ export default function CartPage() {
           {safeCart.map((item, idx) => {
             const id = item?.id;
             const product = item.product || {};
-            const image = product.thumbnail || product.image || "/placeholder.png";
+            const image =
+              product.thumbnail ||
+              product.image ||
+              "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png";
             const quantity = getQuantity(item);
 
             const busy = loadingItemId !== null && loadingItemId === id;
 
             const productName =
-              product.name || product.title || item.product_name || item.productName || "-";
+              product.name ||
+              product.title ||
+              item.product_name ||
+              item.productName ||
+              "-";
 
             const variantName =
               item?.variant?.name ||
@@ -232,7 +241,9 @@ export default function CartPage() {
 
                   <div>
                     <p className="font-medium">{productName}</p>
-                    <p className="text-sm text-gray-500">Variant: {variantName}</p>
+                    <p className="text-sm text-gray-500">
+                      Variant: {variantName}
+                    </p>
 
                     <div className="mt-2 flex items-center gap-3">
                       <div className="flex items-center gap-2">
@@ -244,7 +255,9 @@ export default function CartPage() {
                           -
                         </button>
 
-                        <span className="min-w-[32px] text-center">{quantity}</span>
+                        <span className="min-w-[32px] text-center">
+                          {quantity}
+                        </span>
 
                         <button
                           disabled={busy}
@@ -268,9 +281,10 @@ export default function CartPage() {
 
                 <p className="font-semibold text-pink-600 text-right">
                   Rp{" "}
-                  {toNumber(item.amount ?? item.price ?? product.price ?? 0, 0).toLocaleString(
-                    "id-ID"
-                  )}
+                  {toNumber(
+                    item.amount ?? item.price ?? product.price ?? 0,
+                    0
+                  ).toLocaleString("id-ID")}
                 </p>
               </div>
             );

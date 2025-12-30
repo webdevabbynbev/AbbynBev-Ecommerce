@@ -4,7 +4,8 @@ import ProductDetailClient from "./ProductDetailClient";
 import BrandDetailClient from "@/app/brand/[slug]/BrandDetailClient";
 
 function toBackendImageUrl(url) {
-  if (!url) return "/images/sample-product.jpg";
+  if (!url)
+    return "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png";
   if (url.startsWith("http")) return url;
 
   const base = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3333";
@@ -34,6 +35,7 @@ export default async function Page({ params }) {
   const productSlug = slug[slug.length - 1];
 
   const result = await getProducts({ slug: productSlug });
+
   const product =
     result.data.find(
       (item) => item.slug === productSlug || item.path === productSlug
@@ -90,7 +92,9 @@ export default async function Page({ params }) {
     name: p?.name ?? product?.name ?? "Unnamed Product",
     slug: p?.slug ?? p?.path ?? product?.slug ?? "",
 
-    image: medias?.[0]?.url ?? "/images/sample-product.jpg",
+    image:
+      medias?.[0]?.url ??
+      "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png",
     images: medias.map((m) => m.url),
 
     medias,

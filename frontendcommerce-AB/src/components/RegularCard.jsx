@@ -34,7 +34,7 @@ export function RegularCard({ product }) {
     image:
       raw.image ??
       (Array.isArray(raw.images) ? raw.images[0] : null) ??
-      "/placeholder.png",
+      "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png",
     rating: Number(raw.rating ?? raw.stars ?? 0),
     brand: raw.brand ?? raw.brandName ?? "",
     category: raw.category ?? "",
@@ -78,8 +78,6 @@ export function RegularCard({ product }) {
     ? DataReview.filter((r) => r.productID === item.id)
     : [];
   const averageRating = getAverageRating(reviewsForProduct);
-
-  if (loading) return <RegularCardSkeleton />;
 
   const productSlug = raw.slug
     ? slugify(raw.slug)
@@ -128,7 +126,7 @@ export function RegularCard({ product }) {
               alt={item.name}
               className="w-full h-auto object-cover"
               onError={(e) => {
-                e.currentTarget.src = "/placeholder.png";
+                e.currentTarget.src = "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png";
               }}
             />
           </div>
