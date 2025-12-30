@@ -27,7 +27,8 @@ function calcDiscountPercent(price, originalPrice) {
 }
 
 function toBackendImageUrl(url) {
-  if (!url) return "/images/sample-product.jpg"; // fallback local
+  if (!url)
+    return "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png"; // fallback cloudinary
   if (url.startsWith("http")) return url;
 
   const base = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3333";
