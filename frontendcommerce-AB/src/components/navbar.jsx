@@ -41,7 +41,6 @@ export function Navbar() {
   // 🔧 Beauty & tips diarahkan ke blog eksternal
   const links = [
     { href: "/", label: "Home" },
-    { href: "/shop", label: "Shop" },
     { href: "/best-seller", label: "Best seller" },
     { href: "/sale", label: "Sale" },
     { href: "/new-arrival", label: "New arrival" },

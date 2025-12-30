@@ -392,6 +392,9 @@ export default class ProductsController {
   }
 
   private extractFileName(url: string) {
+    if (url.startsWith('http')) {
+      return url
+    }
     const urlParts = url.split('/')
     const fileNameWithQuery = urlParts[urlParts.length - 1]
     return fileNameWithQuery.split('?')[0]

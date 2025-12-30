@@ -31,10 +31,8 @@ export default async function Page({ params }) {
     return <BrandDetailClient brandData={dataForClient} />;
   }
 
-  // 2. LOGIKA HALAMAN PRODUK (Jika slug 2 segment atau lebih, misal: /emina/sun-battle)
   const productSlug = slug[slug.length - 1];
 
-  // Gunakan fungsi getProducts dengan filter slug produk
   const result = await getProducts({ slug: productSlug });
   const product =
     result.data.find(
@@ -86,7 +84,7 @@ export default async function Page({ params }) {
   const normalized = {
     ...p,
 
-    brand: brandName, // Tambahkan ini agar variabel brandName di atas terpakai
+    brand: brandName,
     brand_id: p?.brand_id,
     brandSlug,
     name: p?.name ?? product?.name ?? "Unnamed Product",
@@ -98,7 +96,7 @@ export default async function Page({ params }) {
     medias,
 
     realprice: basePrice,
-    price: basePrice, // belum ada discount → samain dulu
+    price: basePrice,
     sale: Boolean(p?.is_flashsale),
 
     variant_value: variantItems.length ? "Variant" : "",
