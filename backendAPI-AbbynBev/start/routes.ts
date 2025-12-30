@@ -60,6 +60,8 @@ const FeProductRecommendationsController = () =>
   import('#controllers/frontend/product_recommendations_controller')
 const FeTransactionEcommerceController = () =>
   import('#controllers/frontend/transaction_commerces_controller')
+const FeRamadanCheckinsController = () =>
+  import('#controllers/frontend/ramadan_checkins_controller')
 
 const PosProductsController = () => import('#controllers/pos/products_controller')
 const PosTransactionPosController = () => import('#controllers/pos/transaction_pos_controller')
@@ -470,7 +472,17 @@ router
         router.post('/transaction/confirm', [FeTransactionEcommerceController, 'confirmOrder'])
       })
       .use(middleware.auth({ guards: ['api'] }))
-
+      // =========================
+    // RAMADAN CHECK-IN (AUTH REQUIRED)
+    // =========================
+    router
+      .group(() => {
+        router.get('/ramadan/checkin/status', [FeRamadanCheckinsController, 'status'])
+        router.post('/ramadan/checkin', [FeRamadanCheckinsController, 'checkin'])
+        router.post('/ramadan/checkin/exempt', [FeRamadanCheckinsController, 'exempt'])
+      })
+      .use(middleware.auth({ guards: ['api'] }))
+      
     router.put('/transaction/status', [FeTransactionEcommerceController, 'updateWaybillStatus'])
     router.post('/transaction/pickup', [FeTransactionEcommerceController, 'requestPickup'])
     router.post('/transaction/retrieve', [
