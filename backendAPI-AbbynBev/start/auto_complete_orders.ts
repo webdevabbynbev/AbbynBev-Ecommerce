@@ -33,7 +33,7 @@ if (!g.__AUTO_COMPLETE_ORDERS_TIMER__) {
     try {
       // 1) ambil transaksi ON_DELIVERY yang punya resi
       const txs = await Transaction.query({ client: trxDb })
-        .where('transactionStatus', TransactionStatus.ON_DELIVERY.toString())
+        .where('transactionStatus', TransactionStatus.ON_DELIVERY)
         .preload('shipments')
         .limit(50)
 
@@ -72,7 +72,7 @@ if (!g.__AUTO_COMPLETE_ORDERS_TIMER__) {
       const cutoff = DateTime.now().minus({ days: AFTER_DAYS }).toJSDate()
 
       const toComplete = await Transaction.query({ client: trxDb })
-        .where('transactionStatus', TransactionStatus.ON_DELIVERY.toString())
+        .where('transactionStatus', TransactionStatus.ON_DELIVERY)
         .whereHas('shipments', (q) => {
           q.whereNotNull('delivered_at').where('delivered_at', '<=', cutoff)
         })
@@ -80,7 +80,7 @@ if (!g.__AUTO_COMPLETE_ORDERS_TIMER__) {
         .limit(200)
 
       for (const t of toComplete as any[]) {
-        t.transactionStatus = TransactionStatus.COMPLETED.toString()
+        t.transactionStatus = String(TransactionStatus.COMPLETED)
         await t.useTransaction(trxDb).save()
       }
 
