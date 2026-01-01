@@ -65,24 +65,24 @@ export default function Home() {
       </div>
 
       <div className="ContainerFlashSale w-full flex-col bg-primary-100 items-center justify-center bg-[url('/Logo_SVG_AB.svg')] bg-no-repeat bg-center">
-        <div className="Wrapper p-6 flex flex-col md:items-center lg:items-center md:flex-row lg:flex-row  xl:max-w-[1280px] lg:max-w-[960px] mx-auto">
-          <div className="leftWrapper justify-between flex sm:flex-col w-full sm:w-full space-y-6  md:items-start sm:items-center ">
+        <div className="Wrapper p-6 flex flex-col md:items-center lg:items-center lg:flex-row  xl:max-w-[1280px] lg:max-w-[960px] mx-auto">
+          <div className="leftWrapper justify-between flex flex-row lg:flex-col w-full space-y-6">
             <div className="texts flex-row">
               <h3 className="font-damion text-3xl text-primary-700">
                 Flash Sale
               </h3>
-              <p className="hidden md:block lg:block text-md ">
+              <p className="hidden lg:block text-md ">
                 Your Favorite Beauty Essentials, Now at Irresistible Prices
                 Limited Time Only — While Stock Lasts!
               </p>
             </div>
-            <div className="md:block lg:block">
+            <div className="">
               <Button variant="primary" size="sm">
                 See all
               </Button>
             </div>
           </div>
-          <div className="md:w-[50%] sm:w-full">
+          <div className="w-full lg:w-[50%]">
             <FlashSaleCarousel />
           </div>
         </div>

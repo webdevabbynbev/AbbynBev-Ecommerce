@@ -18,8 +18,8 @@ import {
 } from ".";
 import { usePathname, useRouter } from "next/navigation";
 import * as FaIcons from "react-icons/fa";
-import CartButton from "@/components/CartButton";
 import clsx from "clsx";
+import CartButton from "./CartButton";
 
 export function Navbar() {
   const pathname = usePathname();
@@ -55,7 +55,7 @@ export function Navbar() {
   // --- shared searchbar ---
   const SearchBar = ({ className = "" }) => (
     <TxtField
-      placeholder="Wardah, Maybeline, anything. . ."
+      placeholder="Cari disini . . ."
       iconLeftName="MagnifyingGlass"
       variant="outline"
       size="md"
@@ -68,16 +68,6 @@ export function Navbar() {
       <div className="mx-auto w-full max-w-[1536px] px-4 sm:px-6 lg:px-10 py-4">
         {/* ===================== MOBILE ( < lg ) ===================== */}
         <div className="flex items-center gap-3 lg:hidden">
-          {/* Logo kecil */}
-          <Link href="/" className="shrink-0 flex items-center gap-2">
-            <Image
-              src="/logo-abby-circle.svg"
-              alt="Logo"
-              height={40}
-              width={40}
-            />
-          </Link>
-
           {/* Searchbar full */}
           <div className="flex-1 min-w-0">
             <SearchBar className="w-full" />
@@ -86,9 +76,14 @@ export function Navbar() {
           {/* Hanya Sign in (atau user icon jika sudah login) */}
           <div className="shrink-0">
             {user ? (
-              <Link href="/account/profile">
-                <BtnIcon iconName="User" variant="tertiary" size="sm" />
+              <>
+              <Link href="/cart">
+                <BtnIcon iconName="CartShopping" variant="tertiary" size="sm" />
               </Link>
+              <Link href="/notification">
+                <BtnIcon iconName="Bell" variant="tertiary" size="sm" />
+              </Link>
+              </>
             ) : (
               <LoginRegisModalForm />
             )}
@@ -101,21 +96,15 @@ export function Navbar() {
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-3">
               <Image
-                src="/logo-abby-circle.svg"
-                alt="Logo-circle"
-                height={45}
-                width={45}
-              />
-              <Image
                 src="/Logoabby-text.svg"
                 alt="Logo"
-                width={150}
-                height={45}
-                className="h-auto w-[150px]"
+                width={160}
+                height={80}
               />
+              <SearchBar className="max-w-[300px]" />
             </div>
 
-            <SearchBar className="min-w-[280px]" />
+            
 
             {links.map((link) => {
               const isExternal = link.href.startsWith("http");

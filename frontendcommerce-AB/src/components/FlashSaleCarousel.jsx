@@ -47,7 +47,7 @@ export function FlashSaleCarousel() {
         {products.slice(0, 10).map((product) => (
           <CarouselItem
             key={product.id}
-            className="flex-none basis-1/2 md:basis-1/2 lg:basis-1/3"
+            className="flex-none basis-1/2 md:basis-1/4 lg:basis-1/3"
           >
             <FlashSaleCard item={product} />
           </CarouselItem>

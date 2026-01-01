@@ -36,22 +36,19 @@ export function BtnIcon({
     secondary: "text-primary-700",
     tertiary: "text-primary-700",
   };
-  // const [hover, setHover] = useState(false);
 
   const CurrentIcon = FaIcons[`FaReg${iconName}`] || FaIcons[`Fa${iconName}`];
-  // const HoverIcon = FaIcons[`FaReg${iconName}`] || FaIcons[`Fa${iconName}`];
-  // const CurrentIcon = hover ? IdleIcon : HoverIcon;
 
   return (
-    <button
-      className={clsx(baseStyles, variants[variant], sizes[size], className)}
-      disabled={disabled}
-      // onMouseEnter={() => setHover(true)}
-      // onMouseLeave={() => setHover(false)}
-      {...props}
-    >
-      {<CurrentIcon className={clsx(iconColors[variant])} />}
-      {children}
-    </button>
+  <button
+    className={clsx(baseStyles, variants[variant], sizes[size], className)}
+    disabled={disabled}
+    {...props}
+  >
+    {CurrentIcon ? (
+      <CurrentIcon className={clsx(iconColors[variant])} />
+    ) : null}
+    {children}
+  </button>
   );
 }

@@ -1,3 +1,5 @@
+import CartButton from "./CartButton.jsx"
+
 export {AddressList} from "../app/account/AddressList.jsx"
 export {PickCarousel} from "./PickCarousel.jsx"
 export {Filter} from "./Filter.jsx"
