@@ -11,8 +11,7 @@ import {
 } from "@/components";
 import { getProducts } from "@/services/api/product.services";
 
-export function FlashSaleCarousel({ product }) {
-  if (!product) return null;
+export function FlashSaleCarousel() {
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,7 +21,7 @@ export function FlashSaleCarousel({ product }) {
       try {
         setLoading(true);
 
-        const res = await getProducts({ is_flash_sale: true });
+        const res = await getProducts({ is_flash_sale: 1 });
         setProducts(res.data || []);
       } catch (error) {
         console.error("Gagal memuat Flash Sale:", error);

@@ -1,10 +1,8 @@
 "use client";
 import * as React from "react";
 import Autoplay from "embla-carousel-autoplay";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect} from "react";
 import { Skeleton } from "@/components";
-import api from "@/lib/axios";
-import { cn } from "@/lib/utils";
 import {
   Carousel,
   CarouselContent,
@@ -39,12 +37,11 @@ export function HeroCarousel() {
   }, []);
 
   if (isloading || !banners.length) {
-    // 🔹 SKELETON VIEW
     return (
-      <div className="w-full h-[300px]">
+      <div className="w-full h-auto max-h-[300px]">
         <div className="flex">
           <div className="w-full h-full">
-            <Skeleton className="w-full h-[300px] rounded-lg" />
+            <Skeleton className="w-full h-auto max-h-[300px] rounded-lg" />
           </div>
         </div>
       </div>
@@ -52,9 +49,9 @@ export function HeroCarousel() {
   }
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full max-h-[300px]">
       <Carousel
-        className="w-full h-full"
+        className="w-full max-h-[300px]"
         opts={{ loop: true }}
         plugins={[autoplay.current]}
         onMouseEnter={() => autoplay.current.stop()}
@@ -65,11 +62,11 @@ export function HeroCarousel() {
             const src = getImageUrl(b.image_url || b.image);
             return (
               <CarouselItem key={b.id || idx}>
-                <div className="relative h-[300px]">
+                <div className="relative max-h-[300px]">
                   <img
                     src={src}
                     alt={b.title || "Banner"}
-                    className="rounded-lg w-full h-full object-cover"
+                    className="rounded-lg w-full h-auto object-cover"
                     onError={(e) => (e.currentTarget.src = "/placeholder.png")}
                   />
                 </div>

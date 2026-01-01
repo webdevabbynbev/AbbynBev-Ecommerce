@@ -13,10 +13,11 @@ import {
 } from "@/components";
 import { DataCategoryCard, DataBrand, DataArticleBlog } from "@/data";
 import { getProducts } from "@/services/api/product.services";
-import { RegularCard } from "@/components";
+import { RegularCard, RegularCardSkeleton } from "@/components";
 
 export default function Home() {
   const [products, setProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState (true);
   const router = useRouter();
 
   useEffect(() => {
@@ -26,61 +27,22 @@ export default function Home() {
         setProducts(data); // ✅ langsung pakai data hasil normalizeProduct
       } catch (err) {
         console.error("getProducts error:", err);
+      } finally {
+        setProductsLoading(false);
       }
+      
     })();
   }, []);
 
   return (
     <div className="Container items-center justify-center mx-auto overflow-visible">
-      <div className="Hero-wrapper w-full flex flex-row md:flex-row sm:flex-col justify-between h-full py-6 mx-auto xl:max-w-[1280px] lg:max-w-[960px]">
-        <div className="h-auto w-full sm:w-full items-center">
+      <div className="Hero-wrapper w-full flex flex-row md:flex-row sm:flex-col justify-between h-full mx-auto xl:max-w-[1280px] py-6 lg:max-w-[960px]">
+        <div className="h-auto w-full px-6 items-center">
           <HeroCarousel />
         </div>
-        {/* <div className="bento-right md:w-full sm:w-full flex md:flex-col sm:flex-row h-auto gap-4">
-          <div className="abbynbev flex md:flex-row sm:flex-col h-[50%] w-full gap-4">
-            <div className="relative flex flex-col justify-between h-auto w-full p-4 bg-primary-700 text-primary-100 rounded-lg">
-
-                <h3 className="text-2xl font-damion">Abby</h3>
-                <p className="text-xs font-semibold ">
-                  From everyday essentials to bold glam, Abby helps you find the
-                  best makeup that suits your style.
-                </p>
-                <p className="text-[11px]">Curated makeup products</p>
-
-              <div className="absolute p-1 -top-1 -right-1  bg-[#f7f7f7] rounded-full">
-                <BtnIcon
-                  variant="primary"
-                  size="xs"
-                  iconName="UpRightFromSquare"
-                />
-              </div>
-            </div>
-
-            <div className="relative flex flex-col justify-between h-auto w-full p-4 bg-primary-200 text-primary-700 rounded-lg">
-              
-                <h3 className="text-2xl font-damion">Bev</h3>
-                <p className="text-xs font-semibold ">
-                  Bev curates skincare that works for your skin type, concerns,
-                  and routine — no guesswork needed.
-                </p>
-                <p className="text-[11px]">Curated skincare products</p>
-
-              <div className="absolute p-1 -top-1 -right-1  bg-[#f7f7f7] rounded-full">
-                <BtnIcon
-                  variant="primary"
-                  size="xs"
-                  iconName="UpRightFromSquare"
-                />
-              </div>
-            </div>
-          </div>
-          <div className="eventabby w-full rounded-xl overflow-hidden">
-            <img src="abbywardah.png" alt="event" />
-          </div>
-        </div> */}
       </div>
 
-      <div className="ContainerCategory py-6 space-y-4 mx-auto w-full xl:max-w-[1280px] lg:max-w-[960px]">
+      <div className="ContainerCategory p-6 space-y-4 mx-auto w-full xl:max-w-[1280px] lg:max-w-[960px]">
         <h3 className="text-primary-700 text-lg font-bold">Kategori</h3>
         <div className="flex justify-between w-full gap-4">
           {DataCategoryCard.map((item) => (
@@ -89,14 +51,14 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="ContainerFlashSale w-full flex py-10 p-6 bg-primary-100 items-center justify-center bg-[url('/Logo_SVG_AB.svg')] bg-no-repeat bg-center">
-        <div className="Wrapper md:flex-row sm:flex-col sm:w-full items-center w-full mx-auto flex flex-row gap-6 xl:max-w-[1280px] lg:max-w-[960px]">
-          <div className="leftWrapper flex sm:flex-row md:flex-col sm:w-full w-[50%] space-y-6  md:items-start sm:items-center ">
+      <div className="ContainerFlashSale w-full flex-col bg-primary-100 items-center justify-center bg-[url('/Logo_SVG_AB.svg')] bg-no-repeat bg-center">
+        <div className="Wrapper p-6 flex sm:flex-col xl:max-w-[1280px] lg:max-w-[960px] mx-auto">
+          <div className="leftWrapper flex sm:flex-col w-[50%] sm:w-full space-y-6  md:items-start sm:items-center ">
             <div className="texts flex-row">
               <h3 className="font-damion text-4xl text-primary-700">
                 Flash Sale Hingga 50% OFF!
               </h3>
-              <p>
+              <p className="hidden md:block lg:block ">
                 Your Favorite Beauty Essentials, Now at Irresistible Prices
                 Limited Time Only — While Stock Lasts!
               </p>

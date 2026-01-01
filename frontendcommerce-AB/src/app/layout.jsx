@@ -22,7 +22,11 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${plusJakarta.variable} ${damion.variable}`}>
+    <html
+      lang="en"
+      className={`${plusJakarta.variable} ${damion.variable}`}
+      suppressHydrationWarning
+    >
       <body className="flex flex-col min-h-screen font-sans bg-[#f7f7f7]">
         <GoogleProvider>
           <AuthProvider>

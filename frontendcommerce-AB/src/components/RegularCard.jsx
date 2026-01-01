@@ -96,7 +96,7 @@ export function RegularCard({ product }) {
     : "#";
 
   return (
-    <div className="container group relative rounded-lg bg-white h-auto w-[200px] space-y-4 transition-all overflow-hidden">
+    <div className="group relative flex h-full w-full flex-col rounded-lg bg-white space-y-4 transition-all overflow-hidden">
       <Link href={href}>
         <div className="image flex w-full items-center justify-center relative">
           {(item.sale || hasSale) && (
