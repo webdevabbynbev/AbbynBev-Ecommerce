@@ -38,7 +38,6 @@ const RATING_OPTIONS = [
 ];
 
 export default function ProductDetailClient({ product }) {
-  
   const variants = product.variantItems ?? []; // [{ id, label, price, stock }]
   const [selectedVariant, setSelectedVariant] = useState(
     variants.length === 1 ? variants[0].label : null
@@ -48,8 +47,14 @@ export default function ProductDetailClient({ product }) {
   const selectedVariantObj = variants.find((v) => v.label === selectedVariant);
 
   const finalPrice =
-    selectedVariantObj?.price ?? product.price ?? product.realprice ?? 0;
-  const realPrice = product.realprice ?? finalPrice;
+    selectedVariantObj?.price ??
+    product.price ??
+    product.base_price ??
+    product.basePrice ??
+    product.realprice ??
+    0;
+  const realPrice =
+    product.realprice ?? product.base_price ?? product.basePrice ?? finalPrice;
   const stock = selectedVariantObj?.stock ?? product.stock ?? 0;
 
   const discount =
@@ -75,9 +80,7 @@ export default function ProductDetailClient({ product }) {
       : null;
 
   const brandName =
-    typeof product.brand === "string"
-      ? product.brand
-      : brandObj?.name || "-";
+    typeof product.brand === "string" ? product.brand : brandObj?.name || "-";
 
   const brandSlug = brandObj?.slug || product.brandSlug || "";
   const handleAddToCart = async () => {
@@ -101,7 +104,7 @@ export default function ProductDetailClient({ product }) {
 
       const payload = {
         product_id: product.id,
-        variant_id: variantItems.length ? variant.id : 0, 
+        variant_id: variantItems.length ? variant.id : 0,
         qty: Number(qty) || 1,
         attributes: [],
         is_buy_now: false,
@@ -168,16 +171,17 @@ export default function ProductDetailClient({ product }) {
               </div>
 
               <div className="flex max-w-[300px] py-2 items-center space-x-4 max-h-64 overflow-x-auto custom-scrollbar">
-                {(product.images?.length ? product.images : [product.image]).map(
-                  (img, i) => (
-                    <img
-                      key={i}
-                      src={img}
-                      alt={`${product.name}-${i}`}
-                      className="h-[50px] w-[50px] border p-2 rounded-md"
-                    />
-                  )
-                )}
+                {(product.images?.length
+                  ? product.images
+                  : [product.image]
+                ).map((img, i) => (
+                  <img
+                    key={i}
+                    src={img}
+                    alt={`${product.name}-${i}`}
+                    className="h-[50px] w-[50px] border p-2 rounded-md"
+                  />
+                ))}
               </div>
             </div>
 
@@ -298,10 +302,7 @@ export default function ProductDetailClient({ product }) {
                           <SelectGroup>
                             <SelectLabel>Rating</SelectLabel>
                             {RATING_OPTIONS.map((rating) => (
-                              <SelectItem
-                                key={rating.id}
-                                value={rating.value}
-                              >
+                              <SelectItem key={rating.id} value={rating.value}>
                                 <div className="flex items-center space-x-1">
                                   <FaStar className="text-warning-300" />
                                   <span>{rating.star}</span>
@@ -323,9 +324,7 @@ export default function ProductDetailClient({ product }) {
                         r.create_at ||
                         r.updatedAt;
                       const who = r.user?.firstName
-                        ? `${r.user.firstName} ${
-                            r.user.lastName ?? ""
-                          }`.trim()
+                        ? `${r.user.firstName} ${r.user.lastName ?? ""}`.trim()
                         : "Guest";
 
                       return (

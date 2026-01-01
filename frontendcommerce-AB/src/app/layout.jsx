@@ -27,7 +27,7 @@ export default function RootLayout({ children }) {
       className={`${plusJakarta.variable} ${damion.variable}`}
       suppressHydrationWarning
     >
-      <body className="flex flex-col min-h-screen font-sans bg-[#f7f7f7]">
+      <body className="flex flex-col min-h-screen font-sans bg-[#f7f7f7]" suppressHydrationWarning>
         <GoogleProvider>
           <AuthProvider>
             <Navbar />

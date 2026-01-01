@@ -43,13 +43,13 @@ export function FlashSaleCarousel() {
 
   return (
     <Carousel className="w-full" opts={{ align: "start" }}>
-      <CarouselContent className="justify-start md:gap-[52px] lg:gap-[59px] xl:gap-[111px]">
+      <CarouselContent className="justify-start snap-start gap-0">
         {products.slice(0, 10).map((product) => (
           <CarouselItem
             key={product.id}
-            className="flex-none basis-1/2 sm:basis-1/2 md:basis-1/3 lg:basis-1/3 xl:basis-1/6"
+            className="flex-none basis-1/2 md:basis-1/2 lg:basis-1/3"
           >
-            <FlashSaleCard product={product} />
+            <FlashSaleCard item={product} />
           </CarouselItem>
         ))}
         <div className="flex-none w-[0px]" aria-hidden="true" />

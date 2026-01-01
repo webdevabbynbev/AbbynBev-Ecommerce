@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 import Autoplay from "embla-carousel-autoplay";
-import { useState, useEffect} from "react";
+import { useState, useEffect } from "react";
 import { Skeleton } from "@/components";
 import {
   Carousel,
@@ -36,50 +36,54 @@ export function HeroCarousel() {
     })();
   }, []);
 
-  if (isloading || !banners.length) {
-    return (
-      <div className="w-full h-auto max-h-[300px]">
-        <div className="flex">
-          <div className="w-full h-full">
-            <Skeleton className="w-full h-auto max-h-[300px] rounded-lg" />
-          </div>
-        </div>
+  // wrapper responsif: tinggi mengikuti lebar
+  const Wrapper = ({ children }) => (
+    <div className="w-full">
+      <div className="relative w-full overflow-hidden rounded-lg aspect-[16/6]">
+        {children}
       </div>
+    </div>
+  );
+
+  if (isloading) {
+    return (
+      <Wrapper>
+        <Skeleton className="absolute inset-0 w-full h-full" />
+      </Wrapper>
     );
   }
 
+  if (!banners.length) return null;
+
   return (
-    <div className="w-full max-h-[300px]">
+    <Wrapper>
       <Carousel
-        className="w-full max-h-[300px]"
+        className="absolute inset-0 w-full h-full"
         opts={{ loop: true }}
         plugins={[autoplay.current]}
         onMouseEnter={() => autoplay.current.stop()}
         onMouseLeave={() => autoplay.current.reset()}
       >
-        <CarouselContent>
+        <CarouselContent className="h-full">
           {banners.map((b, idx) => {
             const src = getImageUrl(b.image_url || b.image);
             return (
-              <CarouselItem key={b.id || idx}>
-                <div className="relative max-h-[300px]">
-                  <img
-                    src={src}
-                    alt={b.title || "Banner"}
-                    className="rounded-lg w-full h-auto object-cover"
-                    onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-                  />
-                </div>
+              <CarouselItem key={b.id || idx} className="h-full">
+                <img
+                  src={src}
+                  alt={b.title || "Banner"}
+                  className="w-full h-full object-cover"
+                  onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+                />
               </CarouselItem>
             );
           })}
         </CarouselContent>
 
-        {/* Default Controls */}
         <CarouselPrevious />
         <CarouselNext />
-        <CarouselIndicators/>
+        <CarouselIndicators />
       </Carousel>
-    </div>
+    </Wrapper>
   );
 }

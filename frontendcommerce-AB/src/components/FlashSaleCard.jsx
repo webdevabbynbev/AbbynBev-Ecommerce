@@ -1,52 +1,20 @@
 "use client";
 import { FaStar } from "react-icons/fa6"; // pastikan import benar
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BtnIconToggle, RegularCardSkeleton } from ".";
-import { formatToRupiah } from "@/utils";
+import { formatToRupiah, normalizeCardProduct } from "@/utils";
 import { DataReview } from "@/data";
-import { getAverageRating } from "@/utils";
 
-export function FlashSaleCard({ item: raw }) {
-  // stop kalau item belum ada
-  if (!raw) return null;
-
-  // Normalisasi & fallback data agar aman
-  const item = {
-    id: raw.id ?? raw._id ?? crypto.randomUUID(),
-    name: raw.name ?? raw.productName ?? raw.title ?? "Unnamed Product",
-    // ambil harga prioritas: price → realprice → salePrice → prices[0] → 0
-    price: Number(
-      raw.price ??
-        raw.realprice ??
-        raw.salePrice ??
-        (Array.isArray(raw.prices) ? raw.prices[0] : undefined) ??
-        0
-    ),
-    // harga banding (kalau ada) untuk strike-through
-    compareAt: Number(
-      raw.realprice ??
-        raw.oldPrice ??
-        (Array.isArray(raw.prices) ? raw.prices[1] : undefined) ??
-        NaN
-    ),
-    image:
-      raw.image ??
-      (Array.isArray(raw.images) ? raw.images[0] : null) ??
-      "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png",
-    rating: Number(raw.rating ?? raw.stars ?? 0),
-    brand: raw.brand ?? raw.brandName ?? "",
-    category: raw.category ?? "",
-    slug:
-      raw.slug ??
-      (raw.name || raw.productName
-        ? (raw.name || raw.productName).toLowerCase().replace(/\s+/g, "-")
-        : `item-${Math.random().toString(36).slice(2)}`),
-    sale: Boolean(raw.sale), // opsional
-  };
+export function FlashSaleCard({ product, item }) {
+  const data = useMemo(
+    () => normalizeCardProduct(product ?? item),
+    [product, item]
+  );
+  if (!data) return null;
 
   const hasSale =
-    Number.isFinite(item.compareAt) && item.compareAt > item.price;
+    Number.isFinite(data.compareAt) && data.compareAt > data.price;
 
   const [wishlist, setWishlist] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -71,20 +39,26 @@ export function FlashSaleCard({ item: raw }) {
     });
   };
 
-  const isWishlisted = wishlist.some((p) => p.id === item.id);
+  const isWishlisted = wishlist.some((p) => p.id === data.id);
 
   const reviewsForProduct = Array.isArray(DataReview)
-    ? DataReview.filter((r) => r.productID === item.id)
+    ? DataReview.filter((r) => r.productID === data.id)
     : [];
-  const averageRating = getAverageRating(reviewsForProduct);
 
   if (loading) return <RegularCardSkeleton />;
 
+  const href =
+    item?.brandSlug && item?.slug
+      ? `/${encodeURIComponent(item.brandSlug)}/${encodeURIComponent(
+          item.slug
+        )}`
+      : "#";
+
   return (
-    <div className="container group relative rounded-lg bg-white h-auto w-[200px] space-y-4 transition-all overflow-hidden">
-      <Link href={`/product-detail/${item.slug}`}>
+    <div className="group relative flex h-full w-full flex-col rounded-lg bg-white space-y-4 transition-all overflow-hidden">
+      <Link href={href}>
         <div className="image flex w-full items-center justify-center relative">
-          {(item.sale || hasSale) && (
+          {(data.sale || hasSale) && (
             <img
               src="/sale-tag.svg"
               alt="Sale"
@@ -97,7 +71,7 @@ export function FlashSaleCard({ item: raw }) {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                handleWishlist(item);
+                handleWishlist(data);
               }}
               iconName="Heart"
               variant="tertiary"
@@ -105,13 +79,14 @@ export function FlashSaleCard({ item: raw }) {
             />
           </div>
 
-          <div className="image object-cover">
+          <div className="image">
             <img
-              src={item.image}
-              alt={item.name}
-              className="w-[150px] h-auto"
+              src={data.image}
+              alt={data.name}
+              className="w-full h-auto object-cover"
               onError={(e) => {
-                e.currentTarget.src = "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png";
+                e.currentTarget.src =
+                  "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png";
               }}
             />
           </div>
@@ -120,7 +95,7 @@ export function FlashSaleCard({ item: raw }) {
         <div className="content-wrapper w-full space-y-2 p-4">
           <div className="category-and-name space-y-1">
             <div className="text-sm font-bold text-neutral-950 line-clamp-2">
-              {item.name}
+              {data.name}
             </div>
           </div>
 
@@ -128,44 +103,25 @@ export function FlashSaleCard({ item: raw }) {
             {hasSale ? (
               <>
                 <div className="text-sm font-bold text-primary-700">
-                  {formatToRupiah(item.price)}
+                  {formatToRupiah(data.price)}
                 </div>
                 <div className="text-xs font-medium text-neutral-400 line-through">
-                  {formatToRupiah(item.compareAt)}
+                  {formatToRupiah(data.compareAt)}
                 </div>
               </>
             ) : (
               <div className="text-base font-bold text-primary-700">
-                {formatToRupiah(item.price)}
+                {formatToRupiah(data.price)}
               </div>
             )}
           </div>
 
-          <div className="rating flex space-x-2 h items-center">
-            <div className="flex space-x-1 items-center">
-              {averageRating === 0 ? (
-                <span className="text-xs text-primary-700 font-light">
-                  No rating
-                </span>
-              ) : (
-                <div className="flex items-center space-x-1 font-bold text-primary-700 text-xs">
-                  <span>{averageRating}</span>
-                  <FaStar className="h-[12px] w-[12px] text-warning-300" />
-                </div>
-              )}
-            </div>
-            <div className="w-1 h-1 rounded-full bg-neutral-400" />
-            <div className="text-xs font-light text-neutral-300">
-              ({reviewsForProduct.length} reviews)
-            </div>
-          </div>
-
           <div className="text-xs category-brand flex flex-row relative items-center space-x-1.5 overflow-hidden h-6">
             <p className="text-neutral-400 transition-transform duration-300 group-hover:-translate-y-6">
-              {item.category || "—"}
+              {data.category || "—"}
             </p>
             <p className="text-neutral-400 absolute top-0 left-0 translate-y-6 transition-transform duration-300 group-hover:translate-y-0">
-              {item.brand || "—"}
+              {data.brand || "—"}
             </p>
           </div>
         </div>

@@ -170,7 +170,7 @@ export function LoginRegisModalForm() {
     <Dialog className="Form-Sign-in">
       <DialogTrigger asChild>
         <Button variant="primary" size="sm">
-          Sign in
+          Masuk
         </Button>
       </DialogTrigger>
 
@@ -197,10 +197,10 @@ export function LoginRegisModalForm() {
         >
           <TabsList className="absolute left-6 top-4 w-fit">
             <TabsTrigger value="signin" className="w-1/2">
-              Sign in
+              Masuk
             </TabsTrigger>
             <TabsTrigger value="signup" className="w-1/2">
-              Sign up
+              Daftar
             </TabsTrigger>
           </TabsList>
 

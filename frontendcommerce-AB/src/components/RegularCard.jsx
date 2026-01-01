@@ -79,22 +79,14 @@ export function RegularCard({ product }) {
     : [];
   const averageRating = getAverageRating(reviewsForProduct);
 
-  const productSlug = raw.slug
-    ? slugify(raw.slug)
-    : slugify(raw.name ?? raw.productName ?? raw.title ?? "");
+  const productSlug = raw?.slug
+  ? slugify(raw.slug)
+  : slugify(raw.name ?? raw.productName ?? raw.title ?? "");
 
-  const brandSlug = slugify(
-    raw.brandSlug ?? raw.brand?.slug ?? raw.brand?.name ?? raw.brand ?? ""
-  );
-
-  const path = brandSlug ? `${brandSlug}/${productSlug}` : productSlug;
-
-  const normalizedPath = path ? String(path).replace(/^\/+|\/+$/g, "") : "";
-
-  const href = normalizedPath
-    ? `/${normalizedPath.split("/").map(encodeURIComponent).join("/")}`
-    : "#";
-
+const href = productSlug
+  ? `/${encodeURIComponent(productSlug)}`
+  : "#";
+    
   return (
     <div className="group relative flex h-full w-full flex-col rounded-lg bg-white space-y-4 transition-all overflow-hidden">
       <Link href={href}>

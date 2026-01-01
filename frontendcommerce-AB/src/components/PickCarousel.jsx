@@ -7,12 +7,11 @@ import {
   CarouselNext,
   CarouselPrevious,
   CarouselItem,
-  FlashSaleCard,
+  RegularCard,
 } from "@/components";
 import { getProducts } from "@/services/api/product.services";
 
-export function PickCarousel({ product }) {
-  if (!product) return null;
+export function PickCarousel() {
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +49,7 @@ export function PickCarousel({ product }) {
             key={product.id}
             className="flex-none basis-1/2 sm:basis-1/2 md:basis-1/3 lg:basis-1/3 xl:basis-1/6"
           >
-            <FlashSaleCard product={product} />
+            <RegularCard item={product} />
           </CarouselItem>
         ))}
         <div className="flex-none w-[0px]" aria-hidden="true" />

@@ -9,7 +9,6 @@ export function RegularCardSkeleton({ className }) {
         className
       )}
     >
-      {" "}
       <Skeleton className="flex w-full h-[150px] bg-neutral-100 rounded-md" />
       <div className="p-4 space-y-3">
         <Skeleton className="h-4 w-3/4 bg-neutral-100 rounded" />

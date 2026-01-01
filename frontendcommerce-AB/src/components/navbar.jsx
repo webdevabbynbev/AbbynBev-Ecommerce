@@ -38,7 +38,6 @@ export function Navbar() {
     { icon: "FaRegHeart", href: "/account/wishlist", label: "Wishlist" },
   ];
 
-  // 🔧 Beauty & tips diarahkan ke blog eksternal
   const links = [
     { href: "/", label: "Home" },
     { href: "/best-seller", label: "Best seller" },
@@ -48,146 +47,180 @@ export function Navbar() {
   ];
 
   const isNavActive = (href) => {
-    // untuk external link, nggak perlu active state
     if (href.startsWith("http")) return false;
     if (href === "/") return pathname === "/";
     return pathname === href || pathname.startsWith(href + "/");
   };
 
+  // --- shared searchbar ---
+  const SearchBar = ({ className = "" }) => (
+    <TxtField
+      placeholder="Wardah, Maybeline, anything. . ."
+      iconLeftName="MagnifyingGlass"
+      variant="outline"
+      size="md"
+      className={className}
+    />
+  );
+
   return (
-    <nav className="Navbar flex h-auto px-10 py-5 sticky top-0 w-full bg-white border-b-[1px] border-primary-700 transition-all justify-between items-center z-50">
-      <div className="content-wrapper flex justify-between w-full max-w-[1536px] mx-auto">
-        {/* LEFT SIDE */}
-        <div className="content-left flex w-auto items-center justify-center space-x-6">
-          <div className="Icon-wrapper h-auto w-auto flex justify-center space-x-3">
+    <nav className="sticky top-0 z-50 w-full bg-white border-b border-primary-700">
+      <div className="mx-auto w-full max-w-[1536px] px-4 sm:px-6 lg:px-10 py-4">
+        {/* ===================== MOBILE ( < lg ) ===================== */}
+        <div className="flex items-center gap-3 lg:hidden">
+          {/* Logo kecil */}
+          <Link href="/" className="shrink-0 flex items-center gap-2">
             <Image
               src="/logo-abby-circle.svg"
-              alt="Logo-circle"
-              height={45}
-              width={45}
-              className="justify-center"
-            />
-            <Image
-              src="/Logoabby-text.svg"
               alt="Logo"
-              height={0}
-              width={0}
-              className="w-[150px] h-auto justify-center"
+              height={40}
+              width={40}
             />
+          </Link>
+
+          {/* Searchbar full */}
+          <div className="flex-1 min-w-0">
+            <SearchBar className="w-full" />
           </div>
 
-          <div className="w-auto justify-center">
-            <TxtField
-              placeholder="Wardah, Maybeline, anything. . ."
-              iconLeftName="MagnifyingGlass"
-              variant="outline"
-              size="md"
-              className="min-w-[280px]"
-            />
-          </div>
-
-          {links.map((link) => {
-            const isExternal = link.href.startsWith("http");
-            const active = isNavActive(link.href);
-            const className = clsx(
-              "items-center transition-colors text-sm",
-              active ? "text-primary-700" : "hover:text-primary-500"
-            );
-
-            if (isExternal) {
-              // external link → pakai <a>
-              return (
-                <a key={link.href} href={link.href} className={className}>
-                  {link.label}
-                </a>
-              );
-            }
-
-            // internal link → tetap pakai <Link>
-            return (
-              <Link key={link.href} href={link.href} className={className}>
-                {link.label}
+          {/* Hanya Sign in (atau user icon jika sudah login) */}
+          <div className="shrink-0">
+            {user ? (
+              <Link href="/account/profile">
+                <BtnIcon iconName="User" variant="tertiary" size="sm" />
               </Link>
-            );
-          })}
+            ) : (
+              <LoginRegisModalForm />
+            )}
+          </div>
         </div>
 
-        {/* RIGHT SIDE */}
-        {user ? (
-          <div className="flex justify-end items-center gap-3">
-            <CartButton />
+        {/* ===================== DESKTOP ( >= lg ) ===================== */}
+        <div className="hidden lg:flex items-center justify-between gap-6">
+          {/* LEFT SIDE */}
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+              <Image
+                src="/logo-abby-circle.svg"
+                alt="Logo-circle"
+                height={45}
+                width={45}
+              />
+              <Image
+                src="/Logoabby-text.svg"
+                alt="Logo"
+                width={150}
+                height={45}
+                className="h-auto w-[150px]"
+              />
+            </div>
 
-            {/* 🔔 Bell sekarang menuju ke /notification */}
-            <Link href="/notification">
-              <BtnIcon iconName="Bell" variant="tertiary" size="sm" />
-            </Link>
+            <SearchBar className="min-w-[280px]" />
 
-            <Sheet open={open} onOpenChange={setOpen}>
-              <SheetTrigger asChild>
-                <BtnIcon iconName="User" variant="tertiary" size="sm" />
-              </SheetTrigger>
+            {links.map((link) => {
+              const isExternal = link.href.startsWith("http");
+              const active = isNavActive(link.href);
+              const className = clsx(
+                "text-sm items-center transition-colors",
+                active ? "text-primary-700" : "hover:text-primary-500"
+              );
 
-              <SheetContent>
-                <SheetHeader>
-                  <SheetTitle className="flex items-center gap-2">
-                    <img
-                      src="/Logoabby-text.svg"
-                      alt="abbynbev"
-                      className="w-[150px] h-auto"
-                    />
-                  </SheetTitle>
-                  <SheetDescription className="py-1">
-                    Account menu
-                  </SheetDescription>
-                </SheetHeader>
+              if (isExternal) {
+                return (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    className={className}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {link.label}
+                  </a>
+                );
+              }
 
-                <nav className="py-4 space-y-1">
-                  {linksidebar.map((linkside) => {
-                    const Icon = FaIcons[linkside.icon];
-                    const isActive =
-                      pathname === linkside.href ||
-                      (linkside.href === "/account/order-history" &&
-                        pathname.startsWith("/account/order-history"));
+              return (
+                <Link key={link.href} href={link.href} className={className}>
+                  {link.label}
+                </Link>
+              );
+            })}
+          </div>
 
-                    return (
-                      <Link
-                        key={linkside.href}
-                        href={linkside.href}
-                        onClick={() => setOpen(false)}
-                        className={clsx(
-                          "rounded-md px-4 py-2 items-center transition-colors flex justify-between",
-                          isActive
-                            ? "text-neutral-950 bg-neutral-100"
-                            : "hover:bg-neutral-100 transition-all duration-300"
-                        )}
+          {/* RIGHT SIDE */}
+          {user ? (
+            <div className="flex items-center gap-3">
+              <CartButton />
+
+              <Link href="/notification">
+                <BtnIcon iconName="Bell" variant="tertiary" size="sm" />
+              </Link>
+
+              <Sheet open={open} onOpenChange={setOpen}>
+                <SheetTrigger asChild>
+                  <BtnIcon iconName="User" variant="tertiary" size="sm" />
+                </SheetTrigger>
+
+                <SheetContent>
+                  <SheetHeader>
+                    <SheetTitle className="flex items-center gap-2">
+                      <img
+                        src="/Logoabby-text.svg"
+                        alt="abbynbev"
+                        className="w-[150px] h-auto"
+                      />
+                    </SheetTitle>
+                    <SheetDescription className="py-1">
+                      Account menu
+                    </SheetDescription>
+                  </SheetHeader>
+
+                  <nav className="py-4 space-y-1">
+                    {linksidebar.map((linkside) => {
+                      const Icon = FaIcons[linkside.icon];
+                      const isActive =
+                        pathname === linkside.href ||
+                        (linkside.href === "/account/order-history" &&
+                          pathname.startsWith("/account/order-history"));
+
+                      return (
+                        <Link
+                          key={linkside.href}
+                          href={linkside.href}
+                          onClick={() => setOpen(false)}
+                          className={clsx(
+                            "rounded-md px-4 py-2 flex items-center justify-between transition-colors",
+                            isActive
+                              ? "text-neutral-950 bg-neutral-100"
+                              : "hover:bg-neutral-100"
+                          )}
+                        >
+                          <span>{linkside.label}</span>
+                          {Icon && (
+                            <Icon className="font-bold w-3.5 h-3.5 shrink-0" />
+                          )}
+                        </Link>
+                      );
+                    })}
+
+                    <div className="pt-4">
+                      <Button
+                        onClick={handleLogout}
+                        variant="tertiary"
+                        size="sm"
+                        className="w-full"
                       >
-                        <span>{linkside.label}</span>
-                        {Icon && (
-                          <Icon className="font-bold w-3.5 h-3.5 shrink-0" />
-                        )}
-                      </Link>
-                    );
-                  })}
-
-                  <div className="pt-4">
-                    <Button
-                      onClick={handleLogout}
-                      variant="tertiary"
-                      size="sm"
-                      className="w-full"
-                    >
-                      Sign out
-                    </Button>
-                  </div>
-                </nav>
-              </SheetContent>
-            </Sheet>
-          </div>
-        ) : (
-          <div>
+                        Sign out
+                      </Button>
+                    </div>
+                  </nav>
+                </SheetContent>
+              </Sheet>
+            </div>
+          ) : (
             <LoginRegisModalForm />
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </nav>
   );
