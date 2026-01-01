@@ -13,10 +13,11 @@ import {
 } from "@/components";
 import { DataCategoryCard, DataBrand, DataArticleBlog } from "@/data";
 import { getProducts } from "@/services/api/product.services";
-import { RegularCard } from "@/components";
+import { RegularCard, RegularCardSkeleton } from "@/components";
 
 export default function Home() {
   const [products, setProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
@@ -26,6 +27,8 @@ export default function Home() {
         setProducts(data); // ✅ langsung pakai data hasil normalizeProduct
       } catch (err) {
         console.error("getProducts error:", err);
+      } finally {
+        setProductsLoading(false);
       }
     })();
   }, []);
@@ -87,6 +90,32 @@ export default function Home() {
             <CategoryCard key={item.id} {...item} />
           ))}
         </div>
+      </div>
+
+      <div className="ContainerProducts py-6 space-y-4 mx-auto w-full xl:max-w-[1280px] lg:max-w-[960px]">
+        <div className="flex items-center justify-between">
+          <h3 className="text-primary-700 text-lg font-bold">Produk Terbaru</h3>
+          <Button variant="secondary" size="md" onClick={() => router.push("/product")}>
+            Lihat semua
+          </Button>
+        </div>
+        {productsLoading ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+            {Array.from({ length: 10 }).map((_, index) => (
+              <RegularCardSkeleton key={`product-skeleton-${index}`} />
+            ))}
+          </div>
+        ) : products.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+            {products.map((product) => (
+              <RegularCard key={product.id ?? product._id} product={product} />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-neutral-200 p-6 text-sm text-neutral-400">
+            Produk belum tersedia.
+          </div>
+        )}
       </div>
 
       <div className="ContainerFlashSale w-full flex py-10 p-6 bg-primary-100 items-center justify-center bg-[url('/Logo_SVG_AB.svg')] bg-no-repeat bg-center">

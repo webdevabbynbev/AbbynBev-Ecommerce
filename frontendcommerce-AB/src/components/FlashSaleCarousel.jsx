@@ -11,9 +11,7 @@ import {
 } from "@/components";
 import { getProducts } from "@/services/api/product.services";
 
-export function FlashSaleCarousel({ product }) {
-  if (!product) return null;
-
+export function FlashSaleCarousel() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
