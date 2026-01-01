@@ -9,19 +9,23 @@ import VariantAttribute from '#models/variant_attribute'
 import emitter from '@adonisjs/core/services/emitter'
 import env from '#start/env'
 import OpenAI from 'openai'
-import Helpers from '../../utils/helpers.js'
+import Helpers from '../utils/helpers.js'
 import CategoryType from '#models/category_type'
 import { DateTime } from 'luxon'
 import ProductOnline from '#models/product_online'
+import { ProductService } from '#services/product/product_service'
 
 export default class ProductsController {
+  private productService = new ProductService()
+
   public async get({ response, request }: HttpContext) {
     try {
       const { name = '', isFlashsale, status, page: p, per_page: pp } = request.qs()
       const page = Number(p) > 0 ? Number(p) : 1
       const per_page = Number(pp) > 0 ? Number(pp) : 10
 
-      const dataProduct = await Product.query()
+      const dataProduct = await this.productService
+        .query()
         .apply((scopes) => scopes.active())
         .if(name, (q) => q.where('products.name', 'like', `%${name}%`))
         .if(isFlashsale !== undefined && isFlashsale !== '', (q) =>
@@ -55,7 +59,7 @@ export default class ProductsController {
           ...meta,
         },
       })
-    } catch (error) {
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
         serve: [],
@@ -66,7 +70,8 @@ export default class ProductsController {
   public async show({ response, params }: HttpContext) {
     try {
       const productId = params.id
-      const dataProduct = await Product.query()
+      const dataProduct = await this.productService
+        .query()
         .apply((scopes) => scopes.active())
         .where('id', productId)
         .preload('variants', (variantLoader) => {
@@ -97,7 +102,7 @@ export default class ProductsController {
         message: 'success',
         serve: dataProduct,
       })
-    } catch (error) {
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
         serve: [],
@@ -228,7 +233,7 @@ export default class ProductsController {
         message: 'Successfully created.',
         serve: dataProduct,
       })
-    } catch (error) {
+    } catch (error: any) {
       await trx.rollback()
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
@@ -243,7 +248,7 @@ export default class ProductsController {
       const data = request.all()
       await updateProduct.validate(data)
 
-      const dataProduct = await Product.find(params.id)
+      const dataProduct = await this.productService.find(Number(params.id))
       if (!dataProduct) {
         return response.status(400).send({
           message: 'Invalid data.',
@@ -345,7 +350,7 @@ export default class ProductsController {
         message: 'Successfully updated.',
         serve: dataProduct,
       })
-    } catch (error) {
+    } catch (error: any) {
       await trx.rollback()
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
@@ -357,7 +362,7 @@ export default class ProductsController {
   public async delete({ response, params, auth }: HttpContext) {
     const trx = await db.transaction()
     try {
-      const product = await Product.find(params.id)
+      const product = await this.productService.find(Number(params.id))
       if (product) {
         await product.softDelete()
 
@@ -382,7 +387,7 @@ export default class ProductsController {
           serve: [],
         })
       }
-    } catch (error) {
+    } catch (error: any) {
       await trx.rollback()
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
@@ -458,7 +463,8 @@ export default class ProductsController {
 
   public async getIsFlashsale({ response }: HttpContext) {
     try {
-      const dataProduct = await Product.query()
+      const dataProduct = await this.productService
+        .query()
         .apply((scopes) => scopes.active())
         .where('is_flashsale', true)
         .where('status', '!=', 'draft')
@@ -468,7 +474,7 @@ export default class ProductsController {
         message: 'success',
         serve: dataProduct.map((p) => p.toJSON()),
       })
-    } catch (error) {
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
         serve: [],
@@ -483,14 +489,14 @@ export default class ProductsController {
     try {
       for (const update of updates) {
         const { id, order: newPosition } = update
-        await Product.query().where('id', id).update({ position: newPosition })
+        await this.productService.query().where('id', id).update({ position: newPosition })
       }
 
       let page = 1
       let hasMore = true
 
       while (hasMore) {
-        const products = await Product.query().orderBy('position', 'asc').paginate(page, batchSize)
+        const products = await this.productService.query().orderBy('position', 'asc').paginate(page, batchSize)
 
         if (products.all().length === 0) {
           hasMore = false
@@ -501,7 +507,7 @@ export default class ProductsController {
           const product = products.all()[i]
           const newPosition = (page - 1) * batchSize + i
           if (product.position !== newPosition) {
-            await Product.query().where('id', product.id).update({ position: newPosition })
+            await this.productService.query().where('id', product.id).update({ position: newPosition })
           }
         }
 
@@ -512,7 +518,7 @@ export default class ProductsController {
         message: 'Positions updated and reordered successfully.',
         serve: [],
       })
-    } catch (error) {
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
         serve: [],
@@ -522,7 +528,7 @@ export default class ProductsController {
 
   public async publish({ params, response, auth }: HttpContext) {
     try {
-      const product = await Product.find(params.id)
+      const product = await this.productService.find(Number(params.id))
 
       if (!product) {
         return response.status(404).send({ message: 'Product not found' })
@@ -533,6 +539,7 @@ export default class ProductsController {
           message: 'Product is still draft, cannot publish',
         })
       }
+
       const published = await ProductOnline.updateOrCreate(
         { productId: product.id },
         { isActive: true, publishedAt: DateTime.now() }
@@ -551,7 +558,7 @@ export default class ProductsController {
         message: 'Product published successfully',
         serve: published,
       })
-    } catch (error) {
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error',
       })
@@ -582,7 +589,7 @@ export default class ProductsController {
         message: 'Product unpublished successfully',
         serve: productOnline,
       })
-    } catch (error) {
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error',
       })
