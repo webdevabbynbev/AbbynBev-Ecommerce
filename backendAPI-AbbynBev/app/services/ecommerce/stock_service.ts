@@ -3,7 +3,7 @@ import TransactionDetail from '#models/transaction_detail'
 import ProductVariant from '#models/product_variant'
 import Product from '#models/product'
 import TransactionCart from '#models/transaction_cart'
-import { toNumber } from '../../utils/number.js'
+import NumberUtils from '../../utils/number.js'
 
 export class StockService {
   async reduceFromCarts(trx: any, carts: any[], transactionId: number) {
@@ -34,9 +34,11 @@ export class StockService {
 
       const transactionDetail = new TransactionDetail()
       transactionDetail.qty = qty
-      transactionDetail.price = toNumber(cart.price)
-      transactionDetail.amount = ((toNumber(cart.price) - toNumber(cart.discount)) * qty).toString()
-      transactionDetail.discount = toNumber(cart.discount)
+      transactionDetail.price = NumberUtils.toNumber(cart.price)
+      transactionDetail.amount = (
+        (NumberUtils.toNumber(cart.price) - NumberUtils.toNumber(cart.discount)) * qty
+      ).toString()
+      transactionDetail.discount = NumberUtils.toNumber(cart.discount)
       transactionDetail.attributes = cart.attributes ?? ''
       transactionDetail.transactionId = transactionId
       transactionDetail.productId = cart.productId ?? 0
@@ -46,7 +48,7 @@ export class StockService {
       if (cart.productId) {
         const product = await Product.query({ client: trx }).where('id', cart.productId).first()
         if (product) {
-          product.popularity = toNumber(product.popularity) + 1
+          product.popularity = NumberUtils.toNumber(product.popularity) + 1
           await product.useTransaction(trx).save()
         }
       }
@@ -62,7 +64,7 @@ export class StockService {
       if (d.productVariantId) {
         const pv = await ProductVariant.query({ client: trx }).where('id', d.productVariantId).forUpdate().first()
         if (pv) {
-          pv.stock = toNumber(pv.stock) + toNumber(d.qty)
+          pv.stock = NumberUtils.toNumber(pv.stock) + NumberUtils.toNumber(d.qty)
           await pv.useTransaction(trx).save()
         }
       }
@@ -70,7 +72,7 @@ export class StockService {
       if (d.productId) {
         const p = await Product.query({ client: trx }).where('id', d.productId).forUpdate().first()
         if (p) {
-          p.popularity = Math.max(0, toNumber(p.popularity) - 1)
+          p.popularity = Math.max(0, NumberUtils.toNumber(p.popularity) - 1)
           await p.useTransaction(trx).save()
         }
       }

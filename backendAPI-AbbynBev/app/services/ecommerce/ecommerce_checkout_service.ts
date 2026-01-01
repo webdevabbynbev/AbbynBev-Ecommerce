@@ -8,14 +8,14 @@ import ProductOnline from '#models/product_online'
 import UserAddress from '#models/user_address'
 
 import { TransactionStatus } from '../../enums/transaction_status.js'
-import { toNumber } from '../../utils/number.js'
+import NumberUtils from '../../utils/number.js'
 
 import { VoucherCalculator } from './voucher_calculator.js'
 import { StockService } from './stock_service.js'
 import { MidtransService } from './midtrans_service.js'
 
 function normalizeInt(v: any, fallback = 0) {
-  const n = toNumber(v, fallback)
+  const n = NumberUtils.toNumber(v, fallback)
   return Math.max(0, Math.round(n))
 }
 
@@ -39,11 +39,11 @@ export class EcommerceCheckoutService {
     return db.transaction(async (trx) => {
       const rawCartIds = payload.cart_ids ?? []
       const cartIds: number[] = Array.isArray(rawCartIds)
-        ? rawCartIds.map((x: any) => toNumber(x)).filter((x) => x > 0)
+       ? rawCartIds.map((x: any) => NumberUtils.toNumber(x)).filter((x) => x > 0)
         : []
 
       const voucher = payload.voucher
-      const userAddressId = toNumber(payload.user_address_id, 0)
+      const userAddressId = NumberUtils.toNumber(payload.user_address_id, 0)
 
       const courierName = String(payload.shipping_service_type || '').trim()
       const courierService = String(payload.shipping_service || '').trim()
@@ -104,7 +104,7 @@ export class EcommerceCheckoutService {
 
       const subTotal = carts.reduce((acc, cart: any) => {
         const qty = cart.qtyCheckout > 0 ? cart.qtyCheckout : cart.qty
-        return acc + (toNumber(cart.price) - toNumber(cart.discount)) * qty
+        return acc + (NumberUtils.toNumber(cart.price) - NumberUtils.toNumber(cart.discount)) * qty
       }, 0)
 
       const userAddress = await UserAddress.query({ client: trx }).where('id', userAddressId).first()
@@ -121,8 +121,8 @@ export class EcommerceCheckoutService {
 
       const weightFromCart = carts.reduce((acc, cart: any) => {
         const qty = cart.qtyCheckout > 0 ? cart.qtyCheckout : cart.qty
-        const vWeight = toNumber(cart?.variant?.weight, 0)
-        const pWeight = toNumber(cart?.product?.weight, 0)
+        const vWeight = NumberUtils.toNumber(cart?.variant?.weight, 0)
+        const pWeight = NumberUtils.toNumber(cart?.product?.weight, 0)
         const w = vWeight || pWeight || 0
         return acc + w * qty
       }, 0)
@@ -141,7 +141,7 @@ export class EcommerceCheckoutService {
       transaction.subTotal = subTotal
       transaction.grandTotal = grandTotal
       transaction.discount = discount
-      transaction.discountType = toNumber(voucher?.type, 0)
+      transaction.discountType = NumberUtils.toNumber(voucher?.type, 0)
       transaction.transactionNumber = this.generateTransactionNumber()
       transaction.transactionStatus = TransactionStatus.WAITING_PAYMENT.toString()
       transaction.channel = 'ecommerce'

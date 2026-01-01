@@ -2,7 +2,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { TransactionRepository } from '../../services/transaction/transaction_repository.js'
 import { AdminTransactionService } from '../../services/transaction/admin_transaction_service.js'
-import { toNumber, parseIds } from '../../utils/number.js'
+import NumberUtils from '../../utils/number.js'
 
 export default class TransactionsController {
   private repo = new TransactionRepository()
@@ -34,7 +34,7 @@ export default class TransactionsController {
 
   public async show({ params, response }: HttpContext) {
     try {
-      const id = toNumber(params.id, 0)
+      const id = NumberUtils.toNumber(params.id, 0)
       if (!id) {
         return response.status(400).send({ message: 'Invalid id', serve: [] })
       }
@@ -55,7 +55,7 @@ export default class TransactionsController {
 
   public async confirmPaidOrder({ response, request }: HttpContext) {
     try {
-      const transactionId = toNumber(request.input('transaction_id'), 0)
+      const transactionId = NumberUtils.toNumber(request.input('transaction_id'), 0)
       if (!transactionId) {
         return response.status(400).send({ message: 'transaction_id wajib diisi', serve: [] })
       }
@@ -77,7 +77,7 @@ export default class TransactionsController {
 
   public async updateReceipt({ response, request }: HttpContext) {
     try {
-      const transactionId = toNumber(request.input('transaction_id'), 0)
+      const transactionId = NumberUtils.toNumber(request.input('transaction_id'), 0)
       if (!transactionId) {
         return response.status(400).send({ message: 'transaction_id wajib diisi', serve: [] })
       }
@@ -99,7 +99,7 @@ export default class TransactionsController {
 
   public async cancelTransactions({ request, response }: HttpContext) {
     try {
-      const transactionIds = parseIds(request.input('transactionIds'))
+      const transactionIds = NumberUtils.parseIds(request.input('transactionIds'))
       if (!transactionIds.length) {
         return response.status(400).json({ message: 'Invalid transaction IDs' })
       }

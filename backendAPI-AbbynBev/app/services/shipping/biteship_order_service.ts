@@ -4,7 +4,9 @@ import BiteshipService from '#services/biteship_service'
 import { pickFirstString, toPostalNumber } from '../../utils/address.js'
 import { toNumber } from '../../utils/number.js'
 import { TransactionStatus } from '../../enums/transaction_status.js'
-import { getCompanyOrigin } from './company_profile.js'
+import CompanyProfileService from './company_profile.js'
+
+const companyProfileService = new CompanyProfileService()
 
 export class BiteshipOrderService {
   async createReceiptForTransaction(trx: any, transaction: any) {
@@ -26,7 +28,7 @@ export class BiteshipOrderService {
     }, 0)
 
     const { originAreaId, originPostal, originContactName, originContactPhone, originAddress } =
-      getCompanyOrigin()
+      companyProfileService.getCompanyOrigin()
 
     const destAreaId = pickFirstString(userAddress, [
       'biteshipAreaId',

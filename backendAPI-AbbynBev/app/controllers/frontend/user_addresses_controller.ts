@@ -1,8 +1,8 @@
 // app/controllers/frontend/user_addresses_controller.ts
 import type { HttpContext } from '@adonisjs/core/http'
 
-import { pickInput, toInt } from '../../utils/http.js'
-import { normalizePostal, isPostalCode } from '../../utils/postal.js'
+import HttpHelper from '../../utils/http.js'
+import PostalHelper from '../../utils/postal.js'
 
 import { UserAddressService } from '../../services/address/user_address_service.js'
 import { BiteshipClient } from '../../services/address/biteship_client.js'
@@ -51,7 +51,7 @@ export default class UserAddressesController {
   public async delete({ response, request, auth }: HttpContext) {
     try {
       const userId = auth.user?.id ?? 0
-      const id = toInt(pickInput(request, ['id'], 0), 0)
+      const id = HttpHelper.toInt(HttpHelper.pickInput(request, ['id'], 0), 0)
       await this.addressSvc.delete(userId, id)
       return response.status(200).send({ message: 'Successfully deleted address.', serve: [] })
     } catch (e: any) {
@@ -86,11 +86,17 @@ export default class UserAddressesController {
     let payloadUsed: any = null
 
     try {
-      const addressId = toInt(pickInput(request, ['address_id', 'addressId'], 0), 0)
+      const addressId = HttpHelper.toInt(HttpHelper.pickInput(request, ['address_id', 'addressId'], 0), 0)
 
-      let destinationAreaId = String(pickInput(request, ['destination_area_id', 'destinationAreaId'], '') || '').trim()
-      let destinationPostal = normalizePostal(
-        pickInput(request, ['destination_postal_code', 'destinationPostalCode', 'postal_code', 'postalCode'], '') || ''
+      let destinationAreaId = String(
+        HttpHelper.pickInput(request, ['destination_area_id', 'destinationAreaId'], '') || ''
+      ).trim()
+      let destinationPostal = PostalHelper.normalizePostal(
+        HttpHelper.pickInput(
+          request,
+          ['destination_postal_code', 'destinationPostalCode', 'postal_code', 'postalCode'],
+          ''
+        ) || ''
       )
 
       if (addressId) {
@@ -102,17 +108,22 @@ export default class UserAddressesController {
         if (!addr) return response.status(404).send({ message: 'Address not found.', serve: null })
 
         if (addr.biteshipAreaId) destinationAreaId = String(addr.biteshipAreaId).trim()
-        if (addr.postalCode) destinationPostal = normalizePostal(addr.postalCode)
+        if (addr.postalCode) destinationPostal = PostalHelper.normalizePostal(addr.postalCode)
       }
 
       const originAreaId = String(env.get('BITESHIP_ORIGIN_AREA_ID') || '').trim()
       const originPostal = String(env.get('COMPANY_POSTAL_CODE') || '').trim()
 
-      const weight = Math.max(1, toInt(pickInput(request, ['weight'], 1), 1))
-      const value = Math.max(1, toInt(pickInput(request, ['value', 'amount', 'total'], 1000), 1000))
-      const quantity = Math.max(1, toInt(pickInput(request, ['quantity', 'qty'], 1), 1))
+      const weight = Math.max(1, HttpHelper.toInt(HttpHelper.pickInput(request, ['weight'], 1), 1))
+      const value = Math.max(
+        1,
+        HttpHelper.toInt(HttpHelper.pickInput(request, ['value', 'amount', 'total'], 1000), 1000)
+      )
+      const quantity = Math.max(1, HttpHelper.toInt(HttpHelper.pickInput(request, ['quantity', 'qty'], 1), 1))
 
-      const couriers = BiteshipClient.normalizeCouriers(String(pickInput(request, ['courier', 'couriers'], 'all')))
+      const couriers = BiteshipClient.normalizeCouriers(
+        String(HttpHelper.pickInput(request, ['courier', 'couriers'], 'all'))
+      )
 
       const payload: any = {
         couriers,
@@ -123,7 +134,7 @@ export default class UserAddressesController {
         payload.origin_area_id = originAreaId
         payload.destination_area_id = destinationAreaId
       } else {
-        if (!isPostalCode(originPostal)) {
+        if (!PostalHelper.isPostalCode(originPostal)) {
           return response.status(500).send({
             message: 'Origin not configured. Set BITESHIP_ORIGIN_AREA_ID or valid COMPANY_POSTAL_CODE.',
             serve: null,
@@ -131,7 +142,7 @@ export default class UserAddressesController {
           })
         }
 
-        if (!isPostalCode(destinationPostal)) {
+        if (!PostalHelper.isPostalCode(destinationPostal)) {
           return response.status(400).send({
             message:
               'Destination invalid. Provide destination_area_id OR destination_postal_code (or save postalCode in address).',
@@ -140,13 +151,13 @@ export default class UserAddressesController {
           })
         }
 
-        payload.origin_postal_code = toInt(originPostal, 0)
-        payload.destination_postal_code = toInt(destinationPostal, 0)
+        payload.origin_postal_code = HttpHelper.toInt(originPostal, 0)
+        payload.destination_postal_code = HttpHelper.toInt(destinationPostal, 0)
       }
 
       payloadUsed = payload
 
-      const noCache = toInt(pickInput(request, ['no_cache', 'noCache'], 0), 0) === 1
+      const noCache = HttpHelper.toInt(HttpHelper.pickInput(request, ['no_cache', 'noCache'], 0), 0) === 1
       const result = await this.biteship.getCourierRates(payload, noCache)
 
       return response.status(200).send({

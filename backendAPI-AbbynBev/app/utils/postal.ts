@@ -1,9 +1,11 @@
 // app/utils/postal.ts
-export function normalizePostal(v: unknown) {
-  return String(v ?? '').trim().replace(/\s+/g, '')
-}
+export default class PostalHelper {
+  public static normalizePostal(v: unknown) {
+    return String(v ?? '').trim().replace(/\s+/g, '')
+  }
 
-export function isPostalCode(v: unknown) {
-  const s = normalizePostal(v)
-  return /^[0-9]{5}$/.test(s)
+  public static isPostalCode(v: unknown) {
+    const s = PostalHelper.normalizePostal(v)
+    return /^[0-9]{5}$/.test(s)
+  }
 }

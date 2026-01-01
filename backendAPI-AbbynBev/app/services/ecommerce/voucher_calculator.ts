@@ -1,16 +1,16 @@
 // app/services/ecommerce/voucher_calculator.ts
 import Voucher from '#models/voucher'
-import { toNumber } from '../../utils/number.js'
+import NumberUtils from '../../utils/number.js'
 
 export class VoucherCalculator {
   calculateVoucher(v: any, subTotal: number, shippingPrice: number) {
     if (!v) return 0
 
-    const isPercentage = toNumber(v.isPercentage) === 1
-    const type = toNumber(v.type)
-    const percentage = toNumber(v.percentage)
-    const maxDiscPrice = toNumber(v.maxDiscPrice)
-    const fixedPrice = toNumber(v.price)
+    const isPercentage = NumberUtils.toNumber(v.isPercentage) === 1
+    const type = NumberUtils.toNumber(v.type)
+    const percentage = NumberUtils.toNumber(v.percentage)
+    const maxDiscPrice = NumberUtils.toNumber(v.maxDiscPrice)
+    const fixedPrice = NumberUtils.toNumber(v.price)
 
     if (isPercentage) {
       if (type === 2) {
@@ -35,7 +35,7 @@ export class VoucherCalculator {
   async decrementVoucher(trx: any, voucherId: number) {
     const voucherDb = await Voucher.query({ client: trx }).where('id', voucherId).first()
     if (voucherDb) {
-      voucherDb.qty = Math.max(0, toNumber(voucherDb.qty) - 1)
+      voucherDb.qty = Math.max(0, NumberUtils.toNumber(voucherDb.qty) - 1)
       await voucherDb.useTransaction(trx).save()
     }
   }
@@ -43,7 +43,7 @@ export class VoucherCalculator {
   async restoreVoucher(trx: any, voucherId: number) {
     const v = await Voucher.query({ client: trx }).where('id', voucherId).forUpdate().first()
     if (v) {
-      v.qty = toNumber(v.qty) + 1
+      v.qty = NumberUtils.toNumber(v.qty) + 1
       await v.useTransaction(trx).save()
     }
   }

@@ -1,6 +1,6 @@
 // app/services/ecommerce/ecommerce_repository.ts
 import TransactionEcommerce from '#models/transaction_ecommerce'
-import { toNumber } from '../../utils/number.js'
+import NumberUtils from '../../utils/number.js'
 
 type SortDir = 'asc' | 'desc'
 
@@ -16,8 +16,8 @@ export class EcommerceRepository {
   }
 
   listForUser(userId: number, qs: any) {
-    const page = toNumber(qs.page, 1) || 1
-    const perPage = toNumber(qs.per_page, 10) || 10
+    const page = NumberUtils.toNumber(qs.page, 1) || 1
+    const perPage = NumberUtils.toNumber(qs.per_page, 10) || 10
 
     const sortBy = this.sanitizeSort(qs.field)
     const sortDir = this.toSortDir(qs.value)

@@ -18,8 +18,8 @@ import {
   deactivateAccountValidator,
 } from '#validators/auth'
 import { OtpAction } from '../enums/setting_types.js'
-import { generateOtp } from '../utils/helpers.js'
-import { uploadFile } from '../utils/upload_file_service.js'
+import Helpers from '../utils/helpers.js'
+import FileUploadService from '../utils/upload_file_service.js'
 import { OAuth2Client } from 'google-auth-library'
 import vine from '@vinejs/vine'
 import PasswordReset from '#models/password_resets'
@@ -556,7 +556,7 @@ export default class AuthController {
       const payload = await request.validateUsing(updateProfilePicture)
       const user: User = auth?.user as User
 
-      const image = await uploadFile(payload.image, { folder: 'profile', type: 'image' })
+      const image = await FileUploadService.uploadFile(payload.image, { folder: 'profile', type: 'image' })
       user.photoProfile = image
       await user.save()
 
@@ -588,7 +588,10 @@ export default class AuthController {
       const user: User = auth?.user as User
 
       if (payload.image) {
-        const image = await uploadFile(request.file('image'), { folder: 'profile', type: 'image' })
+        const image = await FileUploadService.uploadFile(request.file('image'), {
+          folder: 'profile',
+          type: 'image',
+        })
         Object.assign(payload, { photoProfile: image })
       }
 
@@ -794,7 +797,7 @@ export default class AuthController {
 
   private async generateUniqueOtp(email: string, action: OtpAction): Promise<string> {
     while (true) {
-      const otp = generateOtp()
+      const otp = Helpers.generateOtp()
 
       const existingOtp = await Otp.query()
         .where('email', email)

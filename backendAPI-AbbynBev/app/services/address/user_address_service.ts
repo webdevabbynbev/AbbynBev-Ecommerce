@@ -1,8 +1,8 @@
 // app/services/address/user_address_service.ts
 import db from '@adonisjs/lucid/services/db'
 import UserAddress from '#models/user_address'
-import { toInt } from '../../utils/http.js'
-import { normalizePostal, isPostalCode } from '../../utils/postal.js'
+import HttpHelper from '../../utils/http.js'
+import PostalHelper from '../../utils/postal.js'
 
 type UpsertPayload = {
   id?: number
@@ -45,7 +45,7 @@ function parseArea(payload: UpsertPayload) {
 
   const postalFromArea = areaObj?.postal_code ?? areaObj?.postalCode
   const postalIn = payload.postal_code ?? payload.postalCode
-  const postalCode = normalizePostal(postalFromArea ?? postalIn ?? '')
+  const postalCode = PostalHelper.normalizePostal(postalFromArea ?? postalIn ?? '')
 
   return { areaId, areaName, postalCode }
 }
@@ -65,13 +65,13 @@ export class UserAddressService {
         throw err
       }
 
-      if (postalCode && !isPostalCode(postalCode)) {
+      if (postalCode && !PostalHelper.isPostalCode(postalCode)) {
         const err: any = new Error('postal_code must be 5 digit.')
         err.httpStatus = 400
         throw err
       }
 
-      const isActive = toInt(payload.is_active ?? payload.isActive ?? 1, 1)
+      const isActive = HttpHelper.toInt(payload.is_active ?? payload.isActive ?? 1, 1)
 
       const addr = new UserAddress()
       addr.userId = userId
@@ -111,7 +111,7 @@ export class UserAddressService {
 
   async update(userId: number, payload: UpsertPayload) {
     return db.transaction(async (trx) => {
-      const id = toInt(payload.id, 0)
+      const id = HttpHelper.toInt(payload.id, 0)
       if (!id) {
         const err: any = new Error('id is required')
         err.httpStatus = 400
@@ -137,7 +137,7 @@ export class UserAddressService {
       }
 
       if (typeof payload.is_active !== 'undefined' || typeof payload.isActive !== 'undefined') {
-        addr.isActive = toInt(payload.is_active ?? payload.isActive, addr.isActive)
+        addr.isActive = HttpHelper.toInt(payload.is_active ?? payload.isActive, addr.isActive)
       }
 
       if (typeof payload.address !== 'undefined') addr.address = String(payload.address)
@@ -154,7 +154,7 @@ export class UserAddressService {
 
       // postal optional tapi kalau dikirim harus valid
       if (typeof payload.postal_code !== 'undefined' || typeof payload.postalCode !== 'undefined' || postalCode) {
-        if (postalCode && !isPostalCode(postalCode)) {
+        if (postalCode && !PostalHelper.isPostalCode(postalCode)) {
           const err: any = new Error('postal_code must be 5 digit.')
           err.httpStatus = 400
           throw err

@@ -6,7 +6,7 @@ import Voucher from '#models/voucher'
 import { TransactionStatus } from '../../enums/transaction_status.js'
 import { TransactionStatusMachine } from './transaction_status_machine.js'
 import { BiteshipOrderService } from '../shipping/biteship_order_service.js'
-import { toNumber } from '../../utils/number.js'
+import NumberUtils from '../../utils/number.js'
 
 export class AdminTransactionService {
   private status = new TransactionStatusMachine()
@@ -25,7 +25,7 @@ export class AdminTransactionService {
         throw err
       }
 
-      this.status.assertCanConfirmPaid(toNumber(transaction.transactionStatus as any))
+      this.status.assertCanConfirmPaid(NumberUtils.toNumber(transaction.transactionStatus as any))
       transaction.transactionStatus = TransactionStatus.ON_PROCESS as any
       await transaction.useTransaction(trx).save()
 
@@ -60,7 +60,7 @@ export class AdminTransactionService {
         throw err
       }
 
-      this.status.assertCanGenerateReceipt(toNumber(transaction.transactionStatus as any))
+      this.status.assertCanGenerateReceipt(NumberUtils.toNumber(transaction.transactionStatus as any))
       return this.biteship.createReceiptForTransaction(trx, transaction)
     })
   }
@@ -79,7 +79,7 @@ export class AdminTransactionService {
       }
 
       for (const t of transactions) {
-        this.status.assertCanCancel(toNumber(t.transactionStatus as any), t.transactionNumber)
+        this.status.assertCanCancel(NumberUtils.toNumber(t.transactionStatus as any), t.transactionNumber)
       }
 
       for (const t of transactions as any[]) {
@@ -92,12 +92,15 @@ export class AdminTransactionService {
             .first()
 
           if (pv) {
-            pv.stock = toNumber(pv.stock) + toNumber(detail.qty)
+            pv.stock = NumberUtils.toNumber(pv.stock) + NumberUtils.toNumber(detail.qty)
             await pv.useTransaction(trx).save()
           }
 
           if (detail.product) {
-            detail.product.popularity = Math.max(0, toNumber(detail.product.popularity) - 1)
+            detail.product.popularity = Math.max(
+              0,
+              NumberUtils.toNumber(detail.product.popularity) - 1
+            )
             await detail.product.useTransaction(trx).save()
           }
         }
@@ -106,7 +109,7 @@ export class AdminTransactionService {
         if (voucherId) {
           const v = await Voucher.query({ client: trx }).where('id', voucherId).forUpdate().first()
           if (v) {
-            v.qty = toNumber(v.qty) + 1
+            v.qty = NumberUtils.toNumber(v.qty) + 1
             await v.useTransaction(trx).save()
           }
         }

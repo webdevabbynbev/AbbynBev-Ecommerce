@@ -9,7 +9,7 @@ import VariantAttribute from '#models/variant_attribute'
 import emitter from '@adonisjs/core/services/emitter'
 import env from '#start/env'
 import OpenAI from 'openai'
-import { generateSlug } from '../../utils/helpers.js'
+import Helpers from '../../utils/helpers.js'
 import CategoryType from '#models/category_type'
 import { DateTime } from 'luxon'
 import ProductOnline from '#models/product_online'
@@ -113,7 +113,7 @@ export default class ProductsController {
 
       const dataProduct = new Product()
       dataProduct.name = request.input('name')
-      dataProduct.slug = await generateSlug(request.input('name'))
+      dataProduct.slug = await Helpers.generateSlug(request.input('name'))
       dataProduct.description = request.input('description')
       dataProduct.weight = request.input('weight')
       dataProduct.basePrice = request.input('base_price')
@@ -130,7 +130,7 @@ export default class ProductsController {
 
       const category = await CategoryType.find(request.input('category_type_id'))
       const categorySlug = category
-        ? await generateSlug(category.name)
+        ? await Helpers.generateSlug(category.name)
         : `category-${request.input('category_type_id')}`
 
       dataProduct.path = `${categorySlug}/${dataProduct.slug}`
@@ -254,7 +254,7 @@ export default class ProductsController {
       const oldData = dataProduct.toJSON()
 
       dataProduct.name = request.input('name')
-      dataProduct.slug = await generateSlug(request.input('name'))
+      dataProduct.slug = await Helpers.generateSlug(request.input('name'))
       dataProduct.description = request.input('description')
       dataProduct.weight = request.input('weight')
       dataProduct.basePrice = request.input('base_price')
@@ -268,7 +268,7 @@ export default class ProductsController {
 
       const category = await CategoryType.find(request.input('category_type_id'))
       const categorySlug = category
-        ? await generateSlug(category.name)
+        ? await Helpers.generateSlug(category.name)
         : `category-${request.input('category_type_id')}`
 
       dataProduct.path = `${categorySlug}/${dataProduct.slug}`
