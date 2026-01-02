@@ -69,7 +69,6 @@ export default defineConfig({
     () => import('#start/routes'),
     () => import('#start/kernel'),
     () => import('#start/set_activity_log'),
-    () => import('#start/auto_complete_orders'),
   ],
 
   /*

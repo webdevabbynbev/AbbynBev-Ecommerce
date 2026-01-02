@@ -1,11 +1,11 @@
 // app/services/shipping/company_profile.ts
 import env from '#start/env'
-import { toPostalNumber } from '../../utils/address.js'
+import AddressUtils from '../../utils/address.js'
 
 export default class CompanyProfileService {
   public getCompanyOrigin() {
     const originAreaId = String(env.get('BITESHIP_ORIGIN_AREA_ID') || '').trim()
-    const originPostal = toPostalNumber(env.get('COMPANY_POSTAL_CODE'))
+    const originPostal = AddressUtils.toPostalNumber(env.get('COMPANY_POSTAL_CODE'))
 
     if (!originAreaId && !originPostal) {
       throw new Error('Origin Biteship belum diset. Isi BITESHIP_ORIGIN_AREA_ID atau COMPANY_POSTAL_CODE')

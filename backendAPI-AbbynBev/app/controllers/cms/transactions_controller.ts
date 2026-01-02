@@ -1,12 +1,12 @@
 // app/controllers/cms/transactions_controller.ts
 import type { HttpContext } from '@adonisjs/core/http'
 import { TransactionRepository } from '../../services/transaction/transaction_repository.js'
-import { AdminTransactionService } from '../../services/transaction/admin_transaction_service.js'
+import { AdminFulfillmentService } from '../../services/transaction/admin_fulfillment_service.js'
 import NumberUtils from '../../utils/number.js'
 
 export default class TransactionsController {
   private repo = new TransactionRepository()
-  private adminTx = new AdminTransactionService()
+  private fulfill = new AdminFulfillmentService()
 
   public async get({ response, request }: HttpContext) {
     try {
@@ -60,7 +60,7 @@ export default class TransactionsController {
         return response.status(400).send({ message: 'transaction_id wajib diisi', serve: [] })
       }
 
-      const tx = await this.adminTx.confirmPaidOrder(transactionId)
+      const tx = await this.fulfill.confirmPaidOrder(transactionId)
 
       return response.status(200).send({
         message: 'Pesanan berhasil dikonfirmasi admin.',
@@ -82,11 +82,57 @@ export default class TransactionsController {
         return response.status(400).send({ message: 'transaction_id wajib diisi', serve: [] })
       }
 
-      const result = await this.adminTx.generateReceipt(transactionId)
+      const result = await this.fulfill.generateReceipt(transactionId)
 
       return response.status(200).send({
         message: result.message,
         serve: result.serve,
+      })
+    } catch (error: any) {
+      const status = error.httpStatus || 400
+      return response.status(status).send({
+        message: error.message || 'Internal Server Error.',
+        serve: [],
+      })
+    }
+  }
+
+  // ✅ NEW: refresh tracking manual dari CMS
+  public async refreshTracking({ response, request }: HttpContext) {
+    try {
+      const transactionId = NumberUtils.toNumber(request.input('transaction_id'), 0)
+      if (!transactionId) {
+        return response.status(400).send({ message: 'transaction_id wajib diisi', serve: [] })
+      }
+
+      const tx = await this.fulfill.refreshTracking(transactionId)
+
+      return response.status(200).send({
+        message: 'Tracking berhasil disinkronkan.',
+        serve: tx,
+      })
+    } catch (error: any) {
+      const status = error.httpStatus || 400
+      return response.status(status).send({
+        message: error.message || 'Internal Server Error.',
+        serve: [],
+      })
+    }
+  }
+
+  // ✅ NEW: complete order manual dari CMS
+  public async completeOrder({ response, request }: HttpContext) {
+    try {
+      const transactionId = NumberUtils.toNumber(request.input('transaction_id'), 0)
+      if (!transactionId) {
+        return response.status(400).send({ message: 'transaction_id wajib diisi', serve: [] })
+      }
+
+      const tx = await this.fulfill.completeOrder(transactionId)
+
+      return response.status(200).send({
+        message: 'Pesanan berhasil diselesaikan.',
+        serve: tx,
       })
     } catch (error: any) {
       const status = error.httpStatus || 400
@@ -104,7 +150,7 @@ export default class TransactionsController {
         return response.status(400).json({ message: 'Invalid transaction IDs' })
       }
 
-      await this.adminTx.cancelTransactions(transactionIds)
+      await this.fulfill.cancelTransactions(transactionIds)
 
       return response.status(200).json({
         message: 'Transactions successfully canceled. Stock & voucher restored.',

@@ -2,10 +2,9 @@
 import db from '@adonisjs/lucid/services/db'
 import Transaction from '#models/transaction'
 import { TransactionStatus } from '../../enums/transaction_status.js'
-import { DateTime } from 'luxon'
 
 import { EcommerceRepository } from './ecommerce_repository.js'
-import { BiteshipTrackingService } from './biteship_tracking_service.js'
+import { BiteshipTrackingService } from '../shipping/biteship_tracking_service.js'
 
 export class EcommerceOrderService {
   private repo = new EcommerceRepository()
@@ -23,19 +22,15 @@ export class EcommerceOrderService {
       throw err
     }
 
-    // ✅ sync biteship jika memungkinkan (biar deliveredAt bisa keisi otomatis)
+    // sync biteship kalau memungkinkan (biar deliveredAt keisi pas shipping dimulai)
     try {
-      // beberapa repo mengembalikan struktur beda, jadi kita amankan
       const trxModel: any =
         (dataTransaction as any)?.transaction ||
         (dataTransaction as any)?.dataTransaction?.transaction ||
         null
 
-      // shipment bisa muncul di trxModel.shipments atau dataTransaction.shipments
       const trxShipments = Array.isArray(trxModel?.shipments) ? trxModel.shipments : []
-      const ecoShipments = Array.isArray((dataTransaction as any)?.shipments)
-        ? (dataTransaction as any).shipments
-        : []
+      const ecoShipments = Array.isArray((dataTransaction as any)?.shipments) ? (dataTransaction as any).shipments : []
 
       const shipment: any = trxShipments[0] || ecoShipments[0] || null
 
@@ -63,7 +58,7 @@ export class EcommerceOrderService {
         throw err
       }
 
-      // cuma boleh confirm kalau sedang ON_DELIVERY
+      // confirm hanya kalau sudah ON_DELIVERY
       if (Number(transaction.transactionStatus) !== TransactionStatus.ON_DELIVERY) {
         const err: any = new Error('Pesanan belum dikirim, belum bisa dikonfirmasi selesai.')
         err.httpStatus = 400
@@ -73,16 +68,10 @@ export class EcommerceOrderService {
       transaction.transactionStatus = TransactionStatus.COMPLETED.toString()
       await transaction.useTransaction(trx).save()
 
+      // Optional: set status text aja
       if (transaction.shipments.length > 0) {
         const shipment: any = transaction.shipments[0]
-
         shipment.status = 'delivered'
-
-        // ✅ proper delivery date
-        if (!shipment.deliveredAt) {
-          shipment.deliveredAt = DateTime.now()
-        }
-
         await shipment.useTransaction(trx).save()
       }
 
@@ -90,6 +79,11 @@ export class EcommerceOrderService {
     })
   }
 
+  /**
+   * Manual update shipment status (admin/system).
+   * RULE:
+   * - kalau status masuk kategori pengiriman (on_delivery/pickup/in_transit/pengantaran) => set deliveredAt (sekali)
+   */
   async updateWaybillStatus(transactionNumber: string, newStatus: any) {
     const transaction = await Transaction.query()
       .where('transaction_number', transactionNumber)
@@ -104,26 +98,31 @@ export class EcommerceOrderService {
 
     const shipment: any = transaction.shipments[0]
     const statusText = String(newStatus || '').trim()
-
     shipment.status = statusText
 
-    // ✅ kalau status jadi delivered dari admin/system, set deliveredAt (sekali)
     const lower = statusText.toLowerCase()
-    const delivered =
-      lower.includes('delivered') ||
-      lower.includes('completed') ||
-      lower.includes('selesai') ||
-      lower.includes('success') ||
-      lower.includes('done')
 
-    if (delivered && !shipment.deliveredAt) {
-      shipment.deliveredAt = DateTime.now()
+    const shippingStarted =
+      lower.includes('picking_up') ||
+      lower.includes('picked_up') ||
+      lower.includes('pickup') ||
+      lower.includes('in_transit') ||
+      lower.includes('out_for_delivery') ||
+      lower.includes('on_delivery') ||
+      lower.includes('pengiriman') ||
+      lower.includes('pengantaran') ||
+      lower.includes('penjemputan') ||
+      lower.includes('dikirim') ||
+      lower.includes('diantar')
+
+    if (shippingStarted && !shipment.deliveredAt) {
+      // deliveredAt = waktu mulai pengiriman
+      shipment.deliveredAt = shipment.deliveredAt ?? shipment.updatedAt
     }
 
     await shipment.save()
 
-    // opsional: sekalian update transaction status biar konsisten
-        if (delivered && transaction.transactionStatus !== TransactionStatus.ON_DELIVERY.toString()) {
+    if (shippingStarted && transaction.transactionStatus !== TransactionStatus.ON_DELIVERY.toString()) {
       transaction.transactionStatus = TransactionStatus.ON_DELIVERY.toString()
       await transaction.save()
     }

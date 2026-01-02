@@ -11,6 +11,7 @@ import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
 import { Role } from '../app/enums/role.js'
 
+
 const AuthController = () => import('#controllers/auth_controller')
 const UsersController = () => import('#controllers/cms/users_controller')
 const CategoryTypesController = () => import('#controllers/cms/category_types_controller')
@@ -65,6 +66,10 @@ const FeRamadanCheckinsController = () =>
 
 const PosProductsController = () => import('#controllers/pos/products_controller')
 const PosTransactionPosController = () => import('#controllers/pos/transaction_pos_controller')
+
+const OrdersController = () => import('#controllers/frontend/orders_controller')
+
+
 
 router
   .group(() => {
@@ -336,12 +341,17 @@ router
     router.get('', [CmsTransactionsController, 'get'])
     router.put('/confirm', [CmsTransactionsController, 'confirmPaidOrder'])
     router.put('/update-receipt', [CmsTransactionsController, 'updateReceipt'])
+
+    // ✅ NEW
+    router.put('/refresh-tracking', [CmsTransactionsController, 'refreshTracking'])
+    router.put('/complete', [CmsTransactionsController, 'completeOrder'])
+
     router.put('/cancel', [CmsTransactionsController, 'cancelTransactions'])
     router.get('/:id', [CmsTransactionsController, 'show'])
-
   })
   .use(middleware.roleAdmin())
   .prefix('/transactions')
+
 
 
         router.get('/total-user', [CmsHomeController, 'getTotalRegisterUser'])
@@ -504,3 +514,12 @@ router
   })
   .prefix('/api/v1')
   
+
+ router
+  .group(() => {
+    router.get('/orders', [OrdersController, 'index'])
+    router.get('/orders/:transactionNumber', [OrdersController, 'show'])
+    router.put('/orders/:transactionNumber/confirm', [OrdersController, 'confirm'])
+    router.put('/orders/:transactionNumber/refresh-tracking', [OrdersController, 'refreshTracking'])
+  })
+  .use(middleware.auth())

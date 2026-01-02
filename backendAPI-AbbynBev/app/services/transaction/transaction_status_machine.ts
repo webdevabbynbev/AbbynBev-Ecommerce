@@ -14,6 +14,19 @@ export class TransactionStatusMachine {
     }
   }
 
+  assertCanRefreshTracking(current: number) {
+    const ok = current === TransactionStatus.ON_PROCESS || current === TransactionStatus.ON_DELIVERY
+    if (!ok) {
+      throw new Error('Tracking hanya bisa di-refresh saat order ON_PROCESS / ON_DELIVERY.')
+    }
+  }
+
+  assertCanComplete(current: number) {
+    if (current !== TransactionStatus.ON_DELIVERY) {
+      throw new Error('Pesanan belum dalam pengiriman, belum bisa diselesaikan.')
+    }
+  }
+
   assertCanCancel(current: number, txNumber?: string) {
     const ok =
       current === TransactionStatus.WAITING_PAYMENT ||

@@ -1,9 +1,10 @@
 // app/services/shipping/biteship_order_service.ts
 import env from '#start/env'
 import BiteshipService from '#services/biteship_service'
-import { pickFirstString, toPostalNumber } from '../../utils/address.js'
-import { toNumber } from '../../utils/number.js'
-import { TransactionStatus } from '../../enums/transaction_status.js'
+
+import AddressUtils from '../../utils/address.js'
+import NumberUtils from '../../utils/number.js'
+
 import CompanyProfileService from './company_profile.js'
 
 const companyProfileService = new CompanyProfileService()
@@ -30,7 +31,7 @@ export class BiteshipOrderService {
     const { originAreaId, originPostal, originContactName, originContactPhone, originAddress } =
       companyProfileService.getCompanyOrigin()
 
-    const destAreaId = pickFirstString(userAddress, [
+    const destAreaId = AddressUtils.pickFirstString(userAddress, [
       'biteshipAreaId',
       'biteship_area_id',
       'destinationAreaId',
@@ -39,8 +40,8 @@ export class BiteshipOrderService {
       'area_id',
     ])
 
-    const destPostal = toPostalNumber(
-      pickFirstString(userAddress, [
+    const destPostal = AddressUtils.toPostalNumber(
+      AddressUtils.pickFirstString(userAddress, [
         'postalCode',
         'postal_code',
         'zipCode',
@@ -58,22 +59,22 @@ export class BiteshipOrderService {
 
     // ✅ FIX UTAMA: picPhone (model baru) + pic_phone (lama)
     const destinationContactName = String(
-      pickFirstString(shipment, ['pic']) ||
-        pickFirstString(user, ['fullName', 'full_name', 'name']) ||
+      AddressUtils.pickFirstString(shipment, ['pic']) ||
+        AddressUtils.pickFirstString(user, ['fullName', 'full_name', 'name']) ||
         'Customer'
     ).trim()
 
     const destinationContactPhone = String(
-      pickFirstString(shipment, ['picPhone', 'pic_phone', 'phone']) ||
-        pickFirstString(userAddress, ['phone', 'receiverPhone', 'receiver_phone', 'picPhone', 'pic_phone']) ||
-        pickFirstString(user, ['phone', 'phoneNumber', 'phone_number']) ||
+      AddressUtils.pickFirstString(shipment, ['picPhone', 'pic_phone', 'phone']) ||
+        AddressUtils.pickFirstString(userAddress, ['phone', 'receiverPhone', 'receiver_phone', 'picPhone', 'pic_phone']) ||
+        AddressUtils.pickFirstString(user, ['phone', 'phoneNumber', 'phone_number']) ||
         ''
     ).trim()
 
-    // ✅ alamat: prioritas shipment.address (karena itu yang dipakai saat checkout), fallback ke userAddress
+    // ✅ alamat: prioritas shipment.address (checkout), fallback userAddress
     const destinationAddress = String(
-      pickFirstString(shipment, ['address']) ||
-        pickFirstString(userAddress, ['address', 'line1', 'addressLine1', 'detail', 'fullAddress']) ||
+      AddressUtils.pickFirstString(shipment, ['address']) ||
+        AddressUtils.pickFirstString(userAddress, ['address', 'line1', 'addressLine1', 'detail', 'fullAddress']) ||
         ''
     ).trim()
 
@@ -89,7 +90,7 @@ export class BiteshipOrderService {
         description: d.product?.description || undefined,
         category: 'beauty',
         value: Math.max(0, Math.round(price)),
-        quantity: Math.max(1, toNumber(d.qty, 1)),
+        quantity: Math.max(1, NumberUtils.toNumber(d.qty, 1)),
         weight: Math.max(1, Math.round(weight)),
         length: Number(d.variant?.length) || undefined,
         width: Number(d.variant?.width) || undefined,
@@ -149,11 +150,13 @@ export class BiteshipOrderService {
         throw new Error('Waybill (resi) tidak ditemukan dari response Biteship.')
       }
 
+      // ✅ RESI CREATED: isi resi, jangan ubah status transaksi ke ON_DELIVERY
       shipment.resiNumber = waybillId
+      shipment.status = shipment.status || 'resi_created'
       await shipment.useTransaction(trx).save()
 
-      transaction.transactionStatus = TransactionStatus.ON_DELIVERY as any
-      await transaction.useTransaction(trx).save()
+      // ✅ transactionStatus tetap ON_PROCESS.
+      // Nanti naik ke ON_DELIVERY saat status Biteship berubah ke penjemputan/pengiriman/pengantaran via tracking sync.
 
       return {
         message: 'Resi berhasil dibuat (Biteship).',
@@ -164,6 +167,7 @@ export class BiteshipOrderService {
           courier: courierCompany,
           service_type: courierType,
           total_weight: totalWeight,
+          shipment_status: shipment.status,
         },
       }
     } catch (e: any) {
@@ -172,10 +176,10 @@ export class BiteshipOrderService {
       // Case: reference_id pernah dipakai
       if (body?.code === 40002060 && body?.details?.waybill_id) {
         shipment.resiNumber = body.details.waybill_id
+        shipment.status = shipment.status || 'resi_created'
         await shipment.useTransaction(trx).save()
 
-        transaction.transactionStatus = TransactionStatus.ON_DELIVERY as any
-        await transaction.useTransaction(trx).save()
+        // ✅ transactionStatus tetap ON_PROCESS
 
         return {
           message: 'Order Biteship sudah pernah dibuat (reference_id pernah dipakai).',
@@ -184,6 +188,7 @@ export class BiteshipOrderService {
             resi_number: body.details.waybill_id,
             order_id: body.details.order_id,
             total_weight: totalWeight,
+            shipment_status: shipment.status,
           },
         }
       }
