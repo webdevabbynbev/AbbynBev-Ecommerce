@@ -10,7 +10,7 @@ import {
   TooltipContent,
   TooltipProvider,
 } from "@/components";
-import { NestedSection } from "./NestedSection";
+import { NestedSection } from "./nestedSection";
 import { SubList } from ".";
 import { FaStar } from "react-icons/fa6";
 

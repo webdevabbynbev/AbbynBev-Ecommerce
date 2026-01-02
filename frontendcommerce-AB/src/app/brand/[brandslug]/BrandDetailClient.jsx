@@ -90,7 +90,7 @@ export default function BrandDetailClient({ brandData }) {
                 </div>
               ) : (
                 currentItems.map((product) => (
-                  <RegularCard key={product.id} item={product} />
+                  <RegularCard key={product.id} product={product} />
                 ))
               )}
 

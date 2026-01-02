@@ -19,7 +19,7 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import * as FaIcons from "react-icons/fa";
 import clsx from "clsx";
-import CartButton from "./CartButton";
+import CartButton from "./cartButton";
 
 export function Navbar() {
   const pathname = usePathname();

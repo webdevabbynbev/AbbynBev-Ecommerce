@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "@/lib/axios";
-import { Textarea } from "@/components/Textarea";
+import { Textarea } from "@/components";
 import {
   Select,
   SelectTrigger,

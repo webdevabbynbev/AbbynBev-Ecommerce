@@ -16,37 +16,6 @@ export function FlashSaleCard({ product, item }) {
   const hasSale =
     Number.isFinite(data.compareAt) && data.compareAt > data.price;
 
-  const [wishlist, setWishlist] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const stored = localStorage.getItem("wishlist");
-    if (stored) setWishlist(JSON.parse(stored));
-    const t = setTimeout(() => setLoading(false), 300);
-    return () => clearTimeout(t);
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("wishlist", JSON.stringify(wishlist));
-  }, [wishlist]);
-
-  const handleWishlist = (product) => {
-    setWishlist((prev) => {
-      const exists = prev.find((p) => p.id === product.id);
-      return exists
-        ? prev.filter((p) => p.id !== product.id)
-        : [...prev, product];
-    });
-  };
-
-  const isWishlisted = wishlist.some((p) => p.id === data.id);
-
-  const reviewsForProduct = Array.isArray(DataReview)
-    ? DataReview.filter((r) => r.productID === data.id)
-    : [];
-
-  if (loading) return <RegularCardSkeleton />;
-
   const href =
     item?.brandSlug && item?.slug
       ? `/${encodeURIComponent(item.brandSlug)}/${encodeURIComponent(
@@ -65,19 +34,6 @@ export function FlashSaleCard({ product, item }) {
               className="absolute top-0 left-0 z-10 w-[40px] h-auto"
             />
           )}
-
-          <div className="absolute top-4 right-4 z-10">
-            <BtnIconToggle
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleWishlist(data);
-              }}
-              iconName="Heart"
-              variant="tertiary"
-              size="md"
-            />
-          </div>
 
           <div className="image">
             <img
@@ -118,10 +74,10 @@ export function FlashSaleCard({ product, item }) {
 
           <div className="text-xs category-brand flex flex-row relative items-center space-x-1.5 overflow-hidden h-6">
             <p className="text-neutral-400 transition-transform duration-300 group-hover:-translate-y-6">
-              {data.category || "—"}
+              {data.brand || "—"}
             </p>
             <p className="text-neutral-400 absolute top-0 left-0 translate-y-6 transition-transform duration-300 group-hover:translate-y-0">
-              {data.brand || "—"}
+              {data.category || "—"}
             </p>
           </div>
         </div>

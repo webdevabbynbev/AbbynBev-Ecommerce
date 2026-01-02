@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BtnIcon } from "./BtnIcon"; // sesuaikan path
+import { BtnIcon } from "./btnIcon"; // sesuaikan path
 
 export function QuantityInput({ min = 1, max = 100, onChange }) {
   const [qty, setQty] = useState(min);

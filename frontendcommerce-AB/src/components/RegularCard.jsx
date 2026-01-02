@@ -1,74 +1,96 @@
 "use client";
-import { FaStar } from "react-icons/fa6"; // pastikan import benar
+
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { BtnIconToggle, RegularCardSkeleton } from ".";
-import { formatToRupiah } from "@/utils";
+import { useEffect, useMemo, useState } from "react";
+import { FaStar } from "react-icons/fa6";
+import { BtnIconToggle } from ".";
+import { formatToRupiah, slugify, getAverageRating } from "@/utils";
 import { DataReview } from "@/data";
-import { getAverageRating } from "@/utils";
-import { slugify } from "@/utils";
 
 export function RegularCard({ product }) {
-  const raw = product;
-  if (!raw) return null;
 
-  // Normalisasi & fallback data agar aman
-  const item = {
-    id: raw.id ?? raw._id ?? crypto.randomUUID(),
-    name: raw.name ?? raw.productName ?? raw.title ?? "Unnamed Product",
-    // ambil harga prioritas: price → realprice → salePrice → prices[0] → 0
-    price: Number(
+  const [wishlist, setWishlist] = useState([]);
+
+
+  if (!product) return null;
+
+  const item = useMemo(() => {
+    const raw = product;
+
+    const id =
+      raw.id ??
+      raw._id ??
+      raw.slug ??
+      raw.sku ??
+      raw.code ??
+      raw.name ??
+      raw.productName ??
+      raw.title ??
+      "unknown";
+
+    const name = raw.name ?? raw.productName ?? raw.title ?? "Unnamed Product";
+
+    const price = Number(
       raw.price ??
         raw.basePrice ??
         raw.salePrice ??
         (Array.isArray(raw.prices) ? raw.prices[0] : undefined) ??
         0
-    ),
-    // harga banding (kalau ada) untuk strike-through
-    compareAt: Number(
+    );
+
+    const compareAt = Number(
       raw.realprice ??
         raw.oldPrice ??
         (Array.isArray(raw.prices) ? raw.prices[1] : undefined) ??
         NaN
-    ),
-    image:
+    );
+
+    const image =
       raw.image ??
       (Array.isArray(raw.images) ? raw.images[0] : null) ??
-      "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png",
-    rating: Number(raw.rating ?? raw.stars ?? 0),
-    brand: raw.brand ?? raw.brandName ?? "",
-    category: raw.category ?? "",
-    slug:
-      raw.slug ??
-      (raw.name || raw.productName
-        ? (raw.name || raw.productName).toLowerCase().replace(/\s+/g, "-")
-        : `item-${Math.random().toString(36).slice(2)}`),
-    sale: Boolean(raw.sale), // opsional
-  };
+      "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png";
+
+    const slugSource = raw.slug || name;
+    const safeSlug = slugSource ? slugify(String(slugSource)) : "";
+
+    return {
+      id: String(id),
+      name,
+      price,
+      compareAt,
+      image,
+      rating: Number(raw.rating ?? raw.stars ?? 0),
+      brand: raw.brand ?? raw.brandName ?? "",
+      category: raw.category ?? "",
+      slug: safeSlug,
+      sale: Boolean(raw.sale),
+    };
+  }, [product]);
 
   const hasSale =
     Number.isFinite(item.compareAt) && item.compareAt > item.price;
 
-  const [wishlist, setWishlist] = useState([]);
-  const [loading, setLoading] = useState(true);
-
   useEffect(() => {
-    const stored = localStorage.getItem("wishlist");
-    if (stored) setWishlist(JSON.parse(stored));
-    const t = setTimeout(() => setLoading(false), 300);
-    return () => clearTimeout(t);
+    try {
+      const stored = localStorage.getItem("wishlist");
+      if (stored) setWishlist(JSON.parse(stored));
+    } catch (e) {
+      console.log("Wishlist parse error:", e);
+    }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("wishlist", JSON.stringify(wishlist));
+    try {
+      localStorage.setItem("wishlist", JSON.stringify(wishlist));
+    } catch (e) {
+      console.log("Wishlist save error:", e);
+    }
   }, [wishlist]);
 
-  const handleWishlist = (product) => {
+  const handleWishlist = () => {
     setWishlist((prev) => {
-      const exists = prev.find((p) => p.id === product.id);
-      return exists
-        ? prev.filter((p) => p.id !== product.id)
-        : [...prev, product];
+      const exists = prev.some((p) => p.id === item.id);
+      return exists ? prev.filter((p) => p.id !== item.id) : [...prev, item];
     });
   };
 
@@ -77,16 +99,11 @@ export function RegularCard({ product }) {
   const reviewsForProduct = Array.isArray(DataReview)
     ? DataReview.filter((r) => r.productID === item.id)
     : [];
+
   const averageRating = getAverageRating(reviewsForProduct);
 
-  const productSlug = raw?.slug
-  ? slugify(raw.slug)
-  : slugify(raw.name ?? raw.productName ?? raw.title ?? "");
+  const href = item.slug ? `/${encodeURIComponent(item.slug)}` : "#";
 
-const href = productSlug
-  ? `/${encodeURIComponent(productSlug)}`
-  : "#";
-    
   return (
     <div className="group relative flex h-full w-full flex-col rounded-lg bg-white space-y-4 transition-all overflow-hidden">
       <Link href={href}>
@@ -104,21 +121,24 @@ const href = productSlug
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                handleWishlist(item);
+                handleWishlist();
               }}
               iconName="Heart"
               variant="tertiary"
               size="md"
+              aria-pressed={isWishlisted}
+              title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
             />
           </div>
 
-          <div className="image">
+          <div className="image w-full">
             <img
               src={item.image}
               alt={item.name}
               className="w-full h-auto object-cover"
               onError={(e) => {
-                e.currentTarget.src = "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png";
+                e.currentTarget.src =
+                  "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png";
               }}
             />
           </div>
@@ -169,10 +189,10 @@ const href = productSlug
 
           <div className="text-xs category-brand flex flex-row relative items-center space-x-1.5 overflow-hidden h-6">
             <p className="text-neutral-400 transition-transform duration-300 group-hover:-translate-y-6">
-              {item.category || "—"}
+              {item.brand || "—"}
             </p>
             <p className="text-neutral-400 absolute top-0 left-0 translate-y-6 transition-transform duration-300 group-hover:translate-y-0">
-              {item.brand || "—"}
+              {item.category || "—"}
             </p>
           </div>
         </div>
