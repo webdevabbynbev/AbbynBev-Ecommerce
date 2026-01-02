@@ -69,6 +69,17 @@ const PosTransactionPosController = () => import('#controllers/pos/transaction_p
 
 const OrdersController = () => import('#controllers/frontend/orders_controller')
 
+const AuthSessionsController = () => import('#controllers/auth/auth_sessions_controller')
+const AuthRegistrationController = () => import('#controllers/auth/auth_registration_controller')
+const AuthPasswordResetController = () => import('#controllers/auth/auth_password_reset_controller')
+const AuthAccountController = () => import('#controllers/auth/auth_account_controller')
+
+
+const CmsDashboardUsersController = () => import('#controllers/cms/dashboard/users_controller')
+const CmsDashboardTransactionsController = () => import('#controllers/cms/dashboard/transactions_controller')
+const CmsDashboardProductsController = () => import('#controllers/cms/dashboard/products_controller')
+const CmsDashboardCartsController = () => import('#controllers/cms/dashboard/carts_controller')
+
 
 
 router
@@ -76,15 +87,17 @@ router
     // =========================
     // AUTH & UPLOAD
     // =========================
-    router.post('/auth/login-google', [AuthController, 'loginGoogle'])
-    router.post('/auth/register', [AuthController, 'register'])
-    router.post('/auth/verify-register', [AuthController, 'verifyRegisterOtp'])
-    router.post('/auth/login', [AuthController, 'login'])
-    router.post('/auth/verify-login', [AuthController, 'verifyLoginOtp'])
-    router.post('/auth/login-admin', [AuthController, 'loginAdmin'])
-    router.post('/auth/login-cashier', [AuthController, 'loginCashier'])
+    router.post('/auth/login-google', [AuthSessionsController, 'loginGoogle'])
+router.post('/auth/register', [AuthRegistrationController, 'register'])
+router.post('/auth/verify-register', [AuthRegistrationController, 'verifyRegisterOtp'])
+router.post('/auth/login', [AuthSessionsController, 'login'])
+router.post('/auth/verify-login', [AuthSessionsController, 'verifyLoginOtp'])
+router.post('/auth/login-admin', [AuthSessionsController, 'loginAdmin'])
+router.post('/auth/login-cashier', [AuthSessionsController, 'loginCashier'])
 
-    router.post('/auth/forgot', [AuthController, 'requestForgotPassword'])
+router.post('/auth/forgot', [AuthPasswordResetController, 'requestForgotPassword'])
+router.get('/auth/forgot-password/:email/verify', [AuthPasswordResetController, 'verifyForgotPassword']).as('verifyForgotPassword')
+router.post('/auth/reset-password', [AuthPasswordResetController, 'resetPassword'])
     router
       .get('/auth/forgot-password/:email/verify', [AuthController, 'verifyForgotPassword'])
       .as('verifyForgotPassword')
@@ -384,12 +397,13 @@ router
     // =========================
     router
       .group(() => {
-        router.post('/auth/logout', [AuthController, 'logout'])
-        router.get('/profile', [AuthController, 'profile'])
-        router.put('/profile', [AuthController, 'updateProfile'])
-        router.put('/profile/picture', [AuthController, 'updateProfilePicture'])
-        router.put('/profile/password', [AuthController, 'updatePassword'])
-        router.post('/profile/deactivate', [AuthController, 'deactivateAccount'])
+router.post('/auth/logout', [AuthSessionsController, 'logout'])
+router.get('/profile', [AuthAccountController, 'profile'])
+router.put('/profile', [AuthAccountController, 'updateProfile'])
+router.put('/profile/picture', [AuthAccountController, 'updateProfilePicture'])
+router.put('/profile/password', [AuthAccountController, 'updatePassword'])
+router.post('/profile/deactivate', [AuthAccountController, 'deactivateAccount'])
+
         router.post('/vouchers/validate', [FeVoucherController, 'validate'])
         router.get('/wishlists', [FeWishlist, 'get'])
         router.get('/wishlists/list', [FeWishlist, 'list'])
@@ -523,3 +537,17 @@ router
     router.put('/orders/:transactionNumber/refresh-tracking', [OrdersController, 'refreshTracking'])
   })
   .use(middleware.auth())
+
+  router.get('/total-user', [CmsDashboardUsersController, 'getTotalRegisterUser'])
+router.get('/total-register-user-period', [CmsDashboardUsersController, 'getTotalRegisterUserByPeriod'])
+
+router.get('/total-transaction', [CmsDashboardTransactionsController, 'getTotalTransaction'])
+router.get('/total-transaction-month', [CmsDashboardTransactionsController, 'getTotalTransactionByMonth'])
+router.get('/total-transaction-period', [CmsDashboardTransactionsController, 'getTotalTransactionByPeriod'])
+router.get('/total-transaction-status', [CmsDashboardTransactionsController, 'getTotalTransactionByStatus'])
+router.get('/transaction-status', [CmsDashboardTransactionsController, 'getStatusTransactionByMonth'])
+
+router.get('/top-product-sell', [CmsDashboardProductsController, 'getTopProductSell'])
+router.get('/less-product-sell', [CmsDashboardProductsController, 'getLessProductSell'])
+
+router.get('/user-carts', [CmsDashboardCartsController, 'getUserCart'])
