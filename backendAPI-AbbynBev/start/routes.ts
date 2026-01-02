@@ -96,12 +96,10 @@ router.post('/auth/login-admin', [AuthSessionsController, 'loginAdmin'])
 router.post('/auth/login-cashier', [AuthSessionsController, 'loginCashier'])
 
 router.post('/auth/forgot', [AuthPasswordResetController, 'requestForgotPassword'])
-router.get('/auth/forgot-password/:email/verify', [AuthPasswordResetController, 'verifyForgotPassword']).as('verifyForgotPassword')
+router.get('/auth/forgot-password/:email/verify', [AuthPasswordResetController, 'verifyForgotPassword']).
+as('verifyForgotPassword')
 router.post('/auth/reset-password', [AuthPasswordResetController, 'resetPassword'])
-    router
-      .get('/auth/forgot-password/:email/verify', [AuthController, 'verifyForgotPassword'])
-      .as('verifyForgotPassword')
-    router.post('/auth/reset-password', [AuthController, 'resetPassword'])
+  
 
     router.post('/upload', [UploadsController, 'upload'])
 
