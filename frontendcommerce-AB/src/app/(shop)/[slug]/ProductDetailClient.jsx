@@ -1,12 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { FaStar } from "react-icons/fa";
 import { formatToRupiah, getDiscountPercent } from "@/utils";
 import axios from "@/lib/axios";
-import { getProducts } from "@/services/api/product.services";
-import { getBrands } from "@/services/api/brands.services";
 
 import {
   Select,
@@ -38,7 +36,11 @@ const RATING_OPTIONS = [
 ];
 
 export default function ProductDetailClient({ product }) {
-  const variants = product.variantItems ?? []; // [{ id, label, price, stock }]
+  // ✅ Prevent hydration mismatch for relative time
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const variants = product?.variantItems ?? []; // [{ id, label, price, stock }]
   const [selectedVariant, setSelectedVariant] = useState(
     variants.length === 1 ? variants[0].label : null
   );
@@ -48,17 +50,22 @@ export default function ProductDetailClient({ product }) {
 
   const finalPrice =
     selectedVariantObj?.price ??
-    product.price ??
-    product.base_price ??
-    product.basePrice ??
-    product.realprice ??
+    product?.price ??
+    product?.base_price ??
+    product?.basePrice ??
+    product?.realprice ??
     0;
+
   const realPrice =
-    product.realprice ?? product.base_price ?? product.basePrice ?? finalPrice;
-  const stock = selectedVariantObj?.stock ?? product.stock ?? 0;
+    product?.realprice ??
+    product?.base_price ??
+    product?.basePrice ??
+    finalPrice;
+
+  const stock = selectedVariantObj?.stock ?? product?.stock ?? 0;
 
   const discount =
-    product.sale && realPrice
+    product?.sale && realPrice
       ? getDiscountPercent(realPrice, finalPrice)
       : null;
 
@@ -66,7 +73,7 @@ export default function ProductDetailClient({ product }) {
     setSelectedVariant((prev) => (prev === label ? null : label));
   };
 
-  const reviews = Array.isArray(product.reviews) ? product.reviews : [];
+  const reviews = Array.isArray(product?.reviews) ? product.reviews : [];
 
   const averageRating = useMemo(() => {
     if (!reviews.length) return 0;
@@ -75,14 +82,15 @@ export default function ProductDetailClient({ product }) {
   }, [reviews]);
 
   const brandObj =
-    typeof product.brand === "object" && product.brand !== null
+    typeof product?.brand === "object" && product?.brand !== null
       ? product.brand
       : null;
 
   const brandName =
-    typeof product.brand === "string" ? product.brand : brandObj?.name || "-";
+    typeof product?.brand === "string" ? product.brand : brandObj?.name || "-";
 
-  const brandSlug = brandObj?.slug || product.brandSlug || "";
+  const brandSlug = brandObj?.slug || product?.brandSlug || "";
+
   const handleAddToCart = async () => {
     try {
       if (!product?.id) {
@@ -90,7 +98,7 @@ export default function ProductDetailClient({ product }) {
         return;
       }
 
-      const variantItems = product.variantItems ?? [];
+      const variantItems = product?.variantItems ?? [];
       let variant = selectedVariantObj;
 
       if (!variant && variantItems.length === 1) {
@@ -110,14 +118,9 @@ export default function ProductDetailClient({ product }) {
         is_buy_now: false,
       };
 
-      console.log("Add to cart payload:", payload);
-
       const res = await axios.post("/cart", payload);
-
-      console.log("Add to cart success:", res.data);
       alert(res.data?.message || "Produk berhasil dimasukkan ke keranjang");
     } catch (error) {
-      console.error("Gagal menambah ke keranjang", error);
       const msg =
         error?.response?.data?.message ||
         "Terjadi kesalahan saat menambah ke keranjang";
@@ -135,15 +138,19 @@ export default function ProductDetailClient({ product }) {
               <BreadcrumbItem>
                 <BreadcrumbLink href="/">Home</BreadcrumbLink>
               </BreadcrumbItem>
+
               <BreadcrumbSeparator />
+
               <BreadcrumbItem>
                 <BreadcrumbLink href={brandSlug ? `/brand/${brandSlug}` : "#"}>
                   {brandName}
                 </BreadcrumbLink>
               </BreadcrumbItem>
+
               <BreadcrumbSeparator />
+
               <BreadcrumbItem>
-                <BreadcrumbPage>{product.name}</BreadcrumbPage>
+                <BreadcrumbPage className="truncate w-[300px]">{product?.name}</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -153,7 +160,7 @@ export default function ProductDetailClient({ product }) {
             {/* Product Image */}
             <div className="Image-container">
               <div className="h-[220px] w-[220px] relative overflow-hidden rounded-lg">
-                {product.sale && (
+                {product?.sale && (
                   <img
                     src="/sale-tag.svg"
                     alt="Sale"
@@ -163,22 +170,22 @@ export default function ProductDetailClient({ product }) {
 
                 <div>
                   <img
-                    src={product.image}
-                    alt={product.name}
+                    src={product?.image}
+                    alt={product?.name}
                     className="w-full h-full object-cover border border-neutral-400"
                   />
                 </div>
               </div>
 
               <div className="flex max-w-[300px] py-2 items-center space-x-4 max-h-64 overflow-x-auto custom-scrollbar">
-                {(product.images?.length
+                {(product?.images?.length
                   ? product.images
-                  : [product.image]
+                  : [product?.image]
                 ).map((img, i) => (
                   <img
                     key={i}
                     src={img}
-                    alt={`${product.name}-${i}`}
+                    alt={`${product?.name}-${i}`}
                     className="h-[50px] w-[50px] border p-2 rounded-md"
                   />
                 ))}
@@ -189,22 +196,24 @@ export default function ProductDetailClient({ product }) {
             <div className="Content-right w-full space-y-4 px-10">
               <div className="title-product">
                 <h1 className="text-lg font-bold">{brandName}</h1>
-                <h2 className="text-xl font-normal">{product.name}</h2>
+                <h2 className="text-xl font-normal">{product?.name}</h2>
               </div>
 
               {/* Price */}
               <div className="price space-y-2">
-                {product.sale ? (
+                {product?.sale ? (
                   <>
                     <div className="finalPrice">
                       <span className="text-primary-700 text-2xl font-bold">
                         {formatToRupiah(finalPrice)}
                       </span>
                     </div>
+
                     <div className="reapPrice-container flex space-x-2 items-center">
                       <span className="text-base font-medium text-neutral-400 line-through">
                         {formatToRupiah(realPrice)}
                       </span>
+
                       {discount > 0 && (
                         <span className="text-[10px] py-1 px-3 bg-primary-200 w-fit rounded-full text-primary-700 font-bold">
                           {discount}% off
@@ -232,10 +241,10 @@ export default function ProductDetailClient({ product }) {
                 </span>
               </div>
 
-              {/* Variants (tampil kalau ada) */}
-              {product.variant?.length ? (
+              {/* Variants */}
+              {product?.variant?.length ? (
                 <div className="chip-container flex w-full space-x-3 items-center">
-                  <p>{product.variant_value || "Variant"}:</p>
+                  <p>{product?.variant_value || "Variant"}:</p>
                   {product.variant.map((v) => (
                     <Chip
                       key={v}
@@ -257,7 +266,7 @@ export default function ProductDetailClient({ product }) {
                   <h3 className="text-primary-700 font-bold text-base">
                     Summary
                   </h3>
-                  <p className="text-sm">{product.description}</p>
+                  <p className="text-sm">{product?.description}</p>
                 </div>
 
                 {/* Shipment */}
@@ -294,6 +303,7 @@ export default function ProductDetailClient({ product }) {
                         size="md"
                         className="min-w-[280px]"
                       />
+
                       <Select>
                         <SelectTrigger className="w-[180px]">
                           <SelectValue placeholder="Filter by rating" />
@@ -315,7 +325,7 @@ export default function ProductDetailClient({ product }) {
                     </div>
                   </div>
 
-                  {/* Review List (DB) */}
+                  {/* Review List */}
                   {reviews.length > 0 ? (
                     reviews.map((r) => {
                       const created =
@@ -323,6 +333,7 @@ export default function ProductDetailClient({ product }) {
                         r.created_at ||
                         r.create_at ||
                         r.updatedAt;
+
                       const who = r.user?.firstName
                         ? `${r.user.firstName} ${r.user.lastName ?? ""}`.trim()
                         : "Guest";
@@ -342,9 +353,12 @@ export default function ProductDetailClient({ product }) {
                                 />
                               ))}
                             </div>
+
                             <div className="w-1 h-1 rounded-full bg-neutral-400" />
+
+                            {/* ✅ Stable during SSR + first hydrate */}
                             <div className="text-sm text-neutral-400">
-                              {created
+                              {created && mounted
                                 ? formatDistanceToNow(new Date(created), {
                                     addSuffix: true,
                                   })
@@ -381,13 +395,14 @@ export default function ProductDetailClient({ product }) {
           <div className="ContainerImage flex items-start">
             <div className="imageOnly">
               <img
-                src={product.image}
-                alt={product.name}
+                src={product?.image}
+                alt={product?.name}
                 className="h-[100px] w-[100px]"
               />
             </div>
+
             <div className="flex-row space-y-1">
-              {product.sale && (
+              {product?.sale && (
                 <img
                   src="/sale-tag-square.svg"
                   alt="Sale"
@@ -396,8 +411,9 @@ export default function ProductDetailClient({ product }) {
               )}
 
               <div className="text-sm font-normal line-clamp-2">
-                {product.name}
+                {product?.name}
               </div>
+
               <div className="flex space-x-1 items-center">
                 <div className="text-xs text-neutral-600">Variant:</div>
                 <div className="text-xs font-bold text-primary-700">
@@ -409,12 +425,7 @@ export default function ProductDetailClient({ product }) {
         </div>
 
         <div className="flex w-full items-center space-x-3">
-          <QuantityInput
-            min={1}
-            max={stock}
-            value={qty}
-            onChange={(val) => setQty(val)}
-          />
+          <QuantityInput min={1} max={stock} value={qty} onChange={setQty} />
           <div className="text-sm font-normal text-neutral-600">
             Stock :{" "}
             <span className="font-medium text-neutral-950">{stock}</span>
@@ -422,7 +433,7 @@ export default function ProductDetailClient({ product }) {
         </div>
 
         <div className="price space-y-2 w-full flex-row justify-end">
-          {product.sale ? (
+          {product?.sale ? (
             <>
               <div className="reapPrice-container w-full flex space-x-2 items-center justify-end">
                 {discount > 0 && (
@@ -434,6 +445,7 @@ export default function ProductDetailClient({ product }) {
                   {formatToRupiah(realPrice)}
                 </span>
               </div>
+
               <div className="finalPrice w-full flex space-x-2 items-center justify-between">
                 <span>Subtotal</span>
                 <span className="text-primary-700 text-base font-bold">

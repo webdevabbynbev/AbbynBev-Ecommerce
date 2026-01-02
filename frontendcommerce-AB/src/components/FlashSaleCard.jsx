@@ -1,27 +1,17 @@
 "use client";
-import { FaStar } from "react-icons/fa6"; // pastikan import benar
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { BtnIconToggle, RegularCardSkeleton } from ".";
-import { formatToRupiah, normalizeCardProduct } from "@/utils";
-import { DataReview } from "@/data";
+import { useMemo } from "react";
+import { formatToRupiah, normalizeCardProduct, slugify } from "@/utils";
 
 export function FlashSaleCard({ product, item }) {
-  const data = useMemo(
-    () => normalizeCardProduct(product ?? item),
-    [product, item]
-  );
+  const data = useMemo(() => normalizeCardProduct(product ?? item), [product, item]);
   if (!data) return null;
 
-  const hasSale =
-    Number.isFinite(data.compareAt) && data.compareAt > data.price;
+  const hasSale = Number.isFinite(data.compareAt) && data.compareAt > data.price;
 
-  const href =
-    item?.brandSlug && item?.slug
-      ? `/${encodeURIComponent(item.brandSlug)}/${encodeURIComponent(
-          item.slug
-        )}`
-      : "#";
+  const slugSource = data.slug || item?.slug || data.name;
+  const safeSlug = slugSource ? slugify(String(slugSource)) : "";
+  const href = safeSlug ? `/${encodeURIComponent(safeSlug)}` : "#";
 
   return (
     <div className="group relative flex h-full w-full flex-col rounded-lg bg-white space-y-4 transition-all overflow-hidden">

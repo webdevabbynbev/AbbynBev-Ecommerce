@@ -71,13 +71,5 @@ export function normalizeCardProduct(raw) {
     sale: Boolean(source.sale ?? source.is_flash_sale ?? source.is_flashsale),
   };
 
-  console.log("normalizeCardProduct =>", {
-    rawPath,
-    brandSlugCandidate,
-    productSlugCandidate,
-    brandSlug: normalized.brandSlug,
-    slug: normalized.slug,
-  });
-
   return normalized;
 }

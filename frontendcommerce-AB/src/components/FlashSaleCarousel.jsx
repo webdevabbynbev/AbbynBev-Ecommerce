@@ -13,7 +13,6 @@ import {
 import { getProducts } from "@/services/api/product.services";
 
 export function FlashSaleCarousel() {
-
   const SKELETON_COUNT = 10;
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +33,7 @@ export function FlashSaleCarousel() {
     fetchFlashSale();
   }, []);
 
-   if (loading) {
+  if (loading) {
     return (
       <div className="w-full overflow-hidden">
         <div className="flex gap-4">
@@ -51,9 +50,7 @@ export function FlashSaleCarousel() {
     );
   }
 
-  if (products.length === 0) {
-    return null;
-  }
+  if (products.length === 0) return null;
 
   return (
     <Carousel className="w-full" opts={{ align: "start" }}>

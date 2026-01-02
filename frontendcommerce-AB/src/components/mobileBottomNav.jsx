@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
@@ -16,11 +16,16 @@ import {
 export function MobileBottomNav({ className = "" }) {
   const pathname = usePathname();
   const [shopOpen, setShopOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const pathnameSafe = mounted ? pathname : "";
+
+  useEffect(() => setMounted(true), []);
 
   const isActive = (href) => {
     if (!href || href.startsWith("http")) return false;
-    if (href === "/") return pathname === "/";
-    return pathname === href || pathname.startsWith(href + "/");
+    if (!mounted) return false; // ✅ hindari mismatch SSR vs client
+    if (href === "/") return pathnameSafe === "/";
+    return pathnameSafe === href || pathnameSafe.startsWith(href + "/");
   };
 
   const navItemBase =
@@ -33,6 +38,8 @@ export function MobileBottomNav({ className = "" }) {
     { href: "/new-arrival", label: "New Arrival" },
   ];
 
+  const shopActive = mounted && shopLinks.some((l) => isActive(l.href));
+
   return (
     <div
       className={clsx(
@@ -41,8 +48,8 @@ export function MobileBottomNav({ className = "" }) {
         className
       )}
     >
-      <div className="mx-auto w-full max-w-[520px] px-4">
-        <div className="rounded-2xl bg-white">
+      <div className="mx-auto w-full  max-w-[520px] px-4 pb-4">
+        <div className="rounded-2xl border border-primary-500 bg-white">
           <nav className="grid grid-cols-4 items-center px-2 py-2">
             {/* PROFILE */}
             <Link
@@ -62,8 +69,8 @@ export function MobileBottomNav({ className = "" }) {
                 className={clsx(
                   "text-[10px] leading-none",
                   isActive("/account/profile")
-                    ? "text-primary-700"
-                    : "text-neutral-50"
+                    ? "text-primary-700 font-bold"
+                    : "text-primary-700 font-normal"
                 )}
               >
                 Profile
@@ -83,7 +90,9 @@ export function MobileBottomNav({ className = "" }) {
               <span
                 className={clsx(
                   "text-[10px] leading-none",
-                  isActive("/") ? "text-primary-700" : "text-neutral-50"
+                  isActive("/")
+                    ? "text-primary-700 font-bold"
+                    : "text-primary-700 font-normal"
                 )}
               >
                 Home
@@ -101,7 +110,7 @@ export function MobileBottomNav({ className = "" }) {
               <div className={clsx(pillBase, "hover:bg-primary-50")}>
                 <BtnIcon iconName="Newspaper" variant="tertiary" size="sm" />
               </div>
-              <span className="text-[10px] leading-none text-neutral-50">
+              <span className="text-[10px] leading-none text-primary-700 font-normal">
                 Blog
               </span>
             </a>
@@ -113,7 +122,7 @@ export function MobileBottomNav({ className = "" }) {
                   <div
                     className={clsx(
                       pillBase,
-                      isActive ? "bg-primary-100" : "hover:bg-primary-50"
+                      shopActive ? "bg-primary-100" : null
                     )}
                   >
                     <BtnIcon
@@ -126,7 +135,9 @@ export function MobileBottomNav({ className = "" }) {
                   <span
                     className={clsx(
                       "text-[10px] leading-none",
-                      isActive ? "text-primary-700" : "text-neutral-400"
+                      shopActive
+                        ? "text-primary-700 font-bold"
+                        : "text-primary-700 font-normal"
                     )}
                   >
                     Shop
