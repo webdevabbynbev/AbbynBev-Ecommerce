@@ -1,20 +1,5 @@
 import api from "@/lib/axios";
-
-/** Helpers */
-function getToken() {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("token");
-}
-
-function setToken(token) {
-  if (typeof window === "undefined") return;
-  if (token) localStorage.setItem("token", token);
-}
-
-function authHeader() {
-  const token = getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+import { setToken, clearToken } from "@/services/authToken";
 
 function s(v) {
   return String(v ?? "").trim();
@@ -31,10 +16,7 @@ function n(v) {
 export async function updateProfile(payload) {
   try {
     const res = await api.put("/profile", payload, {
-      headers: {
-        ...authHeader(),
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
     });
     return res.data;
   } catch (err) {
@@ -45,10 +27,7 @@ export async function updateProfile(payload) {
 
 export async function getUser() {
   try {
-    const res = await api.get("/profile", {
-      headers: { ...authHeader() },
-      withCredentials: true,
-    });
+    const res = await api.get("/profile", { withCredentials: true });
 
     const payload = res.data;
 
@@ -73,9 +52,7 @@ export async function getAddressByQuery(userId) {
   try {
     const res = await api.get("/addresses", {
       params: { user_id: userId },
-      headers: { ...authHeader() },
     });
-
     return res.data?.serve ?? res.data?.data ?? [];
   } catch (err) {
     const msg = err?.response?.data?.message || "Failed to fetch addresses";
@@ -86,11 +63,6 @@ export async function getAddressByQuery(userId) {
 /** =========================
  *  REGISTER (OTP)
  *  ========================= */
-
-/**
- * REGISTER STEP 1: kirim OTP
- * POST /auth/register
- */
 export async function regis(
   email,
   phone_number,
@@ -107,11 +79,10 @@ export async function regis(
       first_name: s(first_name),
       last_name: s(last_name),
       gender: n(gender),
-      password: String(password ?? ""), // jangan trim password
+      password: String(password ?? ""),
       send_via: s(send_via) || "email",
     };
 
-    // ✅ cegah field required hilang/kosong sebelum ke backend
     if (!payload.email) throw new Error("Email wajib diisi");
     if (!payload.phone_number) throw new Error("Nomor HP wajib diisi");
     if (!payload.first_name) throw new Error("First name wajib diisi");
@@ -127,10 +98,6 @@ export async function regis(
   }
 }
 
-/**
- * REGISTER STEP 2: verify OTP + create user + auto login (token)
- * POST /auth/verify-register
- */
 export async function OtpRegis(
   email,
   phone_number,
@@ -170,11 +137,6 @@ export async function OtpRegis(
 /** =========================
  *  LOGIN (NO OTP)
  *  ========================= */
-
-/**
- * LOGIN TANPA OTP
- * POST /auth/login
- */
 export async function loginUser(email_or_phone, password, remember_me = false) {
   try {
     const payload = {
@@ -211,12 +173,15 @@ export async function verifyOtp() {
  *  ========================= */
 export async function LoginGoogle(token) {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login-google`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ token }),
-    });
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/auth/login-google`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ token }),
+      }
+    );
 
     let payload = null;
     try {
@@ -242,6 +207,5 @@ export async function LoginGoogle(token) {
  *  LOGOUT
  *  ========================= */
 export function logoutLocal() {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem("token");
+  clearToken();
 }

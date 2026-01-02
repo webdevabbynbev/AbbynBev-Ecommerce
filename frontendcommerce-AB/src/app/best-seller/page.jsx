@@ -22,7 +22,7 @@ import {
   PaginationNext,
   PaginationEllipsis,
 } from "@/components/ui/Pagination";
-import { useDebounce } from "../hook/useDebounce";
+import { useDebounce } from "../hooks/useDebounce";
 import { getProducts } from "@/services/api/product.services";
 import { getBrands } from "@/services/api/brands.services";
 

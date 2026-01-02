@@ -1,5 +1,5 @@
 "use client";
-import { useDebounce } from "@/app/hook/useDebounce";
+import { useDebounce } from "@/app/hooks/useDebounce";
 import React, { useMemo, useState, useEffect } from "react";
 import {
   Button,

@@ -1,8 +1,9 @@
 import { Plus_Jakarta_Sans, Damion } from "next/font/google";
 import "./globals.css";
-import { Navbar, Footer, MobileBottomNav } from "../components";
+import {Footer, MobileBottomNav } from "../components";
 import GoogleProvider from "@/components/googleProvider";
 import { AuthProvider } from "@/context/AuthContext";
+import { NavbarClientGate } from "@/components/navbar";
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -33,7 +34,7 @@ export default function RootLayout({ children }) {
       >
         <GoogleProvider>
           <AuthProvider>
-            <Navbar />
+            <NavbarClientGate />
 
             <main className="flex-1">
               {children}
@@ -47,4 +48,3 @@ export default function RootLayout({ children }) {
     </html>
   );
 }
-console.log("CLIENT_ID:", process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
