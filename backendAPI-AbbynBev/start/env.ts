@@ -24,24 +24,21 @@ export default await Env.create(new URL('../', import.meta.url), {
   DB_USER: Env.schema.string(),
   DB_PASSWORD: Env.schema.string.optional(),
   DB_DATABASE: Env.schema.string(),
-<<<<<<< HEAD
+
   
   /*
   |----------------------------------------------------------
   | Variables for configuring the mail package
   |----------------------------------------------------------
   */
-=======
+
 
   // Mailer / SMTP
->>>>>>> origin/main
   SMTP_HOST: Env.schema.string(),
   SMTP_PORT: Env.schema.number(),
   SMTP_USERNAME: Env.schema.string.optional(),
   SMTP_PASSWORD: Env.schema.string.optional(),
   DEFAULT_FROM_EMAIL: Env.schema.string.optional(),
-
-<<<<<<< HEAD
   
 
   /*
@@ -49,9 +46,7 @@ export default await Env.create(new URL('../', import.meta.url), {
   | Variables for configuring the drive package
   |----------------------------------------------------------
   */
-=======
   // Storage
->>>>>>> origin/main
   DRIVE_DISK: Env.schema.enum(['fs'] as const),
 
   // AWS S3 (optional)
