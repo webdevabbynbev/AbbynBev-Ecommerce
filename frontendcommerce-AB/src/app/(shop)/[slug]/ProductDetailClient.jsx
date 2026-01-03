@@ -1,6 +1,5 @@
 "use client";
-
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { FaStar } from "react-icons/fa";
@@ -91,7 +90,7 @@ export default function ProductDetailClient({ product }) {
 
   const handleAddToCart = async () => {
     try {
-         const token =
+        const token =
         typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
       if (!token) {
