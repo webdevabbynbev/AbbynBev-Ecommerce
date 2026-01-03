@@ -1,5 +1,6 @@
 import User from '#models/user'
 import PasswordReset from '#models/password_resets'
+import AuthEmailService from '#services/auth/auth_email_service'
 
 export type ForgotPasswordResult =
   | { ok: true; status: 200; body: any }
@@ -27,7 +28,7 @@ export default class AuthPasswordResetService {
     }
 
     try {
-      await user.sendForgotPasswordEmail()
+      await AuthEmailService.sendForgotPasswordEmail(user)
       return {
         ok: true,
         status: 200,

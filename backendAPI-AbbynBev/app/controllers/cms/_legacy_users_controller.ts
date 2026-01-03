@@ -3,8 +3,11 @@ import User from '#models/user'
 import { createUser, updateUser } from '#validators/user'
 import { Role } from '../../enums/role.js'
 import emitter from '@adonisjs/core/services/emitter'
+import { UserRepository } from '#services/user/user_repository'
+
 
 export default class UsersController {
+  private userRepo = new UserRepository()
   public async getCustomers({ response, request }: HttpContext) {
     try {
       const queryString = request.qs()
@@ -155,7 +158,8 @@ export default class UsersController {
   public async showAdmin({ response, params }: HttpContext) {
     try {
       const { id } = params
-      const user: User | null = await User.findWithSoftDelete(id)
+      const user: User | null = await this.userRepo.findActiveById(id)
+
 
       if (!user) {
         return response.status(404).send({
@@ -182,7 +186,7 @@ export default class UsersController {
       const { id } = params
       const { password, ...restPayload } = await request.validateUsing(updateUser)
 
-      const user: User | null = await User.findWithSoftDelete(id)
+      const user: User | null = await this.userRepo.findActiveById(id)
 
       if (!user) {
         return response.status(404).send({
@@ -247,7 +251,8 @@ export default class UsersController {
   public async deleteAdmin({ response, params, auth }: HttpContext) {
     try {
       const { id } = params
-      const user: User | null = await User.findWithSoftDelete(id)
+      const user: User | null = await this.userRepo.findActiveById(id)
+
 
       if (!user) {
         return response.status(404).send({

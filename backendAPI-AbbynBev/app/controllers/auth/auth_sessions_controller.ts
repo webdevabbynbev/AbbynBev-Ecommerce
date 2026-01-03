@@ -9,8 +9,12 @@ import { badRequest, badRequest400, internalError } from '../../utils/response.j
 
 import AuthLoginService from '#services/auth/auth_login_service'
 import { login as loginValidator } from '#validators/auth'
+import { UserRepository } from '#services/user/user_repository'
+
 
 export default class AuthSessionsController {
+
+  private userRepo = new UserRepository()
   public async loginCashier({ request, response }: HttpContext) {
     try {
       const { email, password } = request.only(['email', 'password'])
@@ -112,7 +116,8 @@ export default class AuthSessionsController {
       const firstName = name.split(' ')[0] || ''
       const lastName = name.split(' ').slice(1).join(' ') || ''
 
-      let user = await User.findColumnWithSoftDelete('email', email)
+      let user = await this.userRepo.findActiveByEmail(email)
+
 
       if (!user) {
         user = await User.create({

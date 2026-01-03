@@ -8,6 +8,7 @@ import { OtpAction } from '../../enums/setting_types.js'
 import Helpers from '../../utils/helpers.js'
 import { Role } from '../../enums/role.js'
 import WhatsAppService from '#services/whatsapp_api_service'
+import AuthEmailService from '#services/auth/auth_email_service'
 
 type SendVia = 'email' | 'whatsapp'
 
@@ -153,7 +154,7 @@ export default class AuthRegisterService {
     })
 
     try {
-      await user.sendWelcomeLetter()
+      await AuthEmailService.sendWelcomeLetter(user)
     } catch (e: any) {
       console.error('Gagal kirim welcome letter:', e.message)
     }

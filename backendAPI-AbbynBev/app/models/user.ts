@@ -1,25 +1,14 @@
 import { DateTime } from 'luxon'
 import hash from '@adonisjs/core/services/hash'
 import { compose } from '@adonisjs/core/helpers'
-import {
-  afterFetch,
-  afterFind,
-  BaseModel,
-  beforeSave,
-  column,
-  hasMany,
-  computed,
-  scope,
-} from '@adonisjs/lucid/orm'
+import { afterFetch, afterFind, beforeSave, column, hasMany, computed } from '@adonisjs/lucid/orm'
+
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
-import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import mail from '@adonisjs/mail/services/main'
 import env from '#start/env'
-import router from '@adonisjs/core/services/router'
-import PasswordReset from './password_resets.js'
 import drive from '@adonisjs/drive/services/main'
+import { CustomBaseModel } from '#services/custom_base_model'
 import Review from './review.js'
 import TransactionCart from './transaction_cart.js'
 import UserBeautyProfileOption from './user_beauty_profile_option.js'
@@ -34,7 +23,7 @@ const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   passwordColumnName: 'password',
 })
 
-export default class User extends compose(BaseModel, AuthFinder) {
+export default class User extends compose(CustomBaseModel, AuthFinder) {
   @column({ isPrimary: true })
   declare id: number
 
@@ -136,89 +125,6 @@ export default class User extends compose(BaseModel, AuthFinder) {
     }
   }
 
-  public async sendVerificationEmail() {
-    const appDomain = env.get('APP_URL')
-    const appName = env.get('APP_TITLE')
-    const currentYear = new Date().getFullYear()
-    const url = router
-      .builder()
-      .params({ email: this.email })
-      .prefixUrl(appDomain as string)
-      .makeSigned('verifyEmail', { expiresIn: '24hours' })
-    mail
-      .send((message) => {
-        message
-          .from(env.get('DEFAULT_FROM_EMAIL') as string)
-          .to(this.email)
-          .subject('[Abby n Bev] Verifikasi Email')
-          .htmlView('email_verification', {
-            user: this,
-            url,
-            appName,
-            appDomain,
-            currentYear,
-          })
-      })
-      .then(() => console.log('sukses terkirim'))
-      .catch((err) => console.log(err))
-  }
-
-  public static async findWithSoftDelete(id: number | string, trx?: TransactionClientContract) {
-    if (trx) {
-      return this.query({ client: trx }).where('id', id).whereNull('deleted_at').first()
-    }
-
-    return this.query().where('id', id).whereNull('deleted_at').first()
-  }
-
-  public static async findColumnWithSoftDelete(
-    column: string,
-    id: number | string,
-    trx?: TransactionClientContract
-  ) {
-    if (trx) {
-      return this.query({ client: trx }).where(column, id).whereNull('deleted_at').first()
-    }
-    return this.query().where(column, id).whereNull('deleted_at').first()
-  }
-
-  public async sendForgotPasswordEmail() {
-    const appDomain = env.get('APP_URL')
-    const clientDomain = env.get('APP_CLIENT') || appDomain
-    const appName = env.get('APP_TITLE')
-    const currentYear = new Date().getFullYear()
-    const signedUrl = router
-      .builder()
-      .params({ email: this.email })
-      .prefixUrl(appDomain as string)
-      .makeSigned('verifyForgotPassword', { expiresIn: '24hours' })
-    const urlObj = new URL(signedUrl)
-    const signature = urlObj.searchParams.get('signature')
-    const resetUrl = `${clientDomain}/reset-password?token=${signature}&email=${this.email}`
-
-    await mail
-      .send((message) => {
-        message
-          .from(env.get('DEFAULT_FROM_EMAIL') as string)
-          .to(this.email)
-          .subject('[Abby n Bev] Reset Password')
-          .htmlView('emails/forgot', {
-            user: this,
-            url: resetUrl,
-            appName,
-            appDomain,
-            currentYear,
-          })
-      })
-      .then(async () => {
-        const passwordReset = new PasswordReset()
-        passwordReset.email = this.email
-        passwordReset.token = signature as string
-        await passwordReset.save()
-      })
-      .catch((err) => console.log(err))
-  }
-
   public async getImageUrl() {
     this.photoProfileUrl = ''
     if (this.photoProfile) {
@@ -226,23 +132,6 @@ export default class User extends compose(BaseModel, AuthFinder) {
     }
   }
 
-  public static active = scope((query) => {
-    query.whereNull('deleted_at')
-  })
-
-  public static trashed = scope((query) => {
-    query.whereNotNull('deleted_at')
-  })
-
-  public async softDelete() {
-    this.deletedAt = DateTime.now()
-    await this.save()
-  }
-
-  public async restore() {
-    this.deletedAt = null
-    await this.save()
-  }
 
   @afterFetch()
   public static async getImageUrlAfterFetch(models: User[]) {
@@ -254,49 +143,6 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @afterFind()
   public static async getImageUrlAfterFind(model: User) {
     await model.getImageUrl()
-  }
-
-  public async sendWelcomeLetter() {
-    const appDomain = env.get('APP_URL')
-    const appName = env.get('APP_TITLE')
-    const currentYear = new Date().getFullYear()
-
-    await mail.send((message) => {
-      message
-        .from(env.get('DEFAULT_FROM_EMAIL') as string)
-        .to(this.email)
-        .subject('Welcome to Abby n Bev ✨')
-        .htmlView('emails/welcome_letter', {
-          user: this,
-          appName,
-          appDomain,
-          currentYear,
-        })
-    })
-  }
-
-  public async sendOtp(otp: string, action: string) {
-    const appDomain = env.get('APP_URL')
-    const appName = env.get('APP_TITLE')
-    const currentYear = new Date().getFullYear()
-
-    await mail
-      .send((message) => {
-        message
-          .from(env.get('DEFAULT_FROM_EMAIL') as string)
-          .to(this.email)
-          .subject(`[Abby n Bev] OTP Verification`)
-          .htmlView('emails/otp', {
-            email: this.email,
-            otp,
-            action,
-            appName,
-            appDomain,
-            currentYear,
-          })
-      })
-      .then(() => console.log(`OTP email sent to ${this.email}`))
-      .catch((err) => console.error('Failed to send OTP:', err))
   }
 
   @hasMany(() => TransactionCart, {
