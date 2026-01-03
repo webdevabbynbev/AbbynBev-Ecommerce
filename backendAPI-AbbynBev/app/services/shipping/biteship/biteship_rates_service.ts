@@ -1,5 +1,5 @@
-import { BiteshipClient } from './biteship_client'
-import { normalizeBiteshipError } from './biteship_errors'
+import { BiteshipClient } from './biteship_client.js'
+import { normalizeBiteshipError } from './biteship_errors.js'
 
 export type BiteshipRateItem = {
   name: string
