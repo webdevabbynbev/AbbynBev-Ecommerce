@@ -1,27 +1,22 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import Product from '#models/product'
-import db from '@adonisjs/lucid/services/db'
-import { createProduct, updateProduct } from '#validators/product'
-import ProductMedia from '#models/product_media'
-import ProductVariant from '#models/product_variant'
-import ProductDiscount from '#models/product_discount'
-import VariantAttribute from '#models/variant_attribute'
 import emitter from '@adonisjs/core/services/emitter'
-import env from '#start/env'
-import OpenAI from 'openai'
-import { generateSlug } from '../../utils/helpers.js'
-import CategoryType from '#models/category_type'
-import { DateTime } from 'luxon'
-import ProductOnline from '#models/product_online'
+import { createProduct, updateProduct } from '#validators/product'
+import { ProductService } from '#services/product/product_service'
+import { ProductCmsService } from '#services/product/product_cms_service'
+import type { CmsProductUpsertPayload } from '#services/product/product_cms_service'
 
 export default class ProductsController {
+  private productService = new ProductService()
+  private cms = new ProductCmsService()
+
   public async get({ response, request }: HttpContext) {
     try {
       const { name = '', isFlashsale, status, page: p, per_page: pp } = request.qs()
       const page = Number(p) > 0 ? Number(p) : 1
       const per_page = Number(pp) > 0 ? Number(pp) : 10
 
-      const dataProduct = await Product.query()
+      const dataProduct = await this.productService
+        .query()
         .apply((scopes) => scopes.active())
         .if(name, (q) => q.where('products.name', 'like', `%${name}%`))
         .if(isFlashsale !== undefined && isFlashsale !== '', (q) =>
@@ -55,7 +50,7 @@ export default class ProductsController {
           ...meta,
         },
       })
-    } catch (error) {
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
         serve: [],
@@ -66,7 +61,9 @@ export default class ProductsController {
   public async show({ response, params }: HttpContext) {
     try {
       const productId = params.id
-      const dataProduct = await Product.query()
+
+      const dataProduct = await this.productService
+        .query()
         .apply((scopes) => scopes.active())
         .where('id', productId)
         .preload('variants', (variantLoader) => {
@@ -97,7 +94,7 @@ export default class ProductsController {
         message: 'success',
         serve: dataProduct,
       })
-    } catch (error) {
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
         serve: [],
@@ -106,113 +103,11 @@ export default class ProductsController {
   }
 
   public async create({ response, request, auth }: HttpContext) {
-    const trx = await db.transaction()
     try {
-      const data = request.all()
+      const data = request.all() as unknown as CmsProductUpsertPayload
       await createProduct.validate(data)
 
-      const dataProduct = new Product()
-      dataProduct.name = request.input('name')
-      dataProduct.slug = await generateSlug(request.input('name'))
-      dataProduct.description = request.input('description')
-      dataProduct.weight = request.input('weight')
-      dataProduct.basePrice = request.input('base_price')
-
-      dataProduct.status = request.input('status') || 'draft'
-      dataProduct.isFlashsale =
-        dataProduct.status === 'draft' ? false : request.input('is_flashsale') || false
-
-      dataProduct.categoryTypeId = request.input('category_type_id')
-      dataProduct.brandId = request.input('brand_id')
-      dataProduct.personaId = request.input('persona_id')
-
-      dataProduct.masterSku = request.input('master_sku')
-
-      const category = await CategoryType.find(request.input('category_type_id'))
-      const categorySlug = category
-        ? await generateSlug(category.name)
-        : `category-${request.input('category_type_id')}`
-
-      dataProduct.path = `${categorySlug}/${dataProduct.slug}`
-
-      if (request.input('meta_ai') === 1) {
-        const meta = await this.generateMeta({
-          productName: request.input('name'),
-          productDescription: request.input('description'),
-        })
-        if (meta) {
-          dataProduct.metaTitle = meta.metaTitle
-          dataProduct.metaDescription = meta.metaDescription
-          dataProduct.metaKeywords = meta.metaKeywords
-        }
-      } else {
-        dataProduct.metaTitle = request.input('meta_title')
-        dataProduct.metaDescription = request.input('meta_description')
-        dataProduct.metaKeywords = request.input('meta_keywords')
-      }
-
-      await dataProduct.save()
-
-      if (request.input('tag_ids')?.length > 0) {
-        await dataProduct.related('tags').sync(request.input('tag_ids'))
-      }
-      if (request.input('concern_option_ids')?.length > 0) {
-        await dataProduct.related('concernOptions').sync(request.input('concern_option_ids'))
-      }
-      if (request.input('profile_category_option_ids')?.length > 0) {
-        await dataProduct
-          .related('profileOptions')
-          .sync(request.input('profile_category_option_ids'))
-      }
-
-      if (request.input('medias')?.length > 0) {
-        for (const value of request.input('medias')) {
-          await ProductMedia.create({
-            productId: dataProduct.id,
-            url: this.extractFileName(value.url),
-            type: value.type,
-            altText: dataProduct.name,
-          })
-        }
-      }
-
-      if (request.input('discounts')?.length > 0) {
-        for (const value of request.input('discounts')) {
-          await ProductDiscount.create({
-            productId: dataProduct.id,
-            type: value.type,
-            value: value.value,
-            maxValue: value.max_value,
-            startDate: value.start_date,
-            endDate: value.end_date,
-          })
-        }
-      }
-
-      if (request.input('variants')?.length > 0) {
-        for (const value of request.input('variants')) {
-          const scannedBarcode = value.barcode
-          const masterSku = dataProduct.masterSku || `PRD-${dataProduct.id}`
-          const variantSku = await this.generateVariantSku(masterSku, scannedBarcode)
-
-          const createdVariant = await ProductVariant.create({
-            productId: dataProduct.id,
-            sku: variantSku,
-            barcode: scannedBarcode,
-            price: value.price,
-            stock: value.stock,
-          })
-
-          if (value.combination?.length > 0) {
-            for (const attribute of value.combination) {
-              await VariantAttribute.create({
-                productVariantId: createdVariant.id,
-                attributeValueId: attribute,
-              })
-            }
-          }
-        }
-      }
+      const created = await this.cms.create(data)
 
       // @ts-ignore
       await emitter.emit('set:activity-log', {
@@ -220,16 +115,14 @@ export default class ProductsController {
         userName: auth.user?.name,
         activity: `Create Product`,
         menu: 'Product',
-        data: dataProduct.toJSON(),
+        data: created.toJSON(),
       })
 
-      await trx.commit()
       return response.status(200).send({
         message: 'Successfully created.',
-        serve: dataProduct,
+        serve: created,
       })
-    } catch (error) {
-      await trx.rollback()
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
         serve: [],
@@ -238,97 +131,26 @@ export default class ProductsController {
   }
 
   public async update({ response, request, params, auth }: HttpContext) {
-    const trx = await db.transaction()
     try {
-      const data = request.all()
+      const data = request.all() as unknown as CmsProductUpsertPayload
       await updateProduct.validate(data)
 
-      const dataProduct = await Product.find(params.id)
-      if (!dataProduct) {
+      const before = await this.productService.find(Number(params.id))
+      if (!before) {
         return response.status(400).send({
           message: 'Invalid data.',
           serve: [],
         })
       }
 
-      const oldData = dataProduct.toJSON()
+      const oldData = before.toJSON()
+      const updated = await this.cms.update(Number(params.id), data)
 
-      dataProduct.name = request.input('name')
-      dataProduct.slug = await generateSlug(request.input('name'))
-      dataProduct.description = request.input('description')
-      dataProduct.weight = request.input('weight')
-      dataProduct.basePrice = request.input('base_price')
-      dataProduct.status = request.input('status') || dataProduct.status
-      dataProduct.isFlashsale =
-        dataProduct.status === 'draft' ? false : request.input('is_flashsale') || false
-      dataProduct.categoryTypeId = request.input('category_type_id')
-      dataProduct.brandId = request.input('brand_id')
-      dataProduct.personaId = request.input('persona_id')
-      dataProduct.masterSku = request.input('master_sku') || dataProduct.masterSku
-
-      const category = await CategoryType.find(request.input('category_type_id'))
-      const categorySlug = category
-        ? await generateSlug(category.name)
-        : `category-${request.input('category_type_id')}`
-
-      dataProduct.path = `${categorySlug}/${dataProduct.slug}`
-
-      await dataProduct.save()
-
-      if (request.input('tag_ids')?.length > 0) {
-        await dataProduct.related('tags').sync(request.input('tag_ids'))
-      }
-      if (request.input('concern_option_ids')?.length > 0) {
-        await dataProduct.related('concernOptions').sync(request.input('concern_option_ids'))
-      }
-      if (request.input('profile_category_option_ids')?.length > 0) {
-        await dataProduct
-          .related('profileOptions')
-          .sync(request.input('profile_category_option_ids'))
-      }
-      if (request.input('variants')?.length > 0) {
-        const incomingIds = (request.input('variants') as { id?: number }[])
-          .filter((v) => v.id)
-          .map((v) => v.id as number)
-
-        for (const value of request.input('variants')) {
-          if (value.id) {
-            const variant = await ProductVariant.find(value.id)
-            if (variant) {
-              variant.price = value.price
-              variant.stock = value.stock
-              variant.barcode = value.barcode
-
-              const masterSku = dataProduct.masterSku || `PRD-${dataProduct.id}`
-              variant.sku = await this.generateVariantSku(masterSku, variant.barcode)
-
-              await variant.save()
-
-              if (value.combination?.length > 0) {
-                await variant.related('attributes').sync(value.combination)
-              }
-            }
-          } else {
-            const masterSku = dataProduct.masterSku || `PRD-${dataProduct.id}`
-            const variantSku = await this.generateVariantSku(masterSku, value.barcode)
-
-            const newVariant = await ProductVariant.create({
-              productId: dataProduct.id,
-              sku: variantSku,
-              barcode: value.barcode,
-              price: value.price,
-              stock: value.stock,
-            })
-            if (value.combination?.length > 0) {
-              await newVariant.related('attributes').sync(value.combination)
-            }
-          }
-        }
-
-        await ProductVariant.query()
-          .where('product_id', dataProduct.id)
-          .whereNotIn('id', incomingIds)
-          .delete()
+      if (!updated) {
+        return response.status(400).send({
+          message: 'Invalid data.',
+          serve: [],
+        })
       }
 
       // @ts-ignore
@@ -337,16 +159,14 @@ export default class ProductsController {
         userName: auth.user?.name,
         activity: `Update Product`,
         menu: 'Product',
-        data: { old: oldData, new: dataProduct.toJSON() },
+        data: { old: oldData, new: updated.toJSON() },
       })
 
-      await trx.commit()
       return response.status(200).send({
         message: 'Successfully updated.',
-        serve: dataProduct,
+        serve: updated,
       })
-    } catch (error) {
-      await trx.rollback()
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
         serve: [],
@@ -355,35 +175,30 @@ export default class ProductsController {
   }
 
   public async delete({ response, params, auth }: HttpContext) {
-    const trx = await db.transaction()
     try {
-      const product = await Product.find(params.id)
-      if (product) {
-        await product.softDelete()
+      const product = await this.cms.softDelete(Number(params.id))
 
-        // @ts-ignore
-        await emitter.emit('set:activity-log', {
-          roleName: auth.user?.role_name,
-          userName: auth.user?.name,
-          activity: `Delete Product`,
-          menu: 'Product',
-          data: product.toJSON(),
-        })
-
-        await trx.commit()
-        return response.status(200).send({
-          message: 'Successfully deleted.',
-          serve: [],
-        })
-      } else {
-        await trx.commit()
+      if (!product) {
         return response.status(422).send({
           message: 'Invalid data.',
           serve: [],
         })
       }
-    } catch (error) {
-      await trx.rollback()
+
+      // @ts-ignore
+      await emitter.emit('set:activity-log', {
+        roleName: auth.user?.role_name,
+        userName: auth.user?.name,
+        activity: `Delete Product`,
+        menu: 'Product',
+        data: product.toJSON(),
+      })
+
+      return response.status(200).send({
+        message: 'Successfully deleted.',
+        serve: [],
+      })
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
         serve: [],
@@ -391,6 +206,7 @@ export default class ProductsController {
     }
   }
 
+<<<<<<< HEAD
   private extractFileName(url: string) {
     if (url.startsWith('http')) {
       return url
@@ -459,9 +275,12 @@ export default class ProductsController {
     }
   }
 
+=======
+>>>>>>> origin/main
   public async getIsFlashsale({ response }: HttpContext) {
     try {
-      const dataProduct = await Product.query()
+      const dataProduct = await this.productService
+        .query()
         .apply((scopes) => scopes.active())
         .where('is_flashsale', true)
         .where('status', '!=', 'draft')
@@ -471,7 +290,7 @@ export default class ProductsController {
         message: 'success',
         serve: dataProduct.map((p) => p.toJSON()),
       })
-    } catch (error) {
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
         serve: [],
@@ -480,42 +299,15 @@ export default class ProductsController {
   }
 
   public async updateProductIndex({ request, response }: HttpContext) {
-    const updates = request.input('updates')
-    const batchSize = 100
-
     try {
-      for (const update of updates) {
-        const { id, order: newPosition } = update
-        await Product.query().where('id', id).update({ position: newPosition })
-      }
-
-      let page = 1
-      let hasMore = true
-
-      while (hasMore) {
-        const products = await Product.query().orderBy('position', 'asc').paginate(page, batchSize)
-
-        if (products.all().length === 0) {
-          hasMore = false
-          break
-        }
-
-        for (let i = 0; i < products.all().length; i++) {
-          const product = products.all()[i]
-          const newPosition = (page - 1) * batchSize + i
-          if (product.position !== newPosition) {
-            await Product.query().where('id', product.id).update({ position: newPosition })
-          }
-        }
-
-        page++
-      }
+      const updates = request.input('updates') || []
+      await this.cms.updatePositions(updates)
 
       return response.status(200).send({
         message: 'Positions updated and reordered successfully.',
         serve: [],
       })
-    } catch (error) {
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
         serve: [],
@@ -525,21 +317,11 @@ export default class ProductsController {
 
   public async publish({ params, response, auth }: HttpContext) {
     try {
-      const product = await Product.find(params.id)
+      const result = await this.cms.publish(Number(params.id))
 
-      if (!product) {
-        return response.status(404).send({ message: 'Product not found' })
-      }
-
-      if (product.status === 'draft') {
-        return response.status(400).send({
-          message: 'Product is still draft, cannot publish',
-        })
-      }
-      const published = await ProductOnline.updateOrCreate(
-        { productId: product.id },
-        { isActive: true, publishedAt: DateTime.now() }
-      )
+      if (result.reason === 'NOT_FOUND') return response.status(404).send({ message: 'Product not found' })
+      if (result.reason === 'DRAFT')
+        return response.status(400).send({ message: 'Product is still draft, cannot publish' })
 
       // @ts-ignore
       await emitter.emit('set:activity-log', {
@@ -547,14 +329,14 @@ export default class ProductsController {
         userName: auth.user?.name,
         activity: `Publish Product`,
         menu: 'Product',
-        data: { product: product.toJSON(), published: published.toJSON() },
+        data: { product: result.product?.toJSON(), published: result.online?.toJSON() },
       })
 
       return response.status(200).send({
         message: 'Product published successfully',
-        serve: published,
+        serve: result.online,
       })
-    } catch (error) {
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error',
       })
@@ -563,14 +345,9 @@ export default class ProductsController {
 
   public async unpublish({ params, response, auth }: HttpContext) {
     try {
-      const productOnline = await ProductOnline.query().where('product_id', params.id).first()
+      const productOnline = await this.cms.unpublish(Number(params.id))
 
-      if (!productOnline) {
-        return response.status(404).send({ message: 'Product not found in online table' })
-      }
-
-      productOnline.isActive = false
-      await productOnline.save()
+      if (!productOnline) return response.status(404).send({ message: 'Product not found in online table' })
 
       // @ts-ignore
       await emitter.emit('set:activity-log', {
@@ -585,7 +362,7 @@ export default class ProductsController {
         message: 'Product unpublished successfully',
         serve: productOnline,
       })
-    } catch (error) {
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error',
       })

@@ -1,5 +1,5 @@
 import { BaseModel, scope } from '@adonisjs/lucid/orm'
-import { softDelete } from '#services/soft_delete'
+import SoftDeleteService from '#services/soft_delete'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 
 export class CustomBaseModel extends BaseModel {
@@ -33,7 +33,7 @@ export class CustomBaseModel extends BaseModel {
   }
 
   public async softDelete(column: string = 'deletedAt') {
-    await softDelete(this, column)
+    await SoftDeleteService.softDelete(this, column)
   }
 
   public static active = scope((query) => query.whereNull('deleted_at'))

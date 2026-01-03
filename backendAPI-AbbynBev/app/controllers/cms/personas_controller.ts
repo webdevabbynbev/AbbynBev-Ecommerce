@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Persona from '#models/persona'
-import { generateSlug } from '../../utils/helpers.js'
+import Helpers from '../../utils/helpers.js'
 import { storePersonaValidator, updatePersonaValidator } from '#validators/persona'
 import emmiter from '@adonisjs/core/services/emitter'
 
@@ -41,7 +41,7 @@ export default class PersonasController {
 
       const persona = await Persona.create({
         ...payload,
-        slug: await generateSlug(payload.name),
+        slug: await Helpers.generateSlug(payload.name),
       })
 
       // @ts-ignore
@@ -101,7 +101,7 @@ export default class PersonasController {
 
       persona.merge({
         name: payload.name ?? persona.name,
-        slug: payload.name ? await generateSlug(payload.name) : persona.slug,
+        slug: payload.name ? await Helpers.generateSlug(payload.name) : persona.slug,
         description: payload.description ?? persona.description,
       })
 

@@ -1,42 +1,47 @@
-/*
-|--------------------------------------------------------------------------
-| Environment variables service
-|--------------------------------------------------------------------------
-|
-| The `Env.create` method creates an instance of the Env service. The
-| service validates the environment variables and also cast values
-| to JavaScript data types.
-|
-*/
-
 import { Env } from '@adonisjs/core/env'
 
 export default await Env.create(new URL('../', import.meta.url), {
+  // Timezone (optional)
+  TZ: Env.schema.string.optional(),
+
+  // App & Server
   NODE_ENV: Env.schema.enum(['development', 'production', 'test'] as const),
   PORT: Env.schema.number(),
-  APP_KEY: Env.schema.string(),
   HOST: Env.schema.string({ format: 'host' }),
-  LOG_LEVEL: Env.schema.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']),
+  APP_KEY: Env.schema.string(),
+  LOG_LEVEL: Env.schema.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const),
 
-  /*
-  |----------------------------------------------------------
-  | Variables for configuring database connection
-  |----------------------------------------------------------
-  */
+  // App metadata (sesuai .env kamu)
+  APP_NAME: Env.schema.string.optional(), // saran: isi di .env
+  APP_TITLE: Env.schema.string(),
+  APP_URL: Env.schema.string(),
+  APP_CLIENT: Env.schema.string(),
+  APP_LANDING: Env.schema.string.optional(),
+
+  // Database
   DB_HOST: Env.schema.string({ format: 'host' }),
   DB_PORT: Env.schema.number(),
   DB_USER: Env.schema.string(),
   DB_PASSWORD: Env.schema.string.optional(),
   DB_DATABASE: Env.schema.string(),
+<<<<<<< HEAD
   
   /*
   |----------------------------------------------------------
   | Variables for configuring the mail package
   |----------------------------------------------------------
   */
-  SMTP_HOST: Env.schema.string(),
-  SMTP_PORT: Env.schema.string(),
+=======
 
+  // Mailer / SMTP
+>>>>>>> origin/main
+  SMTP_HOST: Env.schema.string(),
+  SMTP_PORT: Env.schema.number(),
+  SMTP_USERNAME: Env.schema.string.optional(),
+  SMTP_PASSWORD: Env.schema.string.optional(),
+  DEFAULT_FROM_EMAIL: Env.schema.string.optional(),
+
+<<<<<<< HEAD
   
 
   /*
@@ -44,5 +49,48 @@ export default await Env.create(new URL('../', import.meta.url), {
   | Variables for configuring the drive package
   |----------------------------------------------------------
   */
+=======
+  // Storage
+>>>>>>> origin/main
   DRIVE_DISK: Env.schema.enum(['fs'] as const),
+
+  // AWS S3 (optional)
+  AWS_ACCESS_KEY_ID: Env.schema.string.optional(),
+  AWS_SECRET_ACCESS_KEY: Env.schema.string.optional(),
+  AWS_REGION: Env.schema.string.optional(),
+  S3_BUCKET: Env.schema.string.optional(),
+
+  // Google OAuth (optional)
+  GOOGLE_CLIENT_ID: Env.schema.string.optional(),
+  GOOGLE_CLIENT_SECRET: Env.schema.string.optional(),
+
+  // Cloudinary (optional)
+  CLOUDINARY_CLOUD_NAME: Env.schema.string.optional(),
+  CLOUDINARY_API_KEY: Env.schema.string.optional(),
+  CLOUDINARY_API_SECRET: Env.schema.string.optional(),
+
+  // Midtrans
+  MIDTRANS_SERVER_KEY: Env.schema.string.optional(),
+  MIDTRANS_CLIENT_KEY: Env.schema.string.optional(),
+  MIDTRANS_ENV: Env.schema.enum(['sandbox', 'production'] as const),
+
+  // WhatsApp API (optional)
+  WHATSAPP_PHONE_NUMBER_ID: Env.schema.string.optional(),
+  WHATSAPP_ACCESS_TOKEN: Env.schema.string.optional(),
+  WHATSAPP_API_URL: Env.schema.string.optional(),
+
+  // =========================
+  // BITESHIP (Wajib kalau Komerce dihapus)
+  // =========================
+  BITESHIP_BASE_URL: Env.schema.string(), // contoh: https://api.biteship.com
+  BITESHIP_API_KEY: Env.schema.string(),
+
+  // Data toko (dipakai saat create order/rates by address)
+  COMPANY_NAME: Env.schema.string(),
+  COMPANY_CONTACT_NAME: Env.schema.string(),
+  COMPANY_PHONE: Env.schema.string(),
+  COMPANY_EMAIL: Env.schema.string(),
+  COMPANY_ADDRESS: Env.schema.string(),
+  COMPANY_POSTAL_CODE: Env.schema.string(),
+  COMPANY_PINPOINT: Env.schema.string.optional(),
 })

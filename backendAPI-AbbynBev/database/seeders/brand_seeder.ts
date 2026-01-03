@@ -1,7 +1,7 @@
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
 import Brand from '#models/brand'
 import { DateTime } from 'luxon'
-import { generateSlug } from '../../app/utils/helpers.js' // sesuaikan path helpers kamu
+import Helpers from '../../app/utils/helpers.js' // sesuaikan path helpers kamu
 
 export default class BrandSeeder extends BaseSeeder {
   public async run() {
@@ -91,7 +91,7 @@ export default class BrandSeeder extends BaseSeeder {
     for (const b of brands) {
       await Brand.create({
         ...b,
-        slug: await generateSlug(b.name),
+        slug: await Helpers.generateSlug(b.name),
         isActive: 1,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),

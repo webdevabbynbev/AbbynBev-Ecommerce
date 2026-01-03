@@ -1,332 +1,26 @@
-import ProductDiscountModel from '#models/product_discount'
-import ProductVariant from '#models/product_variant'
-import TransactionCart from '#models/transaction_cart'
 import type { HttpContext } from '@adonisjs/core/http'
-import db from '@adonisjs/lucid/services/db'
-import ProductOnline from '#models/product_online'
+import { CartService } from '../../services/cart/cart_service.js'
 
 export default class TransactionCartsController {
-  // helper hitung harga setelah diskon per unit
-  private calculatePrice({
-    type,
-    price,
-    value,
-    maxValue,
-  }: {
-    type: number
-    price: number
-    value: number
-    maxValue: number
-  }) {
-    if (type === 1) {
-      const disc = price * (value / 100)
-      if (disc > maxValue) {
-        return { price: price - maxValue, disc: maxValue }
-      } else {
-        return { price: price - disc, disc: disc }
-      }
-    } else {
-      return { price: price - value, disc: value }
-    }
-  }
+  private cartService = new CartService()
 
   // total item di icon keranjang
   public async getTotal({ response, auth }: HttpContext) {
     try {
-      const dataCart = await TransactionCart.query()
-        .where('user_id', auth.user?.id ?? 0)
-        .where('is_checkout', '!=', 2)
-
-      return response.status(200).send({
-        message: 'success',
-        serve: dataCart,
-      })
-    } catch (error) {
-      return response.status(500).send({
-        message: error.message || 'Internal Server Error.',
-        serve: [],
-      })
-    }
-  }
-
-  // list cart utama (dipakai /cart & checkout)
-  public async get({ response, request, auth }: HttpContext) {
-    try {
-      const queryString = request.qs()
-      const sortBy = queryString.field || 'created_at'
-      const sortType = queryString.value || 'DESC'
-      const isCheckout = queryString.is_checkout ?? ''
-      const page = isNaN(parseInt(queryString.page)) ? 1 : parseInt(queryString.page)
-      const per_page = isNaN(parseInt(queryString.per_page)) ? 10 : parseInt(queryString.per_page)
-
-      const cartQuery = await TransactionCart.query()
-        .where('transaction_carts.user_id', auth.user?.id ?? 0)
-        .if(isCheckout !== '', (query) => {
-          query.where('transaction_carts.is_checkout', isCheckout)
-        })
-        .preload('product', (query) => {
-          query.preload('medias').preload('brand').preload('categoryType')
-        })
-        .preload('variant', (variantLoader) => {
-          variantLoader.preload('attributes', (attributeLoader) => {
-            attributeLoader.preload('attribute')
-          })
-        })
-        .orderBy(`transaction_carts.${sortBy}`, sortType)
-        .paginate(page, per_page)
-
-      const { meta, data } = cartQuery.toJSON() as { meta: any; data: any[] }
-
-      // base url untuk bikin URL gambar full (biar match dengan endpoint shop)
-      const baseUrl =
-        process.env.APP_URL || `${request.protocol()}://${request.host()}`
-
-      const toFullUrl = (value: any) => {
-        if (!value) return null
-        const s = String(value)
-        if (s.startsWith('http://') || s.startsWith('https://')) return s
-        if (s === '/placeholder.png') return s
-        if (s.startsWith('/')) return `${baseUrl}${s}`
-        return `${baseUrl}/${s}`
-      }
-
-      // Normalisasi supaya frontend enak pakainya
-      const items = data.map((row: any) => {
-        const product = row.product || {}
-        const medias = Array.isArray(product.medias) ? product.medias : []
-
-        const id = Number(row.id) // id cart item untuk FE
-        const quantity = Number(row.qtyCheckout ?? row.qty ?? 0)
-
-        // harga per unit
-        const price = Number(row.price ?? product.price ?? product.realprice ?? product.basePrice ?? 0)
-
-        const productName =
-          product.name ||
-          product.title ||
-          row.product_name ||
-          row.productName ||
-          product.product_name ||
-          '-'
-
-        // ambil gambar dari berbagai kemungkinan field
-        const media0 = medias[0] || {}
-        const rawThumb =
-          product.thumbnail ||
-          product.thumbnail_url ||
-          product.thumbnailUrl ||
-          product.image ||
-          product.image_url ||
-          media0.url ||
-          media0.original_url ||
-          media0.file_url ||
-          media0.path ||
-          media0.file_path ||
-          media0.filePath ||
-          null
-
-        const thumbnail = toFullUrl(rawThumb) || '/placeholder.png'
-
-        // nama variant
-        let variantName = '-'
-        if (row.variant) {
-          const v = row.variant as any
-          variantName = v.name || v.sku || v.code || ''
-          if (!variantName && Array.isArray(v.attributes)) {
-            const parts = v.attributes
-              .map((a: any) => a?.attribute_value || a?.label || a?.value || '')
-              .filter(Boolean)
-            if (parts.length) variantName = parts.join(' / ')
-          }
-          if (!variantName) variantName = '-'
-        }
-
-        // line amount
-        const lineAmount = Number(row.amount ?? price * quantity)
-
-        return {
-          ...row,
-
-          // id & alias
-          id,
-          cart_id: id,
-          cartId: id,
-
-          // field tambahan FE
-          quantity,
-          amount: lineAmount,
-          product_name: productName,
-          variant_name: variantName,
-
-          product: {
-            ...product,
-            name: productName,
-            price,
-            thumbnail,         // ✅ FE cart pakai ini
-            variant_name: variantName,
-          },
-
-          variant: row.variant ? { ...(row.variant as any), name: variantName } : row.variant,
-        }
-      })
-
-      const subtotal = items.reduce((acc: number, item: any) => acc + Number(item.amount ?? 0), 0)
-
-      return response.status(200).send({
-        message: 'success',
-        data: items,
-        subtotal,
-        meta,
-      })
-    } catch (error) {
-      return response.status(500).send({
-        message: error.message || 'Internal Server Error.',
-        serve: [],
-      })
-    }
-  }
-
-  // tambah ke keranjang (MERGE jika produk/variant sama)
-  public async create({ response, request, auth }: HttpContext) {
-    const trx = await db.transaction()
-
-    try {
-      const user = auth.user
-      if (!user) {
-        await trx.rollback()
+      const userId = auth.user?.id ?? 0
+      if (!userId) {
         return response.status(401).send({ message: 'Unauthenticated', serve: null })
       }
 
-      const productId = Number(request.input('product_id'))
-      const variantId = Number(request.input('variant_id'))
-      const qty = Number(request.input('qty') ?? 0)
-      const isBuyNow = !!request.input('is_buy_now')
-      const attributes = request.input('attributes') || []
-
-      if (!productId || !variantId || qty <= 0) {
-        await trx.rollback()
-        return response.status(400).send({
-          message: 'Invalid payload: product_id, variant_id, dan qty wajib diisi',
-          serve: null,
-        })
-      }
-
-      const now = new Date()
-      now.setHours(now.getHours() + 7)
-      const dateString = now.toISOString().slice(0, 19).replace('T', ' ')
-
-      // product online aktif?
-      const productOnline = await ProductOnline.query({ client: trx })
-        .where('product_id', productId)
-        .where('is_active', true)
-        .preload('product')
-        .first()
-
-      if (!productOnline || !productOnline.product) {
-        await trx.rollback()
-        return response.status(400).send({ message: 'Product not available online', serve: null })
-      }
-
-      // variant?
-      const dataProductVariant = await ProductVariant.query({ client: trx })
-        .where('id', variantId)
-        .first()
-
-      if (!dataProductVariant) {
-        await trx.rollback()
-        return response.status(400).send({ message: 'Product variant not found', serve: null })
-      }
-
-      // diskon per unit
-      let discount = 0
-      const dataProductDisc = await ProductDiscountModel.query({ client: trx })
-        .where('product_id', productId)
-        .where('start_date', '<=', dateString)
-        .where('end_date', '>=', dateString)
-        .first()
-
-      if (dataProductDisc) {
-        const calc = this.calculatePrice({
-          type: dataProductDisc.type,
-          price: Number(dataProductVariant.price),
-          value: Number(dataProductDisc.value),
-          maxValue: Number(dataProductDisc.maxValue),
-        })
-        discount = calc.disc
-      }
-
-      const pricePerUnit = Number(dataProductVariant.price)
-      const finalPerUnit = Math.max(0, pricePerUnit - discount)
-
-      // ✅ cari cart existing (produk + variant sama)
-      const existing = await TransactionCart.query({ client: trx })
-        .where('user_id', user.id)
-        .where('product_id', productId)
-        .where('product_variant_id', variantId)
-        .where('is_checkout', '!=', 2)
-        .first()
-
-      if (existing) {
-        const newQty = Number(existing.qty ?? 0) + qty
-
-        // cek stok untuk qty gabungan
-        if (dataProductVariant.stock < newQty) {
-          await trx.rollback()
-          return response.status(400).send({ message: 'Stock not enough', serve: null })
-        }
-
-        existing.qty = newQty
-        existing.qtyCheckout = newQty
-        existing.isCheckout = isBuyNow ? 1 : 1
-
-        // update price/discount biar konsisten
-        existing.price = pricePerUnit
-        existing.discount = discount
-        existing.amount = finalPerUnit * newQty
-
-        existing.attributes = JSON.stringify(attributes)
-
-        await existing.save()
-        await trx.commit()
-
-        return response.status(200).send({
-          message: 'Cart updated (merged)',
-          serve: existing,
-        })
-      }
-
-      // stok cukup?
-      if (dataProductVariant.stock < qty) {
-        await trx.rollback()
-        return response.status(400).send({ message: 'Stock not enough', serve: null })
-      }
-
-      // create baru
-      const dataCart = new TransactionCart()
-      dataCart.useTransaction(trx)
-
-      dataCart.userId = user.id
-      dataCart.productId = productId
-      dataCart.productVariantId = variantId
-
-      dataCart.qty = qty
-      dataCart.qtyCheckout = qty
-      dataCart.isCheckout = isBuyNow ? 1 : 1
-
-      dataCart.price = pricePerUnit
-      dataCart.discount = discount
-      dataCart.amount = finalPerUnit * qty
-      dataCart.attributes = JSON.stringify(attributes)
-
-      await dataCart.save()
-      await trx.commit()
+      const dataCart = await this.cartService.getTotal(userId)
 
       return response.status(200).send({
-        message: 'Successfully added to cart.',
+        message: 'success',
+        // kompatibel FE
         serve: dataCart,
+        data: dataCart,
       })
-    } catch (error) {
-      await trx.rollback()
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
         serve: [],
@@ -334,66 +28,92 @@ export default class TransactionCartsController {
     }
   }
 
-  // update qty cart (support /cart/:id atau body {id})
-  public async update({ response, request, auth, params }: HttpContext) {
-    const trx = await db.transaction()
+  public async get({ response, request, auth }: HttpContext) {
+    try {
+      const userId = auth.user?.id ?? 0
+      if (!userId) {
+        return response.status(401).send({ message: 'Unauthenticated', serve: null })
+      }
 
+      const qs: any = request.qs() || {}
+
+      // ✅ support FE yang kirim isCheckout (camelCase)
+      if (typeof qs.is_checkout === 'undefined' && typeof qs.isCheckout !== 'undefined') {
+        qs.is_checkout = qs.isCheckout
+      }
+
+      const { items, subtotal, meta } = await this.cartService.getList(userId, qs, request)
+
+      // ✅ return dua bentuk supaya FE lama & baru aman
+      return response.status(200).send({
+        message: 'success',
+
+        // format baru
+        data: items,
+        subtotal,
+        meta,
+
+        // format kompatibilitas lama
+        serve: {
+          data: items,
+          subtotal,
+          meta,
+        },
+      })
+    } catch (error: any) {
+      return response.status(500).send({
+        message: error.message || 'Internal Server Error.',
+        serve: [],
+      })
+    }
+  }
+
+  public async create({ response, request, auth }: HttpContext) {
     try {
       const user = auth.user
       if (!user) {
-        await trx.rollback()
+        return response.status(401).send({ message: 'Unauthenticated', serve: null })
+      }
+
+      const result = await this.cartService.addToCart(user.id, {
+        product_id: request.input('product_id'),
+        variant_id: request.input('variant_id'),
+        qty: request.input('qty'),
+        is_buy_now: request.input('is_buy_now'),
+        attributes: request.input('attributes') || [],
+      })
+
+      return response.status(result.httpStatus || 200).send({
+        message: result.message,
+        serve: result.serve,
+      })
+    } catch (error: any) {
+      const status = error.httpStatus || 500
+      return response.status(status).send({
+        message: error.message || 'Internal Server Error.',
+        serve: [],
+      })
+    }
+  }
+
+  public async update({ response, request, auth, params }: HttpContext) {
+    try {
+      const user = auth.user
+      if (!user) {
         return response.status(401).send({ message: 'Unauthenticated', serve: null })
       }
 
       const id = Number(params?.id ?? request.input('id'))
       const qty = Number(request.input('qty'))
 
-      if (!id || !Number.isFinite(qty)) {
-        await trx.rollback()
-        return response.status(400).send({ message: 'Invalid payload', serve: null })
-      }
-
-      const cart = await TransactionCart.query({ client: trx })
-        .where('id', id)
-        .where('user_id', user.id)
-        .preload('variant')
-        .first()
-
-      if (!cart) {
-        await trx.rollback()
-        return response.status(404).send({ message: 'Cart item not found', serve: null })
-      }
-
-      // cek stock dari variant
-      const variant: any = (cart as any).variant
-      if (variant && typeof variant.stock === 'number' && variant.stock < qty) {
-        await trx.rollback()
-        return response.status(400).send({ message: 'Stock not enough', serve: null })
-      }
-
-      // qty <= 0 → delete
-      if (qty <= 0) {
-        await cart.delete()
-        await trx.commit()
-        return response.status(200).send({ message: 'Deleted successfully', serve: [] })
-      }
-
-      cart.qty = qty
-      cart.qtyCheckout = qty
-
-      const pricePerUnit = Number(cart.price || 0)
-      const discPerUnit = Number(cart.discount || 0)
-      const finalPerUnit = Math.max(0, pricePerUnit - discPerUnit)
-
-      cart.amount = finalPerUnit * qty
-
-      await cart.save()
-      await trx.commit()
-
-      return response.status(200).send({ message: 'Cart updated', serve: cart })
-    } catch (error) {
-      await trx.rollback()
-      return response.status(500).send({
+      const result = await this.cartService.updateQty(user.id, id, qty)
+      return response.status(result.httpStatus || 200).send({
+        message: result.message,
+        serve: result.serve,
+      })
+    } catch (error: any) {
+      const status = error.httpStatus || 500
+      return response.status(status).send({
         message: error.message || 'Internal Server Error.',
         serve: [],
       })
@@ -402,42 +122,46 @@ export default class TransactionCartsController {
 
   public async updateSelection({ response, request, auth }: HttpContext) {
     try {
-      const ids = request.input('cart_ids') || []
-      const isCheckout = request.input('is_checkout')
-
-      if (ids.length > 0) {
-        await TransactionCart.query()
-          .whereIn('id', ids)
-          .where('user_id', auth.user?.id ?? 0)
-          .update({ isCheckout })
+      const userId = auth.user?.id ?? 0
+      if (!userId) {
+        return response.status(401).send({ message: 'Unauthenticated', serve: null })
       }
 
-      return response.status(200).send({ message: 'Cart selection updated', serve: [] })
-    } catch (error) {
-      return response.status(500).send({
-        message: error.message || 'Internal Server Error.',
-        serve: [],
-      })
-    }
-  }
+      const rawIds = request.input('cart_ids') ?? request.input('cartIds') ?? []
+      const ids = Array.isArray(rawIds)
+        ? rawIds.map((x: any) => Number(x)).filter((x: number) => Number.isFinite(x) && x > 0)
+        : []
 
-  public async miniCart({ response, auth }: HttpContext) {
-    try {
-      const carts = await TransactionCart.query()
-        .where('user_id', auth.user?.id ?? 0)
-        .where('is_checkout', '!=', 2)
-        .preload('product', (q) => q.preload('medias'))
-        .preload('variant')
-        .orderBy('created_at', 'desc')
-        .limit(10)
+      // ✅ support snake_case & camelCase
+      const rawIsCheckout = request.input('is_checkout')
+      const rawIsCheckout2 = request.input('isCheckout')
+      const isCheckout = Number(
+        typeof rawIsCheckout !== 'undefined' ? rawIsCheckout : rawIsCheckout2
+      )
 
-      const subtotal = carts.reduce((acc, item) => acc + Number(item.amount ?? 0), 0)
+      if (!Number.isFinite(isCheckout)) {
+        return response.status(400).send({ message: 'is_checkout invalid', serve: null })
+      }
 
+      // ✅ FE kamu selalu call 2x (selected & unselected)
+      // jadi kalau ids kosong, jangan error
+      if (!ids.length) {
+        return response.status(200).send({
+          message: 'Cart selection updated',
+          serve: { affected: 0 },
+          data: { affected: 0 },
+        })
+      }
+
+      const result = await this.cartService.updateSelection(userId, ids, isCheckout)
+
+      // pastiin response konsisten
       return response.status(200).send({
-        message: 'success',
-        serve: { data: carts.map((c) => c.toJSON()), subtotal },
+        message: result?.message || 'Cart selection updated',
+        serve: result?.serve ?? result ?? null,
+        data: result?.serve ?? result ?? null,
       })
-    } catch (error) {
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
         serve: [],
@@ -445,40 +169,40 @@ export default class TransactionCartsController {
     }
   }
 
-  // hapus item dari cart (support /cart/:id atau body {id})
-  public async delete({ response, request, auth, params }: HttpContext) {
-    const trx = await db.transaction()
+  public async miniCart({ response, auth, request }: HttpContext) {
+    try {
+      const userId = auth.user?.id ?? 0
+      if (!userId) {
+        return response.status(401).send({ message: 'Unauthenticated', serve: null })
+      }
 
+      const result = await this.cartService.miniCart(userId, request)
+      return response.status(200).send(result)
+    } catch (error: any) {
+      return response.status(500).send({
+        message: error.message || 'Internal Server Error.',
+        serve: [],
+      })
+    }
+  }
+
+  public async delete({ response, request, auth, params }: HttpContext) {
     try {
       const user = auth.user
       if (!user) {
-        await trx.rollback()
         return response.status(401).send({ message: 'Unauthenticated', serve: null })
       }
 
       const id = Number(params?.id ?? request.input('id'))
-      if (!id) {
-        await trx.rollback()
-        return response.status(400).send({ message: 'Invalid id', serve: [] })
-      }
+      const result = await this.cartService.deleteItem(user.id, id)
 
-      const dataCart = await TransactionCart.query({ client: trx })
-        .where('id', id)
-        .where('user_id', user.id)
-        .first()
-
-      if (!dataCart) {
-        await trx.rollback()
-        return response.status(404).send({ message: 'Cart item not found', serve: [] })
-      }
-
-      await dataCart.delete()
-      await trx.commit()
-
-      return response.status(200).send({ message: 'Deleted successfully', serve: [] })
-    } catch (error) {
-      await trx.rollback()
-      return response.status(500).send({
+      return response.status(result.httpStatus || 200).send({
+        message: result.message,
+        serve: result.serve,
+      })
+    } catch (error: any) {
+      const status = error.httpStatus || 500
+      return response.status(status).send({
         message: error.message || 'Internal Server Error.',
         serve: [],
       })

@@ -1,5 +1,5 @@
 import { HttpContext } from '@adonisjs/core/http'
-import { uploadFile } from '../../utils/upload_file_service.js'
+import FileUploadService from '../../utils/upload_file_service.js'
 import Banner from '#models/banner'
 import { createBanner, updateBanner } from '#validators/banner'
 import emitter from '@adonisjs/core/services/emitter'
@@ -46,8 +46,11 @@ export default class BannersController {
     try {
       const payload = await request.validateUsing(createBanner)
 
-      let thumbnail = await uploadFile(request.file('image'), { folder: 'banner', type: 'image' })
-      let thumbnailMobile = await uploadFile(request.file('image_mobile'), {
+      let thumbnail = await FileUploadService.uploadFile(request.file('image'), {
+        folder: 'banner',
+        type: 'image',
+      })
+      let thumbnailMobile = await FileUploadService.uploadFile(request.file('image_mobile'), {
         folder: 'banner',
         type: 'image_mobile',
       })
@@ -122,10 +125,10 @@ export default class BannersController {
       const oldBanner = banner.toJSON()
 
       if (request.file('image')) {
-        image = await uploadFile(request.file('image'), { folder: 'banner', type: 'image' })
+        image = await FileUploadService.uploadFile(request.file('image'), { folder: 'banner', type: 'image' })
       }
       if (request.file('image_mobile')) {
-        imageMobile = await uploadFile(request.file('image_mobile'), {
+        imageMobile = await FileUploadService.uploadFile(request.file('image_mobile'), {
           folder: 'banner',
           type: 'image_mobile',
         })
