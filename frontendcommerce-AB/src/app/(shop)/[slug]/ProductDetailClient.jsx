@@ -1,8 +1,12 @@
 "use client";
 
+<<<<<<< HEAD
 <<<<<<< HEAD:frontendcommerce-AB/src/app/(shop)/[slug]/ProductDetailClient.jsx
 import { useEffect, useMemo, useState } from "react";
 =======
+=======
+import { useEffect, useMemo, useState } from "react";
+>>>>>>> origin/main
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 >>>>>>> origin/main:frontendcommerce-AB/src/app/product-detail/[...slug]/ProductDetailClient.jsx

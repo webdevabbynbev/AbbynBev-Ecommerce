@@ -33,6 +33,14 @@ export default await Env.create(new URL('../', import.meta.url), {
   */
 =======
 
+  
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring the mail package
+  |----------------------------------------------------------
+  */
+
+
   // Mailer / SMTP
 >>>>>>> origin/main
   SMTP_HOST: Env.schema.string(),
@@ -40,16 +48,23 @@ export default await Env.create(new URL('../', import.meta.url), {
   SMTP_USERNAME: Env.schema.string.optional(),
   SMTP_PASSWORD: Env.schema.string.optional(),
   DEFAULT_FROM_EMAIL: Env.schema.string.optional(),
+  
 
+<<<<<<< HEAD
 <<<<<<< HEAD
   
 
+=======
+>>>>>>> origin/main
   /*
   |----------------------------------------------------------
   | Variables for configuring the drive package
   |----------------------------------------------------------
   */
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> origin/main
   // Storage
 >>>>>>> origin/main
   DRIVE_DISK: Env.schema.enum(['fs'] as const),
