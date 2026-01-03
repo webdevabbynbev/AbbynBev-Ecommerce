@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon'
 import { BaseModel, column, belongsTo, hasMany } from '@adonisjs/lucid/orm'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
+
 import User from '#models/user'
 import TransactionEcommerce from '#models/transaction_ecommerce'
 import Province from '#models/province'
@@ -12,57 +13,63 @@ export default class UserAddress extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
-  @column()
+  @column({ columnName: 'user_id' })
   declare userId: number
 
   @column()
-  declare address: string
+  declare address: string | null
 
-  @column()
-  declare picName: string
+  @column({ columnName: 'pic_name' })
+  declare picName: string | null
 
-  @column()
-  declare picPhone: string
+  @column({ columnName: 'pic_phone' })
+  declare picPhone: string | null
 
-  @column()
-  declare picLabel: string
+  @column({ columnName: 'pic_label' })
+  declare picLabel: string | null
 
-  @column()
+  @column({ columnName: 'is_active' })
   declare isActive: number
 
+  // Lama (boleh null karena sekarang pakai Biteship)
   @column()
-  declare city: number
+  declare city: number | null
 
   @column()
-  declare province: number
+  declare province: number | null
 
   @column()
-  declare district: number
+  declare district: number | null
+
+  @column({ columnName: 'sub_district' })
+  declare subDistrict: number | null
+
+  @column({ columnName: 'postal_code' })
+  declare postalCode: string | null
 
   @column()
-  declare subDistrict: number
+  declare benchmark: string | null
 
-  @column()
-  declare postalCode: string
+  // ✅ Biteship fields
+  @column({ columnName: 'biteship_area_id' })
+  declare biteshipAreaId: string | null
 
-  @column()
-  declare benchmark: string
+  @column({ columnName: 'biteship_area_name' })
+  declare biteshipAreaName: string | null
 
-  @column.dateTime({ autoCreate: true })
+  @column.dateTime({ autoCreate: true, columnName: 'created_at' })
   declare createdAt: DateTime
 
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  @column.dateTime({ autoCreate: true, autoUpdate: true, columnName: 'updated_at' })
   declare updatedAt: DateTime
 
-  @column.dateTime()
+  @column.dateTime({ columnName: 'deleted_at' })
   declare deletedAt: DateTime | null
 
   @belongsTo(() => User)
   declare user: BelongsTo<typeof User>
 
-  @hasMany(() => TransactionEcommerce, {
-    foreignKey: 'userAddressesId',
-  })
+  @hasMany(() => TransactionEcommerce, { foreignKey: 'userAddressesId' })
   declare transactions: HasMany<typeof TransactionEcommerce>
 
   @belongsTo(() => Province, { foreignKey: 'province' })

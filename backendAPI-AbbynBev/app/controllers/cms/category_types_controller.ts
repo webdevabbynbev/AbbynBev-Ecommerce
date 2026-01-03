@@ -1,5 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { generateSlug } from '../../utils/helpers.js'
+import Helpers from '../../utils/helpers.js'
 import CategoryType from '#models/category_type'
 import { createCategoryType } from '#validators/category_types'
 import emitter from '@adonisjs/core/services/emitter'
@@ -72,7 +72,7 @@ export default class CategoryTypesController {
 
       const category: CategoryType = await CategoryType.create({
         ...payload,
-        slug: await generateSlug(payload.name),
+        slug: await Helpers.generateSlug(payload.name),
         parentId: payload.parentId ?? null,
         level: payload.level ?? (payload.parentId ? 2 : 1),
         createdBy: auth.user?.id,
@@ -131,7 +131,7 @@ export default class CategoryTypesController {
 
       category.merge({
         name: payload.name,
-        slug: await generateSlug(payload.name),
+        slug: await Helpers.generateSlug(payload.name),
         parentId: payload.parentId ?? null,
         level: payload.level ?? (payload.parentId ? 2 : 1),
         updatedBy: auth.user?.id,

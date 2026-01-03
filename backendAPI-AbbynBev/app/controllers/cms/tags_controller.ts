@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import Tag from '#models/tag'
 import { storeTagValidator, updateTagValidator } from '#validators/tag'
 import emitter from '@adonisjs/core/services/emitter'
-import { generateSlug } from '../../utils/helpers.js'
+import Helpers from '../../utils/helpers.js'
 
 export default class TagsController {
   public async get({ response, request }: HttpContext) {
@@ -35,7 +35,7 @@ export default class TagsController {
 
     const tag = await Tag.create({
       ...payload,
-      slug: await generateSlug(payload.name),
+      slug: await Helpers.generateSlug(payload.name),
     })
 
     // @ts-ignore
@@ -64,7 +64,7 @@ export default class TagsController {
 
     tag.merge({
       name: payload.name ?? tag.name,
-      slug: payload.name ? await generateSlug(payload.name) : tag.slug,
+      slug: payload.name ? await Helpers.generateSlug(payload.name) : tag.slug,
       description: payload.description ?? tag.description,
     })
 

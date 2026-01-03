@@ -1,0 +1,221 @@
+// app/services/transaction/admin_fulfillment_service.ts
+import db from '@adonisjs/lucid/services/db'
+import Transaction from '#models/transaction'
+import ProductVariant from '#models/product_variant'
+import Voucher from '#models/voucher'
+import { TransactionStatus } from '../../enums/transaction_status.js'
+import { TransactionStatusMachine } from './transaction_status_machine.js'
+import { BiteshipOrderService } from '../shipping/biteship_order_service.js'
+import { BiteshipTrackingService } from '../shipping/biteship_tracking_service.js'
+import NumberUtils from '../../utils/number.js'
+
+export class AdminFulfillmentService {
+  private status = new TransactionStatusMachine()
+  private biteship = new BiteshipOrderService()
+  private tracking = new BiteshipTrackingService()
+
+  /**
+   * Helper: ambil transaction lengkap untuk kebutuhan generate resi / fulfillment
+   */
+  private async getCmsTxForFulfillment(trx: any, transactionId: number) {
+    return Transaction.query({ client: trx })
+      .where('id', transactionId)
+      .forUpdate()
+      .preload('details', (detail) => {
+        detail.preload('product')
+        detail.preload('variant')
+      })
+      .preload('shipments')
+      .preload('ecommerce', (ec) => {
+        ec.preload('userAddress', (addr) => {
+          addr.preload('provinceData')
+          addr.preload('cityData')
+          addr.preload('districtData')
+          addr.preload('subDistrictData')
+        })
+        ec.preload('user')
+      })
+      .first()
+  }
+
+  async confirmPaidOrder(transactionId: number) {
+    return db.transaction(async (trx) => {
+      const transaction = await Transaction.query({ client: trx })
+        .where('id', transactionId)
+        .forUpdate()
+        .first()
+
+      if (!transaction) {
+        const err: any = new Error('Transaction not found.')
+        err.httpStatus = 404
+        throw err
+      }
+
+      const current = NumberUtils.toNumber(transaction.transactionStatus as any)
+      this.status.assertCanConfirmPaid(current)
+
+      transaction.transactionStatus = TransactionStatus.ON_PROCESS as any
+      await transaction.useTransaction(trx).save()
+
+      return transaction
+    })
+  }
+
+  /**
+   * Generate resi Biteship:
+   * - Isi shipment.resiNumber
+   * - shipment.status = 'resi_created'
+   * - transactionStatus tetap ON_PROCESS
+   */
+  async generateReceipt(transactionId: number) {
+    return db.transaction(async (trx) => {
+      const transaction = await this.getCmsTxForFulfillment(trx, transactionId)
+
+      if (!transaction) {
+        const err: any = new Error('Transaction not found.')
+        err.httpStatus = 404
+        throw err
+      }
+
+      const current = NumberUtils.toNumber(transaction.transactionStatus as any)
+      this.status.assertCanGenerateReceipt(current)
+
+      return this.biteship.createReceiptForTransaction(trx, transaction)
+    })
+  }
+
+  /**
+   * Refresh tracking:
+   * - panggil biteship public tracking dengan resi+service
+   * - kalau status masuk "shipping started" => deliveredAt diisi + tx jadi ON_DELIVERY
+   */
+  async refreshTracking(transactionId: number) {
+    return db.transaction(async (trx) => {
+      const transaction = await Transaction.query({ client: trx })
+        .where('id', transactionId)
+        .forUpdate()
+        .preload('shipments')
+        .first()
+
+      if (!transaction) {
+        const err: any = new Error('Transaction not found.')
+        err.httpStatus = 404
+        throw err
+      }
+
+      const current = NumberUtils.toNumber(transaction.transactionStatus as any)
+      this.status.assertCanRefreshTracking(current)
+
+      const shipment: any = transaction.shipments?.[0]
+      if (!shipment) {
+        const err: any = new Error('Shipment not found.')
+        err.httpStatus = 404
+        throw err
+      }
+
+      // IMPORTANT: tracking service akan save shipment+transaction (pakai trx)
+      await this.tracking.syncIfPossible(transaction, shipment, trx)
+
+      // reload final state buat response
+      const refreshed = await Transaction.query({ client: trx })
+        .where('id', transactionId)
+        .preload('shipments')
+        .first()
+
+      return refreshed || transaction
+    })
+  }
+
+  /**
+   * Complete order manual dari admin:
+   * - hanya boleh kalau sudah ON_DELIVERY
+   * - set COMPLETED
+   */
+  async completeOrder(transactionId: number) {
+    return db.transaction(async (trx) => {
+      const transaction = await Transaction.query({ client: trx })
+        .where('id', transactionId)
+        .forUpdate()
+        .preload('shipments')
+        .first()
+
+      if (!transaction) {
+        const err: any = new Error('Transaction not found.')
+        err.httpStatus = 404
+        throw err
+      }
+
+      const current = NumberUtils.toNumber(transaction.transactionStatus as any)
+      this.status.assertCanComplete(current)
+
+      transaction.transactionStatus = TransactionStatus.COMPLETED as any
+      await transaction.useTransaction(trx).save()
+
+      // optional: update shipment status text (biar UI enak)
+      const shipment: any = transaction.shipments?.[0]
+      if (shipment) {
+        shipment.status = shipment.status || 'delivered'
+        await shipment.useTransaction(trx).save()
+      }
+
+      return transaction
+    })
+  }
+
+  async cancelTransactions(transactionIds: number[]) {
+    return db.transaction(async (trx) => {
+      const transactions = await Transaction.query({ client: trx })
+        .whereIn('id', transactionIds)
+        .preload('details', (d) => d.preload('product'))
+        .preload('ecommerce')
+
+      if (transactions.length !== transactionIds.length) {
+        const err: any = new Error('Ada transaksi yang tidak ditemukan.')
+        err.httpStatus = 404
+        throw err
+      }
+
+      for (const t of transactions) {
+        this.status.assertCanCancel(NumberUtils.toNumber(t.transactionStatus as any), t.transactionNumber)
+      }
+
+      for (const t of transactions as any[]) {
+        for (const detail of t.details) {
+          if (!detail.productVariantId) continue
+
+          const pv = await ProductVariant.query({ client: trx })
+            .where('id', detail.productVariantId)
+            .forUpdate()
+            .first()
+
+          if (pv) {
+            pv.stock = NumberUtils.toNumber(pv.stock) + NumberUtils.toNumber(detail.qty)
+            await pv.useTransaction(trx).save()
+          }
+
+          if (detail.product) {
+            detail.product.popularity = Math.max(
+              0,
+              NumberUtils.toNumber(detail.product.popularity) - 1
+            )
+            await detail.product.useTransaction(trx).save()
+          }
+        }
+
+        const voucherId = t.ecommerce?.voucherId
+        if (voucherId) {
+          const v = await Voucher.query({ client: trx }).where('id', voucherId).forUpdate().first()
+          if (v) {
+            v.qty = NumberUtils.toNumber(v.qty) + 1
+            await v.useTransaction(trx).save()
+          }
+        }
+
+        t.transactionStatus = TransactionStatus.FAILED as any
+        await t.useTransaction(trx).save()
+      }
+
+      return { canceled: transactions.length }
+    })
+  }
+}

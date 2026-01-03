@@ -24,6 +24,9 @@ import TableProfileCategory from "../components/Tables/ProfileCategory/TableProf
 import TableProfileCategoryOption from "../components/Tables/ProfileCategory/TableProfileCategoryOption";
 import TableFlashSale from "../components/Tables/FlashSale/TableFlashSale";
 import TableProduct from "../components/Tables/Product/TableProduct";
+import TableTransaction from "../components/Transaction/TableTransaction";
+
+
 
 export default function MasterPage(): React.ReactElement {
   return (
@@ -51,7 +54,7 @@ export default function MasterPage(): React.ReactElement {
         <Route path="/profile-category-option" element={<TableProfileCategoryOption />} />
         <Route path="/flash-sale" element={<TableFlashSale />} />
         <Route path="/inventory-product" element={<TableProduct />} />
-
+        <Route path="/transactions" element={<TableTransaction />} />
         {/* Redirect default */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

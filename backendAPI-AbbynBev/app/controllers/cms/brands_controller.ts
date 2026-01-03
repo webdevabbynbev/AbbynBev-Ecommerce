@@ -1,5 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { generateSlug } from '../../utils/helpers.js'
+import Helpers from '../../utils/helpers.js'
 import Brand from '#models/brand'
 import { createBrandValidator, updateBrandValidator } from '#validators/brand'
 import emitter from '@adonisjs/core/services/emitter'
@@ -75,7 +75,7 @@ export default class BrandsController {
 
       const brand = await Brand.create({
         ...payload,
-        slug: await generateSlug(payload.name),
+        slug: await Helpers.generateSlug(payload.name)
       })
 
       // @ts-ignore
@@ -117,7 +117,7 @@ export default class BrandsController {
 
       brand.merge({
         name: payload.name ?? brand.name,
-        slug: payload.name ? await generateSlug(payload.name) : brand.slug,
+        slug: payload.name ? await Helpers.generateSlug(payload.name) : brand.slug,
         description: payload.description ?? brand.description,
         logoUrl: payload.logoUrl ?? brand.logoUrl,
         bannerUrl: payload.bannerUrl ?? brand.bannerUrl,

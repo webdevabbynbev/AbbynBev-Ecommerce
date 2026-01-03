@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Concern from '#models/concern'
-import { generateSlug } from '../../utils/helpers.js'
+import Helpers from '../../utils/helpers.js'
 import { createConcernValidator, updateConcernValidator } from '#validators/concern'
 import emitter from '@adonisjs/core/services/emitter'
 
@@ -37,7 +37,7 @@ export default class ConcernsController {
 
       const concern = await Concern.create({
         ...payload,
-        slug: await generateSlug(payload.name),
+        slug: await Helpers.generateSlug(payload.name),
       })
 
       // @ts-ignore
@@ -63,11 +63,6 @@ export default class ConcernsController {
         .preload('options', (query) => {
           query.apply((scopes) => scopes.active()).orderBy('position', 'asc')
         })
-        .first()
-
-      if (!concern) {
-        return response.notFound({ message: 'Concern not found', serve: null })
-      }
 
       return response.ok({ message: 'Success', serve: concern })
     } catch (e) {
@@ -92,7 +87,7 @@ export default class ConcernsController {
 
       concern.merge({
         name: payload.name ?? concern.name,
-        slug: payload.name ? await generateSlug(payload.name) : concern.slug,
+        slug: payload.name ? await Helpers.generateSlug(payload.name) : concern.slug,
         description: payload.description ?? concern.description,
       })
       await concern.save()

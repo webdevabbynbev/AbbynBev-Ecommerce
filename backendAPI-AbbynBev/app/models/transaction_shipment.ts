@@ -1,3 +1,4 @@
+// app/models/transaction_shipment.ts
 import { DateTime } from 'luxon'
 import { BaseModel, column, belongsTo } from '@adonisjs/lucid/orm'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
@@ -10,58 +11,62 @@ export default class TransactionShipment extends BaseModel {
   @column()
   declare service: string | null
 
-  @column()
+  @column({ columnName: 'service_type' })
   declare serviceType: string | null
 
   @column()
   declare price: number | null
 
-  @column()
-  declare estimationArrival: string | null
-
-  @column()
-  declare isProtected: number
-
-  @column()
-  declare protectionFee: number
+  @column({ columnName: 'resi_number' })
+  declare resiNumber: string | null
 
   @column()
   declare address: string | null
 
   @column()
-  declare resiNumber: string | null
+  declare status: string | null
 
-  @column()
-  declare pic: string
-
-  @column()
-  declare pic_phone: string
-
-  @column()
+  @column({ columnName: 'province_id' })
   declare provinceId: number | null
 
-  @column()
+  @column({ columnName: 'city_id' })
   declare cityId: number | null
 
-  @column()
+  @column({ columnName: 'district_id' })
   declare districtId: number | null
 
-  @column()
+  @column({ columnName: 'subdistrict_id' })
   declare subdistrictId: number | null
 
-  @column()
+  @column({ columnName: 'postal_code' })
   declare postalCode: string
 
   @column()
-  declare status: string | null
+  declare pic: string | null
+
+  @column({ columnName: 'pic_phone' })
+  declare picPhone: string | null
+
+  @column({ columnName: 'estimation_arrival' })
+  declare estimationArrival: string | null
+
+  // ✅ NEW: Delivery Date (proper)
+  @column.dateTime({ columnName: 'delivered_at' })
+  declare deliveredAt: DateTime | null
+
+  @column({ columnName: 'is_protected' })
+  declare isProtected: number
+
+  @column({ columnName: 'protection_fee' })
+  declare protectionFee: number
 
   @column({ columnName: 'transaction_id' })
   declare transactionId: number
 
-  @column.dateTime({ autoCreate: true })
+  @column.dateTime({ autoCreate: true, columnName: 'created_at' })
   declare createdAt: DateTime
 
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  @column.dateTime({ autoCreate: true, autoUpdate: true, columnName: 'updated_at' })
   declare updatedAt: DateTime
 
   @belongsTo(() => Transaction)

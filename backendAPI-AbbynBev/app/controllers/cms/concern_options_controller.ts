@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import ConcernOption from '#models/concern_option'
-import { generateSlug } from '../../utils/helpers.js'
+import Helpers from '../../utils/helpers.js'
 import {
   createConcernOptionValidator,
   updateConcernOptionValidator,
@@ -38,7 +38,7 @@ export default class ConcernOptionsController {
 
       const option = await ConcernOption.create({
         ...payload,
-        slug: await generateSlug(payload.name),
+        slug: await Helpers.generateSlug(payload.name),
       })
 
       // @ts-ignore
@@ -92,7 +92,7 @@ export default class ConcernOptionsController {
       option.merge({
         concernId: payload.concernId ?? option.concernId,
         name: payload.name ?? option.name,
-        slug: payload.name ? await generateSlug(payload.name) : option.slug,
+        slug: payload.name ? await Helpers.generateSlug(payload.name) : option.slug,
         description: payload.description ?? option.description,
       })
 
