@@ -1,2 +1,16 @@
-cmsadmin-ab/,env
-backendAPI-AbbynBev/.env
+# env files
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# dependencies
+**/node_modules/
+
+# build / cache
+**/.next/
+**/dist/
+**/build/
+**/.turbo/
+**/.cache/
+**/coverage/
