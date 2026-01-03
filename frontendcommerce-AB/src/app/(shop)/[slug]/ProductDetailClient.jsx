@@ -1,11 +1,8 @@
 "use client";
 
-<<<<<<< HEAD:frontendcommerce-AB/src/app/(shop)/[slug]/ProductDetailClient.jsx
 import { useEffect, useMemo, useState } from "react";
-=======
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
->>>>>>> origin/main:frontendcommerce-AB/src/app/product-detail/[...slug]/ProductDetailClient.jsx
 import { formatDistanceToNow } from "date-fns";
 import { FaStar } from "react-icons/fa";
 import { formatToRupiah, getDiscountPercent } from "@/utils";
@@ -41,16 +38,8 @@ const RATING_OPTIONS = [
 ];
 
 export default function ProductDetailClient({ product }) {
-<<<<<<< HEAD:frontendcommerce-AB/src/app/(shop)/[slug]/ProductDetailClient.jsx
-  // ✅ Prevent hydration mismatch for relative time
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
-  const variants = product?.variantItems ?? []; // [{ id, label, price, stock }]
-=======
   const router = useRouter();
   const variants = product.variantItems ?? []; // [{ id, label, price, stock }]
->>>>>>> origin/main:frontendcommerce-AB/src/app/product-detail/[...slug]/ProductDetailClient.jsx
   const [selectedVariant, setSelectedVariant] = useState(
     variants.length === 1 ? variants[0].label : null
   );
@@ -143,18 +132,12 @@ export default function ProductDetailClient({ product }) {
       const res = await axios.post("/cart", payload);
       alert(res.data?.message || "Produk berhasil dimasukkan ke keranjang");
     } catch (error) {
-<<<<<<< HEAD:frontendcommerce-AB/src/app/(shop)/[slug]/ProductDetailClient.jsx
-      const msg =
-        error?.response?.data?.message ||
-        "Terjadi kesalahan saat menambah ke keranjang";
-=======
       console.error("Gagal menambah ke keranjang", error);
       const isUnauthorized = error?.response?.status === 401;
       const msg = isUnauthorized
         ? "Sesi kamu habis. Silakan login ulang."
         : error?.response?.data?.message ||
           "Terjadi kesalahan saat menambah ke keranjang";
->>>>>>> origin/main:frontendcommerce-AB/src/app/product-detail/[...slug]/ProductDetailClient.jsx
       alert(msg);
       if (isUnauthorized) {
         if (typeof window !== "undefined") {

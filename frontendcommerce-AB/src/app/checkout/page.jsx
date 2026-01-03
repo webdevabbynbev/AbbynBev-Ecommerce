@@ -77,140 +77,9 @@ export default function CheckoutPage() {
         provinceMap[String(provVal)] ||
         (isNumericLike(provVal) ? String(provVal) : "");
 
-<<<<<<< HEAD
-  const getQuantity = (item) =>
-    toNumber(item?.qtyCheckout ?? item?.qty ?? item?.quantity ?? 0, 0);
-
-  // load selected ids from localStorage
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      setSelectedIds(Array.isArray(parsed) ? parsed : []);
-    } catch {
-      setSelectedIds([]);
-    }
-  }, []);
-
-  const loadCart = async () => {
-    try {
-      setLoadingCart(true);
-      const res = await axios.get("/cart");
-      const items = res.data?.data?.items || res.data?.data || [];
-      setCart(Array.isArray(items) ? items : []);
-    } catch (err) {
-      console.error("Error load cart:", err);
-      setCart([]);
-    } finally {
-      setLoadingCart(false);
-    }
-  };
-
-  const loadAddress = async () => {
-    try {
-      const res = await axios.get("/addresses");
-      const primary = res.data?.data?.find((a) => a.is_primary === 1);
-      setAddress(primary || null);
-    } catch (err) {
-      console.error("Error load address:", err);
-      setAddress(null);
-    }
-  };
-
-  // sementara static (kalau sudah ada API shipping, nanti ganti dari backend)
-  const loadShipping = () => {
-    setShippingMethods([
-      { id: "jnt", name: "J&T", price: 10800, estimate: "7 - 8 August" },
-      { id: "jne", name: "JNE", price: 11200, estimate: "7 - 8 August" },
-      { id: "tiki", name: "Tiki", price: 9100, estimate: "7 - 10 August" },
-    ]);
-  };
-
-  useEffect(() => {
-    loadCart();
-    loadAddress();
-    loadShipping();
-  }, []);
-
-  const safeCart = Array.isArray(cart) ? cart : [];
-
-  const checkoutItems = useMemo(() => {
-    const s = new Set(selectedIds);
-    return safeCart.filter((item) => s.has(item?.id));
-  }, [safeCart, selectedIds]);
-
-  // guard kalau ga ada item
-  useEffect(() => {
-    if (!loadingCart && selectedIds.length === 0) {
-      router.replace("/cart");
-    }
-  }, [loadingCart, selectedIds.length, router]);
-
-  useEffect(() => {
-    if (!loadingCart && selectedIds.length > 0 && checkoutItems.length === 0) {
-      router.replace("/cart");
-    }
-  }, [loadingCart, selectedIds.length, checkoutItems.length, router]);
-
-  const subtotal = useMemo(() => {
-    return checkoutItems.reduce(
-      (sum, item) => sum + toNumber(item.amount ?? 0, 0),
-      0
-    );
-  }, [checkoutItems]);
-
-  const total = subtotal + (selectedShipping?.price || 0);
-
-  const handleUpdateQty = async (item, nextQty) => {
-    if (!item?.id) return alert("Cart item id tidak ditemukan");
-
-    const newQty = toNumber(nextQty, 0);
-    if (newQty <= 0) {
-      await handleDelete(item);
-      return;
-    }
-
-    try {
-      setLoadingItemId(item.id);
-      await axios.put(`/cart/${item.id}`, { qty: newQty });
-      await loadCart();
-    } catch (err) {
-      console.error("Error update qty:", err);
-      alert(err?.response?.data?.message || "Gagal mengubah jumlah produk");
-    } finally {
-      setLoadingItemId(null);
-    }
-  };
-
-  const handleDelete = async (item) => {
-    if (!item?.id) return alert("Cart item id tidak ditemukan");
-    if (!window.confirm("Hapus produk ini dari keranjang?")) return;
-
-    try {
-      setLoadingItemId(item.id);
-      await axios.delete(`/cart/${item.id}`);
-
-      setSelectedIds((prev) => {
-        const next = prev.filter((id) => id !== item.id);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-        return next;
-      });
-
-      await loadCart();
-    } catch (err) {
-      console.error("Error delete cart item:", err);
-      alert(
-        err?.response?.data?.message || "Gagal menghapus produk dari keranjang"
-      );
-    } finally {
-      setLoadingItemId(null);
-    }
-  };
-=======
       return { ...a, _cityName: cityName, _provinceName: provinceName };
     });
   }, [addresses, cityMap, provinceMap]);
->>>>>>> origin/main
 
   const handlePayNow = async () => {
     if (!selectedAddressId) return alert("Alamat belum dipilih");
@@ -272,17 +141,8 @@ export default function CheckoutPage() {
 
       alert(`Transaksi dibuat (${orderId || "-"}) tapi Snap belum ready.`);
     } catch (err) {
-<<<<<<< HEAD
-      console.error("Pay error:", err);
-      alert(
-        err?.response?.data?.message ||
-          err.message ||
-          "Gagal memulai pembayaran"
-      );
-=======
       console.error("create transaction error:", err?.response?.data || err);
       alert(err?.response?.data?.message || "Gagal membuat transaksi");
->>>>>>> origin/main
     } finally {
       setLoadingPay(false);
     }
@@ -304,33 +164,16 @@ export default function CheckoutPage() {
           <div className="bg-white border rounded-xl p-6 shadow-sm">
             <h2 className="text-xl font-semibold mb-5">Your order</h2>
 
-<<<<<<< HEAD
-            {loadingCart && (
-              <p className="text-gray-400 italic">Loading cart...</p>
-            )}
-
-=======
             {loadingCart && <p className="text-gray-400 italic">Loading cart...</p>}
->>>>>>> origin/main
             {!loadingCart && checkoutItems.length === 0 && (
               <p className="text-gray-400 italic">No selected products</p>
             )}
 
             {checkoutItems.map((item, idx) => {
               const product = item.product || {};
-<<<<<<< HEAD
-              const image =
-                product.thumbnail ||
-                product.image ||
-                "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png";
-              const quantity = getQuantity(item);
-              const isBusy =
-                loadingItemId !== null && loadingItemId === item.id;
-=======
               const image = product.thumbnail || product.image || "/placeholder.png";
               const quantity = n(item?.qtyCheckout ?? item?.qty ?? item?.quantity ?? 1, 1);
               const isBusy = loadingItemId !== null && loadingItemId === item.id;
->>>>>>> origin/main
 
               const productName =
                 product.name ||
@@ -605,13 +448,8 @@ export default function CheckoutPage() {
             <div className="flex justify-between">
               <span>Shipment:</span>
               <span>
-<<<<<<< HEAD
-                {selectedShipping
-                  ? `Rp ${selectedShipping.price.toLocaleString("id-ID")}`
-=======
                 {confirmedShipping
                   ? `Rp ${n(confirmedShipping.price, 0).toLocaleString("id-ID")}`
->>>>>>> origin/main
                   : "-"}
               </span>
             </div>
