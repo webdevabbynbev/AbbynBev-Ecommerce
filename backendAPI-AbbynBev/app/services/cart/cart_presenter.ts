@@ -1,4 +1,3 @@
-// app/services/cart/cart_presenter.ts
 export class CartPresenter {
   private getBaseUrl(request: any) {
     return process.env.APP_URL || `${request.protocol()}://${request.host()}`

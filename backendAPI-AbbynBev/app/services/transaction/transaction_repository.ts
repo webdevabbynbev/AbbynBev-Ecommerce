@@ -1,4 +1,3 @@
-// app/services/transaction/transaction_repository.ts
 import Transaction from '#models/transaction'
 
 export class TransactionRepository {

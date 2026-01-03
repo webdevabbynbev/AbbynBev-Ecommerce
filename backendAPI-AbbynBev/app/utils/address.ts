@@ -1,4 +1,3 @@
-// app/utils/address.ts
 export default class AddressUtils {
   public static pickFirstString(obj: any, keys: string[]) {
     for (const k of keys) {

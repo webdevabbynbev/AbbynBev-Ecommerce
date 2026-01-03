@@ -1,4 +1,3 @@
-// app/services/ecommerce/stock_service.ts
 import TransactionDetail from '#models/transaction_detail'
 import ProductVariant from '#models/product_variant'
 import Product from '#models/product'

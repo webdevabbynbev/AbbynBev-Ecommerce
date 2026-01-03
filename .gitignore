@@ -1,2 +1,6 @@
 cmsadmin-ab/,env
 backendAPI-AbbynBev/.env
+node_modules/
+backendAPI-AbbynBev/node_modules/
+cmsadmin-ab/node_modules/
+frontendcommerce-AB/node_modules/

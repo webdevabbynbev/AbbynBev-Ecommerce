@@ -1,4 +1,3 @@
-// app/services/cart/cart_repository.ts
 import TransactionCart from '#models/transaction_cart'
 
 type SortDir = 'asc' | 'desc'
@@ -22,19 +21,10 @@ export class CartRepository {
     return { field, dir }
   }
 
-  /**
-   * Total cart items (RAW query) untuk user.
-   * NOTE: Jangan exclude is_checkout=2, karena item checkout tetap bagian dari cart.
-   */
   getTotalRaw(userId: number) {
     return TransactionCart.query().where('user_id', userId)
   }
 
-  /**
-   * Paginate list cart.
-   * - Kalau `isCheckout` dikirim (mis: 2), maka filter pakai itu.
-   * - Kalau tidak dikirim, tampilkan semua cart.
-   */
   paginateForUser(userId: number, opts: CartListOptions) {
     const { field, dir } = this.sanitizeSort(opts.sortBy, opts.sortType)
     const page = Number.isFinite(opts.page as any) ? Number(opts.page) : 1
@@ -61,9 +51,6 @@ export class CartRepository {
       .paginate(page, perPage)
   }
 
-  /**
-   * Mini cart list (header dropdown, dll)
-   */
   miniForUser(userId: number, limit = 10) {
     return TransactionCart.query()
       .where('user_id', userId)
@@ -73,10 +60,6 @@ export class CartRepository {
       .limit(limit)
   }
 
-  /**
-   * Cari item cart existing untuk merge qty.
-   * Jangan exclude is_checkout=2, biar tidak bikin duplicate row.
-   */
   findExisting(trx: any, userId: number, productId: number, variantId: number) {
     return TransactionCart.query({ client: trx })
       .where('user_id', userId)

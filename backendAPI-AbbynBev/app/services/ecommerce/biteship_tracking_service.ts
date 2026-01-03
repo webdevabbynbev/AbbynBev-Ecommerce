@@ -1,4 +1,3 @@
-// app/services/ecommerce/biteship_tracking_service.ts
 import BiteshipService from '#services/biteship_service'
 import Transaction from '#models/transaction'
 import TransactionShipment from '#models/transaction_shipment'
@@ -141,7 +140,6 @@ export class BiteshipTrackingService {
     const ship = await this.ensureShipmentModel(shipment, trx.id)
     if (!ship) return
 
-    // ✅ pastikan pakai field model (camelCase)
     const resi = String((ship as any)?.resiNumber || shipment?.resiNumber || shipment?.resi_number || '').trim()
     const service = String((ship as any)?.service || shipment?.service || '').trim()
 
@@ -164,14 +162,12 @@ export class BiteshipTrackingService {
     const bsStatus = String(rawStatus).trim()
     ;(ship as any).status = bsStatus
 
-    // ✅ deliveredAt isi sekali
     if (this.isDelivered(bsStatus) && !(ship as any).deliveredAt) {
       ;(ship as any).deliveredAt = this.extractDeliveredAtFromTracking(tracking) || DateTime.now()
     }
 
     await (ship as any).save()
 
-    // update transaction status
     if (this.isDelivered(bsStatus)) {
       if (current !== TransactionStatus.ON_DELIVERY.toString()) {
         trx.transactionStatus = TransactionStatus.ON_DELIVERY.toString() as any

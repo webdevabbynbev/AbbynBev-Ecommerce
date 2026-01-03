@@ -55,7 +55,10 @@ export default function CartPage() {
     }
   }, []);
 
+<<<<<<< HEAD
+=======
   // (opsional) simpen selection ke localStorage (buat UX)
+>>>>>>> origin/main
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedIds));
@@ -68,11 +71,19 @@ export default function CartPage() {
 
   // kalau cart berubah, drop selected yang udah gak ada
   useEffect(() => {
+<<<<<<< HEAD
+    const idsInCart = new Set(safeCart.map((x) => x?.id).filter(Boolean));
+    setSelectedIds((prev) => prev.filter((id) => idsInCart.has(id)));
+  }, [safeCart.length]);
+
+  const isSelected = (item) => selectedIds.includes(item?.id);
+=======
     const idsInCart = new Set(safeCart.map((x) => Number(x?.id)).filter(Boolean));
     setSelectedIds((prev) => prev.map(Number).filter((id) => idsInCart.has(id)));
   }, [safeCart]);
 
   const isSelected = (item) => selectedIds.map(Number).includes(Number(item?.id));
+>>>>>>> origin/main
 
   const allIds = useMemo(
     () => safeCart.map((x) => Number(x?.id)).filter(Boolean),

@@ -1,11 +1,7 @@
-// app/services/cart/cart_pricing_service.ts
 import ProductDiscountModel from '#models/product_discount'
 
 export class CartPricingService {
-  /**
-   * type = 1 => persen, limited by maxValue
-   * type != 1 => nominal
-   */
+ 
   calculatePrice({
     type,
     price,
@@ -25,10 +21,7 @@ export class CartPricingService {
     return { price: price - value, disc: value }
   }
 
-  /**
-   * Discount per unit berdasarkan promo aktif (start_date <= now <= end_date)
-   * Format datetime meniru controller kamu sebelumnya (WIB +7).
-   */
+
   async getDiscountPerUnit(trx: any, productId: number, variantPrice: number): Promise<number> {
     const now = new Date()
     now.setHours(now.getHours() + 7)

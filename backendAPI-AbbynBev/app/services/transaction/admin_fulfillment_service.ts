@@ -1,4 +1,3 @@
-// app/services/transaction/admin_fulfillment_service.ts
 import db from '@adonisjs/lucid/services/db'
 import Transaction from '#models/transaction'
 import ProductVariant from '#models/product_variant'
@@ -14,9 +13,6 @@ export class AdminFulfillmentService {
   private biteship = new BiteshipOrderService()
   private tracking = new BiteshipTrackingService()
 
-  /**
-   * Helper: ambil transaction lengkap untuk kebutuhan generate resi / fulfillment
-   */
   private async getCmsTxForFulfillment(trx: any, transactionId: number) {
     return Transaction.query({ client: trx })
       .where('id', transactionId)
@@ -61,12 +57,6 @@ export class AdminFulfillmentService {
     })
   }
 
-  /**
-   * Generate resi Biteship:
-   * - Isi shipment.resiNumber
-   * - shipment.status = 'resi_created'
-   * - transactionStatus tetap ON_PROCESS
-   */
   async generateReceipt(transactionId: number) {
     return db.transaction(async (trx) => {
       const transaction = await this.getCmsTxForFulfillment(trx, transactionId)
@@ -84,11 +74,7 @@ export class AdminFulfillmentService {
     })
   }
 
-  /**
-   * Refresh tracking:
-   * - panggil biteship public tracking dengan resi+service
-   * - kalau status masuk "shipping started" => deliveredAt diisi + tx jadi ON_DELIVERY
-   */
+
   async refreshTracking(transactionId: number) {
     return db.transaction(async (trx) => {
       const transaction = await Transaction.query({ client: trx })
@@ -113,10 +99,8 @@ export class AdminFulfillmentService {
         throw err
       }
 
-      // IMPORTANT: tracking service akan save shipment+transaction (pakai trx)
       await this.tracking.syncIfPossible(transaction, shipment, trx)
 
-      // reload final state buat response
       const refreshed = await Transaction.query({ client: trx })
         .where('id', transactionId)
         .preload('shipments')
@@ -126,11 +110,6 @@ export class AdminFulfillmentService {
     })
   }
 
-  /**
-   * Complete order manual dari admin:
-   * - hanya boleh kalau sudah ON_DELIVERY
-   * - set COMPLETED
-   */
   async completeOrder(transactionId: number) {
     return db.transaction(async (trx) => {
       const transaction = await Transaction.query({ client: trx })
@@ -151,7 +130,6 @@ export class AdminFulfillmentService {
       transaction.transactionStatus = TransactionStatus.COMPLETED as any
       await transaction.useTransaction(trx).save()
 
-      // optional: update shipment status text (biar UI enak)
       const shipment: any = transaction.shipments?.[0]
       if (shipment) {
         shipment.status = shipment.status || 'delivered'
