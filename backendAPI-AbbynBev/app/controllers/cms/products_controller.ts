@@ -206,7 +206,7 @@ export default class ProductsController {
     }
   }
 
-<<<<<<< HEAD
+
   private extractFileName(url: string) {
     if (url.startsWith('http')) {
       return url
@@ -275,8 +275,6 @@ export default class ProductsController {
     }
   }
 
-=======
->>>>>>> origin/main
   public async getIsFlashsale({ response }: HttpContext) {
     try {
       const dataProduct = await this.productService

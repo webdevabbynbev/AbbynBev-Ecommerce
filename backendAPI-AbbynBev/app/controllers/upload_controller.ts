@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import drive from '@adonisjs/drive/services/main'
-import { v2 as cloudinary } from 'cloudinary'
+
 import fs from 'fs'
 
 export default class UploadsController {
@@ -36,22 +36,27 @@ export default class UploadsController {
         process.env.CLOUDINARY_API_KEY &&
         process.env.CLOUDINARY_API_SECRET
       ) {
-        cloudinary.config({
-          cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-          api_key: process.env.CLOUDINARY_API_KEY,
-          api_secret: process.env.CLOUDINARY_API_SECRET,
-        })
+          try {
+          const { v2: cloudinary } = await import('cloudinary')
+          cloudinary.config({
+            cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+            api_key: process.env.CLOUDINARY_API_KEY,
+            api_secret: process.env.CLOUDINARY_API_SECRET,
+          })
 
-        const uploaded = await cloudinary.uploader.upload(tmpPath, {
-          folder: 'uploads',
-          resource_type: 'auto',
-        })
+          const uploaded = await cloudinary.uploader.upload(tmpPath, {
+            folder: 'uploads',
+            resource_type: 'auto',
+          })
 
-        return response.status(200).send({
-          message: '',
-          serve: uploaded.secure_url,
-          signedUrl: uploaded.secure_url,
-        })
+          return response.status(200).send({
+            message: '',
+            serve: uploaded.secure_url,
+            signedUrl: uploaded.secure_url,
+          })
+        } catch (error) {
+          console.warn('Cloudinary upload skipped:', error?.message || error)
+        }
       }
 
       await drive.use('fs').put('/' + newFileName, await fs.promises.readFile(tmpPath), {
