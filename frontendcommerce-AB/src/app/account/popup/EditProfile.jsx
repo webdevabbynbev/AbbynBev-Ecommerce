@@ -1,5 +1,5 @@
 "use client";
-import { updateProfile, getUser } from "@/utils/auth";
+import { updateProfile, getUser } from "@/services/auth";
 import { useRouter } from "next/navigation";
 import {
   Select,

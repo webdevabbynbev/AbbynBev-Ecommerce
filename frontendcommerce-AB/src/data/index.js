@@ -3,7 +3,6 @@ import { DataReview } from "./DataReview";
 export { DataArticleBlog } from "./DataArticleBlog";
 export { DataListBlogCategory } from "./DataListBlogCategory";
 export { DataBrand } from "./DataListBrand";
-export { BevPick } from "./Products";
 export { DataCategoryCard } from "./DataCategoryCard";
 export {
   DataCleanser,

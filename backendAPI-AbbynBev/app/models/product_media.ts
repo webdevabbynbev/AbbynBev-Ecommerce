@@ -53,7 +53,7 @@ export default class ProductMedia extends CustomBaseModel {
   }
 
   public async getImageUrl() {
-    if (this.url) {
+    if (this.url && !this.url.startsWith('http')) {
       this.url = await drive.use(env.get('DRIVE_DISK')).getSignedUrl(this.url)
     }
   }

@@ -1,175 +1,208 @@
 "use client";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import {
-  BtnIcon,
-  PickCarousel,
+  RegularCardSkeleton,
+  RegularCard,
   CategoryCard,
   Button,
   HeroCarousel,
   BrandCard,
-  BlogCard,
-  FlashSaleCarousel
+  FlashSaleCarousel,
 } from "@/components";
-
-import { DataCategoryCard, DataBrand, DataArticleBlog} from "@/data";
+import { DataCategoryCard, DataBrand } from "@/data";
+import { getProducts } from "@/services/api/product.services";
 
 export default function Home() {
+  const [products, setProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(true);
   const router = useRouter();
-  return (
-    <div className="Container items-center justify-center mx-auto xl:max-w-[1280px] lg:max-w-[960px] overflow-visible">
-      <div className="Hero-wrapper w-full flex flex-row md:flex-row sm:flex-col justify-between h-full py-6 mx-auto">
-        <div className="h-auto w-full sm:w-full items-center">
-          <HeroCarousel/>
-        </div>
-        {/* <div className="bento-right md:w-full sm:w-full flex md:flex-col sm:flex-row h-auto gap-4">
-          <div className="abbynbev flex md:flex-row sm:flex-col h-[50%] w-full gap-4">
-            <div className="relative flex flex-col justify-between h-auto w-full p-4 bg-primary-700 text-primary-100 rounded-lg">
 
-                <h3 className="text-2xl font-damion">Abby</h3>
-                <p className="text-xs font-semibold ">
-                  From everyday essentials to bold glam, Abby helps you find the
-                  best makeup that suits your style.
-                </p>
-                <p className="text-[11px]">Curated makeup products</p>
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await getProducts({ page: 1, per_page: 50 });
+        setProducts(data); 
+      } catch (err) {
+        console.error("getProducts error:", err);
+      } finally {
+        setProductsLoading(false);
+      }
+    })();
+  }, []);
 
-              <div className="absolute p-1 -top-1 -right-1  bg-[#f7f7f7] rounded-full">
-                <BtnIcon
-                  variant="primary"
-                  size="xs"
-                  iconName="UpRightFromSquare"
-                />
-              </div>
-            </div>
+  const PickSection = ({
+    title,
+    subtitle,
+    items = [],
+    loading = false,
+    onSeeAll,
+    maxItems = 12,
+    skeletonCount = 12,
+    titleClassName = "text-4xl",
+  }) => {
+    if (!loading && (!items || items.length === 0)) return null;
 
-            <div className="relative flex flex-col justify-between h-auto w-full p-4 bg-primary-200 text-primary-700 rounded-lg">
-              
-                <h3 className="text-2xl font-damion">Bev</h3>
-                <p className="text-xs font-semibold ">
-                  Bev curates skincare that works for your skin type, concerns,
-                  and routine — no guesswork needed.
-                </p>
-                <p className="text-[11px]">Curated skincare products</p>
-
-              <div className="absolute p-1 -top-1 -right-1  bg-[#f7f7f7] rounded-full">
-                <BtnIcon
-                  variant="primary"
-                  size="xs"
-                  iconName="UpRightFromSquare"
-                />
-              </div>
-            </div>
-          </div>
-          <div className="eventabby w-full rounded-xl overflow-hidden">
-            <img src="abbywardah.png" alt="event" />
-          </div>
-        </div> */}
-      </div>
-
-      <div className="ContainerCategory py-6 space-y-4 mx-auto w-full">
-        <h3 className="text-primary-700 text-lg font-bold">Kategori</h3>
-        <div className="flex justify-between w-full gap-4">
-          {DataCategoryCard.map((item) => (
-            <CategoryCard key={item.id} {...item} />
-          ))}
-        </div>
-      </div>
-
-      <div className="ContainerFlashSale w-full flex py-10 p-6 bg-primary-100 items-center justify-center bg-[url('/Logo_SVG_AB.svg')] bg-no-repeat bg-center">
-        <div className="Wrapper md:flex-row sm:flex-col sm:w-full items-center w-full mx-auto flex flex-row gap-6">
-          <div className="leftWrapper flex sm:flex-row md:flex-col sm:w-full w-[50%] space-y-6  md:items-start sm:items-center ">
-            <div className="texts flex-row">
-            <h3 className="font-damion text-4xl text-primary-700">
-              Flash Sale Hingga 50% OFF!
+    return (
+      <div className="xl:max-w-[1280px] lg:max-w-[960px] mx-auto px-6 space-y-6">
+        <div className="flex items-start justify-between">
+          <div className="flex-row space-y-1">
+            <h3
+              className={`font-damion font-normal ${titleClassName} text-primary-700`}
+            >
+              {title}
             </h3>
-            <p>
-              Your Favorite Beauty Essentials, Now at Irresistible Prices
-              Limited Time Only — While Stock Lasts!
-            </p>
-            </div>
-            <Button variant="primary" size="md">
-              See more flash sale product
-            </Button>
+            {subtitle ? <p>{subtitle}</p> : null}
           </div>
-          <div className="md:w-[50%] sm:w-full">
+
+          <Button variant="secondary" size="md" onClick={onSeeAll}>
+            See all
+          </Button>
+        </div>
+
+        {loading ? (
+          <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {Array.from({ length: skeletonCount }).map((_, i) => (
+              <RegularCardSkeleton key={`pick-skel-${i}`} />
+            ))}
+          </div>
+
+          <div className="hidden lg:grid grid-cols-5 gap-4gap-4">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <RegularCardSkeleton key={`pick-skel-${i}`} />
+            ))}
+          </div>
+          </>
+        ) : (
+          <>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:hidden gap-4">
+            {items.slice(0, maxItems).map((p) => (
+              <RegularCard
+                key={p.id ?? p._id ?? p.slug ?? p.name}
+                product={p}
+              />
+            ))}
+          </div>
+
+          <div className="hidden lg:grid grid-cols-5 gap-4">
+            {items.slice(0, 10).map((p) => (
+              <RegularCard
+                key={p.id ?? p._id ?? p.slug ?? p.name}
+                product={p}
+              />
+            ))}
+          </div>
+          
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const abbyPicks = products.slice(0, 12);
+  const bevPicks = products.slice(12, 24);
+
+  return (
+    <div className="Container items-center justify-center mx-auto overflow-visible">
+      <div className="Hero-wrapper w-full flex flex-row py-0 lg:py-6 justify-between h-full mx-auto xl:max-w-[1280px] lg:max-w-[960px]">
+        <div className="h-auto w-full px-0 lg:px-6 items-center">
+          <HeroCarousel />
+        </div>
+      </div>
+
+      <div className="ContainerCategory p-6 space-y-4 mx-auto w-full xl:max-w-[1280px] lg:max-w-[960px] overflow-hidden">
+        <h3 className="text-primary-700 text-lg font-bold">Kategori</h3>
+        <div className="w-full">
+          <div
+            className="
+      flex gap-3
+      overflow-x-auto
+      no-scrollbar
+      pb-2
+      px-6
+      snap-x snap-mandatory
+      scroll-smooth
+      lg:mx-0 lg:px-0
+      lg:grid md:grid-cols-8 lg:grid-cols-8 lg:gap-6 lg:overflow-visible justify-between
+    "
+          >
+            {DataCategoryCard.map((item) => (
+              <div key={item.id} className="shrink-0 snap-start">
+                <CategoryCard {...item} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="ContainerFlashSale w-full flex-col bg-primary-100 items-center justify-center bg-[url('/Logo_SVG_AB.svg')] bg-no-repeat bg-center">
+        <div className="Wrapper p-6 flex flex-col xl:max-w-[1280px] lg:max-w-[960px] mx-auto">
+          <div className="leftWrapper justify-between flex flex-row w-full space-y-6">
+            <div className="texts flex-row">
+              <h3 className="font-damion text-3xl text-primary-700">
+                Flash Sale
+              </h3>
+            </div>
+            <div className="">
+              <Button variant="primary" size="sm">
+                Lihat semua
+              </Button>
+            </div>
+          </div>
+          <div className="w-full">
             <FlashSaleCarousel />
           </div>
         </div>
       </div>
 
       <div className="ContainerAbbyBev py-10 space-y-16 w-full">
-        <div className="max-w-[1536px] mx-auto rounded-[40px] bg-primary-50 wrapper flex-row space-y-6 p-6 outline outline-1 outline-primary-300">
-          <div className="flex items-start justify-between">
-            <div className="flex-row space-y-1">
-              <h3 className="font-damion font-normal text-4xl text-primary-700">
-                Abby's Pick
-              </h3>
-              <p>Your Makeup Matchmaker</p>
-            </div>
-            <Button variant="secondary" size="md">
-              See all
-            </Button>
-          </div>
-          <PickCarousel />
-          {/* <Carousel
-            SlidesPerView={5}
-            products={BevPick}
-            CardComponent={RegularCard}
-          /> */}
-        </div>
+        <PickSection
+          title="Abby's Pick"
+          subtitle="Your Makeup Matchmaker"
+          items={abbyPicks}
+          loading={productsLoading}
+          onSeeAll={() => router.push("/products?pick=abby")}
+          titleClassName="text-3xl"
+        />
 
-        <div className="max-w-[1536px] mx-auto rounded-[40px] bg-primary-50 wrapper flex-row space-y-6 p-6 outline-1 outline-primary-300">
-          <div className="flex items-start justify-between">
-            <div className="flex-row space-y-1  items-center justify-center">
-              <h3 className="font-damion font-normal text-4xl text-primary-700">
-                Bev's Pick
-              </h3>
-              <p>Your skinCare Bestie</p>
-            </div>
-            <Button variant="secondary" size="md">
-              See all
-            </Button>
-          </div>
-          <PickCarousel />
-          {/* <Carousel
-            SlidesPerView={5}
-            products={BevPick}
-            CardComponent={RegularCard}
-          /> */}
-        </div>
+        <PickSection
+          title="Bev's Pick"
+          subtitle="Your skinCare Bestie"
+          items={bevPicks}
+          loading={productsLoading}
+          onSeeAll={() => router.push("/products?pick=bev")}
+          titleClassName="text-3xl"
+        />
       </div>
 
       <div className="Brand-Container flex px-10 py-10 bg-primary-100 items-center justify-center space-x-6 bg-[url('/Logo_SVG_AB.svg')] bg-no-repeat bg-center">
-        <div className="flex max-w-[1536px] mx-auto space-x-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:max-w-[1280px] lg:max-w-[960px] mx-auto gap-6">
           <div className="Wrapper flex-row w-full space-y-6">
-            <h3 className="font-damion text-4xl text-primary-700">
+            <h3 className="font-damion text-3xl text-primary-700">
               Shop by brands
             </h3>
-            <div className="flex-row text-lg font-medium space-y-6">
+            <div className="hidden flex-row text-lg font-medium space-y-6 lg:block">
               <p>
                 From best-sellers to hidden gems — explore top beauty brands,
                 handpicked by Abby n Bev.
               </p>
-              <Button variant="primary" size="md" onClick={() => router.push("/brand")}>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => router.push("/brand")}
+              >
                 Discover more
               </Button>
             </div>
           </div>
 
-          <div className="Conten-wrapper grid grid-cols-4 gap-6 min-w-[50%] max-w-[1536px] mx-auto">
+          <div className="Conten-wrapper grid grid-cols-2 md:grid-cols-4 gap-6 min-w-[50%] max-w-[1536px] mx-auto">
             {DataBrand.slice(0, 8).map((item) => (
               <BrandCard key={item.id} {...item} />
             ))}
           </div>
-        </div>
-      </div>
-      <div></div>
-      <div className="Article-Container py-10 px-10 space-y-6 max-w-[1536px] mx-auto">
-        <h3 className="text-primary-700 text-lg font-bold">New Posts</h3>
-        <div className="grid grid-cols-3 gap-6">
-          {DataArticleBlog.slice(0, 6).map((item) => (
-            <BlogCard key={item.id} {...item} />
-          ))}
         </div>
       </div>
     </div>
