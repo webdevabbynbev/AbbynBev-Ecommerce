@@ -1,16 +1,6 @@
-# env files
-.env
-.env.*
-!.env.example
-!.env.sample
-
-# dependencies
-**/node_modules/
-
-# build / cache
-**/.next/
-**/dist/
-**/build/
-**/.turbo/
-**/.cache/
-**/coverage/
+cmsadmin-ab/,env
+backendAPI-AbbynBev/.env
+node_modules/
+backendAPI-AbbynBev/node_modules/
+cmsadmin-ab/node_modules/
+frontendcommerce-AB/node_modules/

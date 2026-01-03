@@ -1,4 +1,3 @@
-// app/utils/postal.ts
 export default class PostalHelper {
   public static normalizePostal(v: unknown) {
     return String(v ?? '').trim().replace(/\s+/g, '')

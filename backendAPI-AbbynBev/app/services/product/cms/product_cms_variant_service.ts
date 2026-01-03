@@ -61,7 +61,6 @@ export class ProductCmsVariantService {
       }
     }
 
-    // behavior lama: saat update, hapus variant yg tidak termasuk payload (tapi hanya kalau keepIds ada)
     if (opts?.isUpdate && keepIds.length) {
       await ProductVariant.query({ client: trx })
         .where('product_id', product.id)

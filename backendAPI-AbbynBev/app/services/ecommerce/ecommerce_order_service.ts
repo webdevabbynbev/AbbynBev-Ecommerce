@@ -1,4 +1,3 @@
-// app/services/ecommerce/ecommerce_order_service.ts
 import db from '@adonisjs/lucid/services/db'
 import Transaction from '#models/transaction'
 import { TransactionStatus } from '../../enums/transaction_status.js'
@@ -22,7 +21,6 @@ export class EcommerceOrderService {
       throw err
     }
 
-    // sync biteship kalau memungkinkan (biar deliveredAt keisi pas shipping dimulai)
     try {
       const trxModel: any =
         (dataTransaction as any)?.transaction ||
@@ -58,7 +56,6 @@ export class EcommerceOrderService {
         throw err
       }
 
-      // confirm hanya kalau sudah ON_DELIVERY
       if (Number(transaction.transactionStatus) !== TransactionStatus.ON_DELIVERY) {
         const err: any = new Error('Pesanan belum dikirim, belum bisa dikonfirmasi selesai.')
         err.httpStatus = 400
@@ -68,7 +65,6 @@ export class EcommerceOrderService {
       transaction.transactionStatus = TransactionStatus.COMPLETED.toString()
       await transaction.useTransaction(trx).save()
 
-      // Optional: set status text aja
       if (transaction.shipments.length > 0) {
         const shipment: any = transaction.shipments[0]
         shipment.status = 'delivered'
@@ -79,11 +75,6 @@ export class EcommerceOrderService {
     })
   }
 
-  /**
-   * Manual update shipment status (admin/system).
-   * RULE:
-   * - kalau status masuk kategori pengiriman (on_delivery/pickup/in_transit/pengantaran) => set deliveredAt (sekali)
-   */
   async updateWaybillStatus(transactionNumber: string, newStatus: any) {
     const transaction = await Transaction.query()
       .where('transaction_number', transactionNumber)
@@ -116,7 +107,6 @@ export class EcommerceOrderService {
       lower.includes('diantar')
 
     if (shippingStarted && !shipment.deliveredAt) {
-      // deliveredAt = waktu mulai pengiriman
       shipment.deliveredAt = shipment.deliveredAt ?? shipment.updatedAt
     }
 

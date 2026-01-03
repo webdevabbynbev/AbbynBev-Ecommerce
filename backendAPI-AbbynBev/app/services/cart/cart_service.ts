@@ -1,4 +1,3 @@
-// app/services/cart/cart_service.ts
 import db from '@adonisjs/lucid/services/db'
 import ProductVariant from '#models/product_variant'
 import ProductOnline from '#models/product_online'
@@ -21,7 +20,6 @@ export class CartService {
     const sortBy = qs.field || 'created_at'
     const sortType = qs.value || 'DESC'
 
-    // ✅ support snake_case & camelCase
     const isCheckout = typeof qs.is_checkout !== 'undefined' ? qs.is_checkout : qs.isCheckout ?? ''
 
     const page = isNaN(parseInt(qs.page)) ? 1 : parseInt(qs.page)
@@ -176,7 +174,6 @@ export class CartService {
       throw err
     }
 
-    // FE kamu kadang kirim unselected = [] → jangan error
     if (!ids.length) {
       return { message: 'Cart selection updated', serve: { affected: 0 } }
     }
@@ -187,7 +184,6 @@ export class CartService {
       throw err
     }
 
-    // ✅ KRUSIAL: update kolom DB snake_case
     const affected = await TransactionCart.query()
       .whereIn('id', ids)
       .where('user_id', userId)

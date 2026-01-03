@@ -16,8 +16,6 @@ import { ProductCmsVariantService } from '#services/product/cms/product_cms_vari
 import { ProductCmsRelationService } from '#services/product/cms/product_cms_relation_service'
 import type { CmsProductUpsertPayload } from '#services/product/cms/cms_product_types'
 
-
-// backward compatible: controller lain import type dari sini
 export type { CmsProductUpsertPayload } from './cms/cms_product_types.js'
 
 export class ProductCmsService {
@@ -85,8 +83,6 @@ export class ProductCmsService {
       if (payload.brand_id) product.brandId = payload.brand_id
       if (payload.persona_id) product.personaId = payload.persona_id
       product.masterSku = payload.master_sku || product.masterSku
-
-      // behavior lama: kalau category_type_id tidak dikirim, path jadi productSlug (ini agak aneh, tapi kita jaga)
       product.path = await this.meta.buildProductPath(payload.category_type_id, product.slug, trx)
       await this.meta.applyMeta(product, payload)
 
@@ -94,7 +90,6 @@ export class ProductCmsService {
 
       await this.relations.sync(product, payload)
 
-      // behavior lama: update TIDAK upsert medias & discounts (create-only di create)
       await this.variant.upsert(product, payload, trx, { isUpdate: true })
 
       return product
@@ -157,12 +152,10 @@ export class ProductCmsService {
     const batchSize = 100
 
     return db.transaction(async (trx) => {
-      // keep behavior lama: update sesuai payload
       for (const upd of updates || []) {
         await Product.query({ client: trx }).where('id', upd.id).update({ position: Number(upd.order) })
       }
 
-      // keep behavior lama: normalize ulang jadi 0..n berdasarkan sorting position asc
       let page = 1
       let hasMore = true
 

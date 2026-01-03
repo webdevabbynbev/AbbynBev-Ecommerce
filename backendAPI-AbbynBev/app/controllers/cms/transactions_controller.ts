@@ -1,4 +1,4 @@
-// app/controllers/cms/transactions_controller.ts
+
 import type { HttpContext } from '@adonisjs/core/http'
 import { TransactionRepository } from '../../services/transaction/transaction_repository.js'
 import { AdminFulfillmentService } from '../../services/transaction/admin_fulfillment_service.js'
@@ -97,7 +97,6 @@ export default class TransactionsController {
     }
   }
 
-  // ✅ NEW: refresh tracking manual dari CMS
   public async refreshTracking({ response, request }: HttpContext) {
     try {
       const transactionId = NumberUtils.toNumber(request.input('transaction_id'), 0)
@@ -120,7 +119,6 @@ export default class TransactionsController {
     }
   }
 
-  // ✅ NEW: complete order manual dari CMS
   public async completeOrder({ response, request }: HttpContext) {
     try {
       const transactionId = NumberUtils.toNumber(request.input('transaction_id'), 0)

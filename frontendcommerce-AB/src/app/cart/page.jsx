@@ -55,7 +55,6 @@ export default function CartPage() {
     }
   }, []);
 
-  // (opsional) simpen selection ke localStorage (buat UX)
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedIds));

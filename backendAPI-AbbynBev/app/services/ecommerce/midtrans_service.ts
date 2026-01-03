@@ -1,4 +1,3 @@
-// app/services/ecommerce/midtrans_service.ts
 import axios from 'axios'
 import env from '#start/env'
 import { createHash } from 'node:crypto'

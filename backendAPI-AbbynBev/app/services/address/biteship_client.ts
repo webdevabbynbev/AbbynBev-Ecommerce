@@ -1,4 +1,3 @@
-// app/services/shipping/biteship_client.ts
 import axios, { AxiosInstance } from 'axios'
 import env from '#start/env'
 
@@ -84,7 +83,6 @@ export class BiteshipClient {
   private baseUrl: string
   private apiKey: string
 
-  // TTL
   private TTL_SEARCH_MS = 24 * 60 * 60 * 1000
   private TTL_COST_MS = 5 * 60 * 1000
 

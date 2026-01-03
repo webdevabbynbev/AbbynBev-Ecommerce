@@ -1,5 +1,7 @@
 "use client";
-import { useMemo, useState } from "react";
+
+import { useEffect, useMemo, useState } from "react";
+
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { FaStar } from "react-icons/fa";
@@ -37,7 +39,11 @@ const RATING_OPTIONS = [
 
 export default function ProductDetailClient({ product }) {
   const router = useRouter();
-  const variants = product.variantItems ?? []; // [{ id, label, price, stock }]
+  // ✅ Prevent hydration mismatch for relative time
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const variants = product?.variantItems ?? []; // [{ id, label, price, stock }]
   const [selectedVariant, setSelectedVariant] = useState(
     variants.length === 1 ? variants[0].label : null
   );
@@ -90,7 +96,7 @@ export default function ProductDetailClient({ product }) {
 
   const handleAddToCart = async () => {
     try {
-        const token =
+         const token =
         typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
       if (!token) {
@@ -130,6 +136,7 @@ export default function ProductDetailClient({ product }) {
       const res = await axios.post("/cart", payload);
       alert(res.data?.message || "Produk berhasil dimasukkan ke keranjang");
     } catch (error) {
+
       console.error("Gagal menambah ke keranjang", error);
       const isUnauthorized = error?.response?.status === 401;
       const msg = isUnauthorized

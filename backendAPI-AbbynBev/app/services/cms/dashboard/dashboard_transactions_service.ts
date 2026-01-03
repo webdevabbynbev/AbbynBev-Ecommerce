@@ -49,7 +49,6 @@ export class DashboardTransactionsService {
   async completedTransactionsByPeriod() {
     const now = moment()
 
-    // DAILY (current month)
     const startMonth = now.clone().startOf('month').format('YYYY-MM-DD HH:mm:ss')
     const endMonth = now.clone().endOf('month').format('YYYY-MM-DD HH:mm:ss')
     const dayKeys: string[] = getDayKeysInMonth(now)
@@ -72,7 +71,6 @@ export class DashboardTransactionsService {
       total: dailyMap.get(date) || 0,
     }))
 
-    // MONTHLY (current year)
     const startYear = now.clone().startOf('year').format('YYYY-MM-DD HH:mm:ss')
     const endYear = now.clone().endOf('year').format('YYYY-MM-DD HH:mm:ss')
     const monthKeys: MonthKey[] = getMonthKeysInYear(now)

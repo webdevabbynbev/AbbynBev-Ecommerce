@@ -7,6 +7,7 @@ export async function getApi(path, options = {}) {
   const cleanPath = String(path).replace(/^\/+/, ""); // penting
   const url = path.startsWith("http") ? path : new URL(cleanPath, BASE).toString();
 
+
   const res = await fetch(url, {
     cache: "no-store",
     ...options,
@@ -14,7 +15,9 @@ export async function getApi(path, options = {}) {
   });
 
   const data = await res.json().catch(() => ({}));
+
   if (!res.ok) throw new Error(data?.message || `Request failed: ${res.status}`);
+
   return data;
 }
 

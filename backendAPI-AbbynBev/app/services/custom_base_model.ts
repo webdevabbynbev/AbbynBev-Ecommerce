@@ -21,6 +21,8 @@ export class CustomBaseModel extends BaseModel {
     }
     return this.query().where(column, id).whereNull('deleted_at').first()
   }
+    public static active = scope((query) => query.whereNull('deleted_at'))
+  public static trashed = scope((query) => query.whereNotNull('deleted_at'))
 
   public static async findColumnsWithSoftDelete(
     conditions: object,
@@ -36,5 +38,5 @@ export class CustomBaseModel extends BaseModel {
     await SoftDeleteService.softDelete(this, column)
   }
 
-  public static active = scope((query) => query.whereNull('deleted_at'))
+ 
 }

@@ -77,6 +77,7 @@ export default function CheckoutPage() {
         provinceMap[String(provVal)] ||
         (isNumericLike(provVal) ? String(provVal) : "");
 
+
       return { ...a, _cityName: cityName, _provinceName: provinceName };
     });
   }, [addresses, cityMap, provinceMap]);
@@ -141,6 +142,7 @@ export default function CheckoutPage() {
 
       alert(`Transaksi dibuat (${orderId || "-"}) tapi Snap belum ready.`);
     } catch (err) {
+
       console.error("create transaction error:", err?.response?.data || err);
       alert(err?.response?.data?.message || "Gagal membuat transaksi");
     } finally {
@@ -164,13 +166,16 @@ export default function CheckoutPage() {
           <div className="bg-white border rounded-xl p-6 shadow-sm">
             <h2 className="text-xl font-semibold mb-5">Your order</h2>
 
+
             {loadingCart && <p className="text-gray-400 italic">Loading cart...</p>}
+
             {!loadingCart && checkoutItems.length === 0 && (
               <p className="text-gray-400 italic">No selected products</p>
             )}
 
             {checkoutItems.map((item, idx) => {
               const product = item.product || {};
+
               const image = product.thumbnail || product.image || "/placeholder.png";
               const quantity = n(item?.qtyCheckout ?? item?.qty ?? item?.quantity ?? 1, 1);
               const isBusy = loadingItemId !== null && loadingItemId === item.id;
@@ -448,8 +453,10 @@ export default function CheckoutPage() {
             <div className="flex justify-between">
               <span>Shipment:</span>
               <span>
+
                 {confirmedShipping
                   ? `Rp ${n(confirmedShipping.price, 0).toLocaleString("id-ID")}`
+
                   : "-"}
               </span>
             </div>

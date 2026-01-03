@@ -1,5 +1,6 @@
 import User from '#models/user'
 import PasswordReset from '#models/password_resets'
+import AuthEmailService from '#services/auth/auth_email_service'
 
 export type ForgotPasswordResult =
   | { ok: true; status: 200; body: any }
@@ -9,11 +10,6 @@ export type ResetPasswordResult =
   | { ok: true; status: 200; body: any }
   | { ok: false; status: 422 | 500; body: any }
 
-/**
- * Service khusus flow forgot/reset password.
- * Tujuannya: controller tipis, dan logic terpusat.
- * NOTE: bentuk response body dijaga mengikuti controller lama.
- */
 export default class AuthPasswordResetService {
   public static async request(email: string): Promise<ForgotPasswordResult> {
     const user = await User.query().where('email', email).first()
@@ -27,7 +23,7 @@ export default class AuthPasswordResetService {
     }
 
     try {
-      await user.sendForgotPasswordEmail()
+      await AuthEmailService.sendForgotPasswordEmail(user)
       return {
         ok: true,
         status: 200,

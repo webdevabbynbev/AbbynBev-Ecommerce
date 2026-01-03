@@ -1,4 +1,3 @@
-// app/services/transaction/transaction_status_machine.ts
 import { TransactionStatus } from '../../enums/transaction_status.js'
 
 export class TransactionStatusMachine {

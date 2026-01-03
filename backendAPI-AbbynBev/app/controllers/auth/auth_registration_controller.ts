@@ -9,10 +9,7 @@ import {
 import { vineMessagesToString } from '../../utils/validation.js'
 
 export default class AuthRegistrationController {
-  /**
-   * ✅ REGISTER: request OTP (via email/whatsapp)
-   * NOTE: response & message dijaga sama seperti sebelum refactor.
-   */
+
   public async register({ request, response }: HttpContext) {
     try {
       const { email, phone_number, first_name, last_name, gender } =
@@ -40,10 +37,6 @@ export default class AuthRegistrationController {
     }
   }
 
-  /**
-   * ✅ VERIFY REGISTER OTP + CREATE USER
-   * NOTE: badRequest messages dijaga sama seperti sebelum refactor.
-   */
   public async verifyRegisterOtp({ request, response }: HttpContext) {
     try {
       const payload = await request.validateUsing(verifyRegisterOtpValidator)
