@@ -15,13 +15,6 @@ export default class PickupService {
     })
   }
 
-  /**
-   * Request pickup ke Komerce API
-   * @param orderNo string (resiNumber dari Komerce)
-   * @param pickupDate string (format YYYY-MM-DD)
-   * @param pickupTime string (format HH:mm:ss)
-   * @param pickupVehicle string (Motor | Mobil | Truk)
-   */
   public async requestPickup(
     orderNo: string,
     pickupDate: string,
@@ -38,8 +31,6 @@ export default class PickupService {
 
       const { data } = await this.client.post('/order/api/v1/pickup/request', payload)
 
-      // sandbox == development
-      // production == production
       if (env.get('NODE_ENV') === 'development') {
         const first = data?.data?.[0]
         if (first && first.status === 'failed') {

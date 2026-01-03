@@ -10,11 +10,6 @@ export type ResetPasswordResult =
   | { ok: true; status: 200; body: any }
   | { ok: false; status: 422 | 500; body: any }
 
-/**
- * Service khusus flow forgot/reset password.
- * Tujuannya: controller tipis, dan logic terpusat.
- * NOTE: bentuk response body dijaga mengikuti controller lama.
- */
 export default class AuthPasswordResetService {
   public static async request(email: string): Promise<ForgotPasswordResult> {
     const user = await User.query().where('email', email).first()

@@ -1,4 +1,3 @@
-// app/utils/number.ts
 export default class NumberUtils {
   public static toNumber(v: any, fallback = 0) {
     const n = Number(v)

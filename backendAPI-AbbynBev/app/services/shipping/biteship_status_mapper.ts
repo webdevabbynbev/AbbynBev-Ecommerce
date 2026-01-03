@@ -1,4 +1,3 @@
-// app/services/shipping/biteship_status_mapper.ts
 import { DateTime } from 'luxon'
 
 export class BiteshipStatusMapper {
@@ -30,12 +29,6 @@ export class BiteshipStatusMapper {
       s.includes('reject')
     )
   }
-
-  /**
-   * Ini yang lo mau:
-   * status "penjemputan/pengiriman/pengantaran" = shipping dimulai
-   * -> deliveredAt harus keisi saat status masuk kategori ini
-   */
   isShippingStarted(status: any) {
     const s = this.norm(status)
     return (
@@ -81,10 +74,6 @@ export class BiteshipStatusMapper {
     return null
   }
 
-  /**
-   * Cari timestamp pertama kali status masuk "shipping started"
-   * biar deliveredAt = waktu mulai dikirim (bukan delivered selesai)
-   */
   extractShippingStartedAt(tracking: any): DateTime | null {
     const history = Array.isArray(tracking?.history)
       ? tracking.history

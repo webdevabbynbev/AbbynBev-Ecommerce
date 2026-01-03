@@ -1,4 +1,3 @@
-// app/services/ecommerce/voucher_calculator.ts
 import Voucher from '#models/voucher'
 import NumberUtils from '../../utils/number.js'
 
@@ -14,16 +13,13 @@ export class VoucherCalculator {
 
     if (isPercentage) {
       if (type === 2) {
-        // diskon ongkir %
         const disc = Math.floor(shippingPrice * (percentage / 100))
         return Math.min(disc, maxDiscPrice || disc, shippingPrice)
       }
-      // diskon subtotal %
       const disc = Math.floor(subTotal * (percentage / 100))
       return Math.min(disc, maxDiscPrice || disc)
     }
 
-    // diskon nominal
     if (type === 2) return Math.min(fixedPrice, shippingPrice) // nominal ongkir
     return fixedPrice // nominal subtotal
   }

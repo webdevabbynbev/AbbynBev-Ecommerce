@@ -1,4 +1,3 @@
-// app/services/ecommerce/ecommerce_repository.ts
 import TransactionEcommerce from '#models/transaction_ecommerce'
 import NumberUtils from '../../utils/number.js'
 

@@ -7,13 +7,11 @@ export default class BannerOrdersController {
     const batchSize = 100
 
     try {
-      // apply updates from client
       for (const update of updates) {
         const { id, order } = update
         await Banner.query().where('id', id).update({ order })
       }
 
-      // normalize order biar rapih 1..N
       let page = 1
       let hasMore = true
 

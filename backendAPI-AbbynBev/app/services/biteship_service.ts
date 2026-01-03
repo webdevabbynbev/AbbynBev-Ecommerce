@@ -7,7 +7,6 @@ class BiteshipService {
   private rates = new BiteshipRatesService()
   private orders = new BiteshipOrdersService()
 
-  // samain nama method dengan yang lama (biar gak break)
   public getCourierRates(payload: any) {
     return this.rates.getCourierRates(payload)
   }

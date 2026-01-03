@@ -43,11 +43,6 @@ export default class AuthSessionsController {
     }
   }
 
-  /**
-   * ✅ LOGIN CUSTOMER TANPA OTP
-   * - Hanya register yang pakai OTP.
-   * - Endpoint verify-login dinonaktifkan.
-   */
   public async login({ request, response }: HttpContext) {
     try {
       const { email_or_phone, password } = await request.validateUsing(loginValidator)
@@ -63,10 +58,6 @@ export default class AuthSessionsController {
     }
   }
 
-  /**
-   * ❌ DISABLE: verify login OTP
-   * (Biar route lama tidak error, tapi flow OTP login udah dimatiin)
-   */
   public async verifyLoginOtp({ response }: HttpContext) {
     return response.badRequest({
       message: 'OTP login is disabled. Please use /auth/login (no OTP).',

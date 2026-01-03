@@ -5,10 +5,6 @@ import router from '@adonisjs/core/services/router'
 import PasswordReset from '#models/password_resets'
 import type User from '#models/user'
 
-/**
- * Semua email terkait auth/user dipusatkan di sini.
- * Model User jadi ringan (hanya schema + relasi + hooks).
- */
 export default class AuthEmailService {
   private static getAppMeta() {
     const appDomain = env.get('APP_URL')
@@ -25,10 +21,7 @@ export default class AuthEmailService {
     return from as string
   }
 
-  /**
-   * NOTE: route name `verifyEmail` saat ini belum ketemu di start/routes.ts.
-   * Fungsi ini aman disimpan dulu, tapi baru akan kepake kalau route-nya sudah ada.
-   */
+
   public static async sendVerificationEmail(user: User) {
     const { appDomain, appName, currentYear } = this.getAppMeta()
 

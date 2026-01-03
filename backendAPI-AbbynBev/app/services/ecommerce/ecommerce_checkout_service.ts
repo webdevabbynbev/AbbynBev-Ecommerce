@@ -1,4 +1,3 @@
-// app/services/ecommerce/ecommerce_checkout_service.ts
 import db from '@adonisjs/lucid/services/db'
 import Transaction from '#models/transaction'
 import TransactionEcommerce from '#models/transaction_ecommerce'
@@ -88,7 +87,6 @@ export class EcommerceCheckoutService {
         throw err
       }
 
-      // Optional safety: pastikan produk masih aktif online
       for (const c of carts as any[]) {
         const po = await ProductOnline.query({ client: trx })
           .where('product_id', c.productId)
@@ -134,7 +132,6 @@ export class EcommerceCheckoutService {
       const grandTotal =
         this.voucherCalc.generateGrandTotal(voucher, subTotal, shippingPrice) + (isProtected ? protectionFee : 0)
 
-      // 1) create transaction
       const transaction = new Transaction()
       transaction.userId = user.id
       transaction.amount = grandTotal
@@ -147,7 +144,6 @@ export class EcommerceCheckoutService {
       transaction.channel = 'ecommerce'
       await transaction.useTransaction(trx).save()
 
-      // 2) Midtrans Snap
       const snap = await this.midtrans.createSnapTransaction(transaction.transactionNumber, transaction.grandTotal, user)
 
       const transactionEcommerce = new TransactionEcommerce()

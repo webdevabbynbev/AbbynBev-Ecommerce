@@ -35,7 +35,6 @@ export class ProductCmsMetaService {
   }
 
   public async applyMeta(product: Product, payload: CmsProductUpsertPayload) {
-    // behavior lama: kalau meta_ai=1 -> generate pakai OpenAI
     if (payload.meta_ai === 1) {
       const meta = await this.seo.generateProductMeta({
         productName: payload.name,
@@ -50,7 +49,6 @@ export class ProductCmsMetaService {
       return
     }
 
-    // behavior lama: manual override kalau fieldnya dikirim
     if (payload.meta_title !== undefined) product.metaTitle = payload.meta_title || null
     if (payload.meta_description !== undefined)
       product.metaDescription = payload.meta_description || null

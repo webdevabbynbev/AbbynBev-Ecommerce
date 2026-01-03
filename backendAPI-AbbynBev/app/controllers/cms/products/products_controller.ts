@@ -92,7 +92,6 @@ export default class ProductsController {
 
       const created = await this.cms.create(data)
 
-      // legacy emitter tetap (biar payload sama)
       await (emitter as any).emit('set:activity-log', {
         roleName: auth.user?.role_name,
         userName: auth.user?.name,

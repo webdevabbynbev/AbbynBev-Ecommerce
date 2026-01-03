@@ -1,4 +1,3 @@
-// app/services/transaction/admin_transaction_service.ts
 import db from '@adonisjs/lucid/services/db'
 import Transaction from '#models/transaction'
 import ProductVariant from '#models/product_variant'

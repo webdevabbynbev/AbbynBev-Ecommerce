@@ -1,4 +1,3 @@
-// app/services/shipping/biteship_order_service.ts
 import env from '#start/env'
 import BiteshipService from '#services/biteship_service'
 
@@ -14,7 +13,6 @@ export class BiteshipOrderService {
     const shipment: any = transaction.shipments?.[0]
     if (!shipment) throw new Error('Shipment not found.')
 
-    // ✅ kompatibel model baru/lama
     const existingResi = String(shipment.resiNumber ?? shipment.resi_number ?? '').trim()
     if (existingResi) throw new Error('Resi sudah ada untuk transaksi ini.')
 
@@ -57,7 +55,6 @@ export class BiteshipOrderService {
       )
     }
 
-    // ✅ FIX UTAMA: picPhone (model baru) + pic_phone (lama)
     const destinationContactName = String(
       AddressUtils.pickFirstString(shipment, ['pic']) ||
         AddressUtils.pickFirstString(user, ['fullName', 'full_name', 'name']) ||
@@ -71,7 +68,6 @@ export class BiteshipOrderService {
         ''
     ).trim()
 
-    // ✅ alamat: prioritas shipment.address (checkout), fallback userAddress
     const destinationAddress = String(
       AddressUtils.pickFirstString(shipment, ['address']) ||
         AddressUtils.pickFirstString(userAddress, ['address', 'line1', 'addressLine1', 'detail', 'fullAddress']) ||
@@ -101,7 +97,6 @@ export class BiteshipOrderService {
 
     if (!items.length) throw new Error('Order items kosong.')
 
-    // ✅ kompatibel serviceType / service_type
     const courierCompany = String(shipment.service || '').trim().toLowerCase()
     const courierType = String(shipment.serviceType ?? shipment.service_type ?? '').trim().toLowerCase()
 
@@ -150,13 +145,9 @@ export class BiteshipOrderService {
         throw new Error('Waybill (resi) tidak ditemukan dari response Biteship.')
       }
 
-      // ✅ RESI CREATED: isi resi, jangan ubah status transaksi ke ON_DELIVERY
       shipment.resiNumber = waybillId
       shipment.status = shipment.status || 'resi_created'
       await shipment.useTransaction(trx).save()
-
-      // ✅ transactionStatus tetap ON_PROCESS.
-      // Nanti naik ke ON_DELIVERY saat status Biteship berubah ke penjemputan/pengiriman/pengantaran via tracking sync.
 
       return {
         message: 'Resi berhasil dibuat (Biteship).',
@@ -173,13 +164,11 @@ export class BiteshipOrderService {
     } catch (e: any) {
       const body = e?.response?.data
 
-      // Case: reference_id pernah dipakai
       if (body?.code === 40002060 && body?.details?.waybill_id) {
         shipment.resiNumber = body.details.waybill_id
         shipment.status = shipment.status || 'resi_created'
         await shipment.useTransaction(trx).save()
 
-        // ✅ transactionStatus tetap ON_PROCESS
 
         return {
           message: 'Order Biteship sudah pernah dibuat (reference_id pernah dipakai).',

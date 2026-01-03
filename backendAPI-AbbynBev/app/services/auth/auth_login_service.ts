@@ -9,10 +9,7 @@ export type AuthLoginResult<T> =
   | { ok: false; errorType: AuthLoginErrorType; message: string }
 
 export default class AuthLoginService {
-  /**
-   * Login cashier (POS)
-   * NOTE: Payload & messaging sengaja disamakan dengan controller lama.
-   */
+
   public static async loginCashier(email: string, password: string): Promise<AuthLoginResult<any>> {
     const user = await User.query()
       .where('email', email)
@@ -53,9 +50,7 @@ export default class AuthLoginService {
     }
   }
 
-  /**
-   * Login admin/CMS
-   */
+
   public static async loginAdmin(email: string, password: string): Promise<AuthLoginResult<any>> {
     const user = await User.query().where('email', email).whereNull('deleted_at').first()
 
@@ -90,9 +85,7 @@ export default class AuthLoginService {
     }
   }
 
-  /**
-   * Login customer (frontend)
-   */
+
   public static async loginCustomer(
     emailOrPhone: string,
     password: string,

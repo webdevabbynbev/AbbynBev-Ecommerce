@@ -1,4 +1,3 @@
-// app/services/ecommerce/ecommerce_webhook_service.ts
 import db from '@adonisjs/lucid/services/db'
 import Transaction from '#models/transaction'
 import TransactionEcommerce from '#models/transaction_ecommerce'

@@ -1,4 +1,3 @@
-// app/utils/http.ts
 export default class HttpHelper {
   public static toInt(v: unknown, fallback = 0) {
     const n = Number(v)

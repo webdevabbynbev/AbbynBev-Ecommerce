@@ -36,10 +36,7 @@ export type VerifyRegisterOtpResult =
   | { ok: false; message: string }
 
 export default class AuthRegisterService {
-  /**
-   * REQUEST OTP REGISTER
-   * NOTE: payload response & message dibuat sama seperti versi controller lama.
-   */
+
   public static async requestRegisterOtp(payload: RegisterOtpRequest) {
     const { email, phone_number, first_name, last_name, gender, send_via } = payload
 
@@ -71,7 +68,7 @@ export default class AuthRegisterService {
       }
     }
 
-    // send_via === 'whatsapp'
+
     try {
       const wa = new WhatsAppService()
       await wa.sendOTP(this.normalizeWaNumber(phone_number), otp)
@@ -105,10 +102,6 @@ export default class AuthRegisterService {
     }
   }
 
-  /**
-   * VERIFY OTP REGISTER + CREATE USER
-   * NOTE: badRequest messages dibuat sama seperti controller lama.
-   */
   public static async verifyRegisterOtp(
     payload: VerifyRegisterOtpRequest
   ): Promise<VerifyRegisterOtpResult> {

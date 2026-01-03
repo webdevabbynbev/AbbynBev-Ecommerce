@@ -1,4 +1,3 @@
-// app/services/address/user_address_service.ts
 import db from '@adonisjs/lucid/services/db'
 import UserAddress from '#models/user_address'
 import HttpHelper from '../../utils/http.js'

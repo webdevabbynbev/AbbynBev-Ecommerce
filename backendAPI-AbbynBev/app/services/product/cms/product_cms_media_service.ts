@@ -13,7 +13,6 @@ export class ProductCmsMediaService {
   public async upsert(product: Product, payload: CmsProductUpsertPayload, trx: TransactionClientContract) {
     if (!payload.medias?.length) return
 
-    // behavior lama: always create (no delete/update)
     for (const media of payload.medias) {
       await ProductMedia.create(
         {
