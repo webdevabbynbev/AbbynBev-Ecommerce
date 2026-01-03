@@ -4,6 +4,9 @@ import { createProduct, updateProduct } from '#validators/product'
 import { ProductService } from '#services/product/product_service'
 import { ProductCmsService } from '#services/product/product_cms_service'
 import type { CmsProductUpsertPayload } from '#services/product/product_cms_service'
+import ProductVariant from '#models/product_variant'
+import env from '#start/env'
+import OpenAI from 'openai'
 
 export default class ProductsController {
   private productService = new ProductService()
@@ -206,7 +209,7 @@ export default class ProductsController {
     }
   }
 
-<<<<<<< HEAD
+
   private extractFileName(url: string) {
     if (url.startsWith('http')) {
       return url
@@ -275,8 +278,6 @@ export default class ProductsController {
     }
   }
 
-=======
->>>>>>> origin/main
   public async getIsFlashsale({ response }: HttpContext) {
     try {
       const dataProduct = await this.productService
