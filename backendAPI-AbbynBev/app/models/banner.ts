@@ -60,10 +60,14 @@ export default class Banner extends CustomBaseModel {
     this.imageMobileUrl = ''
     this.imageUrl = ''
     if (this.image) {
-      this.imageUrl = await drive.use(env.get('DRIVE_DISK')).getSignedUrl(this.image)
+      this.imageUrl = this.image.startsWith('http')
+        ? this.image
+        : await drive.use(env.get('DRIVE_DISK')).getSignedUrl(this.image)
     }
     if (this.imageMobile) {
-      this.imageMobileUrl = await drive.use(env.get('DRIVE_DISK')).getSignedUrl(this.imageMobile)
+      this.imageMobileUrl = this.imageMobile.startsWith('http')
+        ? this.imageMobile
+        : await drive.use(env.get('DRIVE_DISK')).getSignedUrl(this.imageMobile)
     }
   }
 

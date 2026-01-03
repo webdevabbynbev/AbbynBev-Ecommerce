@@ -1,28 +1,26 @@
 import axios from "axios";
+import { getToken, refreshTokenTtl, clearToken } from "@/services/authToken";
 
 const baseURL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
 
 if (!baseURL) {
-  // biar kelihatan kalau env belum kebaca
   console.warn("NEXT_PUBLIC_API_URL is not set");
 }
 
 const api = axios.create({
   baseURL,
-  withCredentials: false, // ✅ biasanya tidak perlu kalau pakai Bearer token
+  withCredentials: false,
 });
 
 api.interceptors.request.use((config) => {
   config.headers = config.headers || {};
   config.headers.Accept = "application/json";
 
-  // ✅ Attach token kalau ada
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("token");
-    if (token) config.headers.Authorization = `Bearer ${token}`;
+  const token = getToken(); // ✅ auto null kalau expired
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
 
-  // ✅ Default Content-Type JSON, kecuali FormData (upload)
   const isFormData =
     typeof FormData !== "undefined" && config.data instanceof FormData;
 
@@ -32,5 +30,28 @@ api.interceptors.request.use((config) => {
 
   return config;
 });
+
+api.interceptors.response.use(
+  (res) => {
+    refreshTokenTtl(); // 🔄 sliding expiration
+    return res;
+  },
+  (err) => {
+    if (err?.response?.status === 401) {
+      clearToken();
+      if (typeof window !== "undefined") {
+        const path = window.location.pathname;
+        const isAuthPage =
+          path === "/login" || path === "/register" || path.startsWith("/auth");
+
+        if (!isAuthPage) {
+          // gunakan replace supaya tidak nambah history dan tidak "bounce"
+          window.location.replace("/login");
+        }
+      }
+    }
+    return Promise.reject(err);
+  }
+);
 
 export default api;

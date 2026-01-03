@@ -99,16 +99,8 @@ html {
 }
 
 
-.custom-scrollbar::-webkit-scrollbar {
-  width: 5px; height: 5px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #B0B0B0;
-  border-radius: 9999px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
 @layer utilities {
   .no-spinner::-webkit-inner-spin-button,
