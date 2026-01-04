@@ -72,6 +72,7 @@ export default function ProductDetailClient({ product }) {
     finalPrice;
 
   const stock = selectedVariantObj?.stock ?? product?.stock ?? 0;
+const subtotal = finalPrice * qty;
 
   const discount =
     product?.sale && realPrice
@@ -247,7 +248,7 @@ export default function ProductDetailClient({ product }) {
 
                     <div className="reapPrice-container flex space-x-2 items-center">
                       <span className="text-base font-medium text-neutral-400 line-through">
-                        {formatToRupiah(realPrice)}
+                        {formatToRupiah(finalPrice)}
                       </span>
 
                       {discount > 0 && (
@@ -260,7 +261,7 @@ export default function ProductDetailClient({ product }) {
                 ) : (
                   <div className="finalPrice">
                     <span className="text-primary-700 text-2xl font-bold">
-                      {formatToRupiah(realPrice)}
+                      {formatToRupiah(finalPrice)}
                     </span>
                   </div>
                 )}
@@ -472,7 +473,7 @@ export default function ProductDetailClient({ product }) {
               <div className="finalPrice w-full flex space-x-2 items-center justify-between">
                 <span>Subtotal</span>
                 <span className="text-primary-700 text-base font-bold">
-                  {formatToRupiah(finalPrice)}
+                  {formatToRupiah(subtotal)}
                 </span>
               </div>
             </>
@@ -480,7 +481,7 @@ export default function ProductDetailClient({ product }) {
             <div className="finalPrice w-full flex space-x-2 items-center justify-between">
               <span>Subtotal</span>
               <span className="text-primary-700 text-base font-bold">
-                {formatToRupiah(realPrice)}
+                {formatToRupiah(subtotal)}
               </span>
             </div>
           )}

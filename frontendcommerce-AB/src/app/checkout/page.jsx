@@ -10,11 +10,11 @@ import { NewAddress } from "@/app/account/popup";
 import { PAYMENT_METHODS } from "@/data/paymentMethods";
 import { n, isNumericLike } from "@/utils/number";
 import { calcWeightRounded } from "@/utils/checkoutWeight";
-import { useCheckoutCartServer } from "@/app/hook/useCheckoutCartServer";
-import { useCartMutations } from "@/app/hook/useCartMutations";
-import { useAddresses } from "@/app/hook/useAddresses";
-import { useLocationNames } from "@/app/hook/useLocationNames";
-import { useShippingOptions } from "@/app/hook/useShippingOptions";
+import { useCheckoutCartServer } from "@/app/hooks/useCheckoutCartServer";
+import { useCartMutations } from "@/app/hooks/useCartMutations";
+import { useAddresses } from "@/app/hooks/useAddresses";
+import { useLocationNames } from "@/app/hooks/useLocationNames";
+import { useShippingOptions } from "@/app/hooks/useShippingOptions";
 
 export default function CheckoutPage() {
   const router = useRouter();
