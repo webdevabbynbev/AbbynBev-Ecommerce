@@ -97,7 +97,7 @@ export default function Home() {
               ))}
             </div>
 
-            <div className="hidden lg:grid grid-cols-5 gap-4gap-4">
+            <div className="hidden lg:grid grid-cols-5 gap-4">
               {Array.from({ length: 10 }).map((_, i) => (
                 <RegularCardSkeleton key={`pick-skel-${i}`} />
               ))}
