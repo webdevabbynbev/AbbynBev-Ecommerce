@@ -45,11 +45,16 @@ export default function ProductDetailClient({ product }) {
 
   const variants = product?.variantItems ?? []; // [{ id, label, price, stock }]
   const [selectedVariant, setSelectedVariant] = useState(
-    variants.length === 1 ? variants[0].label : null
+    variants.length ? variants[0].label : null
   );
   const [qty, setQty] = useState(1);
 
   const selectedVariantObj = variants.find((v) => v.label === selectedVariant);
+useEffect(() => {
+    if (!selectedVariant && variants.length > 0) {
+      setSelectedVariant(variants[0].label);
+    }
+  }, [selectedVariant, variants]);
 
   const finalPrice =
     selectedVariantObj?.price ??
@@ -114,20 +119,20 @@ export default function ProductDetailClient({ product }) {
       }
 
       const variantItems = product?.variantItems ?? [];
-      let variant = selectedVariantObj;
+      let variant = selectedVariantObj ?? (variantItems.length ? variantItems[0] : null);
 
-      if (!variant && variantItems.length === 1) {
+      if (!variant && variantItems.length > 0) {
         variant = variantItems[0];
       }
 
-      if (variantItems.length > 0 && !variant) {
-        alert("Silakan pilih varian terlebih dahulu");
+      if (!variant) {
+        alert("Varian produk tidak ditemukan");
         return;
       }
 
       const payload = {
         product_id: product.id,
-        variant_id: variantItems.length ? variant.id : 0,
+        variant_id: variant?.id ?? 0,
         qty: Number(qty) || 1,
         attributes: [],
         is_buy_now: false,
