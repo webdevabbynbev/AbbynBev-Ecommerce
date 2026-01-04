@@ -15,6 +15,9 @@ export default class CategoryType extends BaseModel {
   @column()
   declare parentId: number | null
 
+  @column({ columnName: 'icon_public_id' })
+  declare iconPublicId: string | null
+
   @column()
   declare level: number
 

@@ -12,19 +12,20 @@ export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const { user, logout } = useAuth();
-  const { isAuthed } = useAuthGate();
+  
+  const { user, token, logout } = useAuth();
+  const isAuthed = !!token || !!user;
 
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
-  // kalau token habis → pastikan sheet ketutup
+
   useEffect(() => {
     if (!isAuthed) setOpen(false);
   }, [isAuthed]);
 
   const handleLogout = async () => {
-    await logout(); // pastikan logout() clearToken juga
+    await logout(); 
     router.replace("/");
   };
 
@@ -54,7 +55,6 @@ export function Navbar() {
     return pathname === href || pathname.startsWith(href + "/");
   };
 
-  // wrapper shell (biar tidak duplikasi markup container)
   return (
     <nav className="sticky top-0 z-50 w-full bg-white border-b border-primary-700">
       <div className="mx-auto w-full max-w-[1536px] px-4 sm:px-6 lg:px-10 py-4">
