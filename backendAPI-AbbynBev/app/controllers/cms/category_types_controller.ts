@@ -3,6 +3,7 @@ import Helpers from '../../utils/helpers.js'
 import CategoryType from '#models/category_type'
 import { createCategoryType } from '#validators/category_types'
 import emitter from '@adonisjs/core/services/emitter'
+import { cloudinaryImageUrl } from '../../utils/cloudinary_url.js'
 
 export default class CategoryTypesController {
   public async get({ response, request }: HttpContext) {
@@ -54,9 +55,17 @@ export default class CategoryTypesController {
           })
         })
 
+      const data = categories.map((c) => {
+        const json = c.toJSON()
+        return {
+          ...json,
+          icon_url: json.iconPublicId ? cloudinaryImageUrl(json.iconPublicId, 120) : null,
+        }
+      })
+
       return response.status(200).send({
         message: 'Success',
-        serve: categories,
+        serve: data,
       })
     } catch (e) {
       return response.status(500).send({

@@ -5,7 +5,8 @@ import { slugify } from "@/utils";
 const norm = (s) => slugify(decodeURIComponent(String(s || "")).trim());
 
 export default async function Page({ params }) {
-  const slugParam = norm(params.slug);
+  const awaitedParams = await params;
+  const slugParam = norm(awaitedParams.slug);
 
   const res = await getProducts({ per_page: 500, limit: 500, page: 1 });
   const list = Array.isArray(res?.data) ? res.data : [];
