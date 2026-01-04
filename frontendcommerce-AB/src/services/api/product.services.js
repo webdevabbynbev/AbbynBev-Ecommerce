@@ -13,3 +13,11 @@ export async function getProducts(params = {}) {
     meta: json?.serve || {}
   };
 }
+export async function getProductByPath(path) {
+  if (!path) return { data: null, dataRaw: null };
+  const safePath = encodeURIComponent(String(path));
+  const json = await getApi(`/products/${safePath}`);
+  const raw = json?.serve || null;
+  const normalized = raw ? normalizeProduct(raw) : null;
+  return { data: normalized, dataRaw: raw };
+}

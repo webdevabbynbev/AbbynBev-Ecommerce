@@ -269,16 +269,16 @@ export default function ProductDetailClient({ product }) {
               </div>
 
               {/* Variants */}
-              {product?.variant?.length ? (
+                {variants.length ? (
                 <div className="chip-container flex w-full space-x-3 items-center">
                   <p>{product?.variant_value || "Variant"}:</p>
                   {product.variant.map((v) => (
                     <Chip
-                      key={v}
-                      onClick={() => handleSelect(v)}
-                      isActive={selectedVariant === v}
+                      key={v.id}
+                      onClick={() => handleSelect(v.label)}
+                      isActive={selectedVariant === v.label}
                     >
-                      {v}
+                      {v.label}
                     </Chip>
                   ))}
                 </div>
