@@ -50,7 +50,8 @@ export default function ProductDetailClient({ product }) {
   const [qty, setQty] = useState(1);
 
   const selectedVariantObj = variants.find((v) => v.label === selectedVariant);
-useEffect(() => {
+
+  useEffect(() => {
     if (!selectedVariant && variants.length > 0) {
       setSelectedVariant(variants[0].label);
     }
@@ -101,7 +102,7 @@ useEffect(() => {
 
   const handleAddToCart = async () => {
     try {
-         const token =
+      const token =
         typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
       if (!token) {
@@ -113,13 +114,15 @@ useEffect(() => {
         }
         return;
       }
+
       if (!product?.id) {
         alert("Product id tidak ditemukan");
         return;
       }
 
       const variantItems = product?.variantItems ?? [];
-      let variant = selectedVariantObj ?? (variantItems.length ? variantItems[0] : null);
+      let variant =
+        selectedVariantObj ?? (variantItems.length ? variantItems[0] : null);
 
       if (!variant && variantItems.length > 0) {
         variant = variantItems[0];
@@ -141,7 +144,6 @@ useEffect(() => {
       const res = await axios.post("/cart", payload);
       alert(res.data?.message || "Produk berhasil dimasukkan ke keranjang");
     } catch (error) {
-
       console.error("Gagal menambah ke keranjang", error);
       const isUnauthorized = error?.response?.status === 401;
       const msg = isUnauthorized
@@ -149,6 +151,7 @@ useEffect(() => {
         : error?.response?.data?.message ||
           "Terjadi kesalahan saat menambah ke keranjang";
       alert(msg);
+
       if (isUnauthorized) {
         if (typeof window !== "undefined") {
           localStorage.removeItem("token");
@@ -182,7 +185,9 @@ useEffect(() => {
               <BreadcrumbSeparator />
 
               <BreadcrumbItem>
-                <BreadcrumbPage className="truncate w-[300px]">{product?.name}</BreadcrumbPage>
+                <BreadcrumbPage className="truncate w-[300px]">
+                  {product?.name}
+                </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -210,17 +215,16 @@ useEffect(() => {
               </div>
 
               <div className="flex max-w-[300px] py-2 items-center space-x-4 max-h-64 overflow-x-auto custom-scrollbar">
-                {(product?.images?.length
-                  ? product.images
-                  : [product?.image]
-                ).map((img, i) => (
-                  <img
-                    key={i}
-                    src={img}
-                    alt={`${product?.name}-${i}`}
-                    className="h-[50px] w-[50px] border p-2 rounded-md"
-                  />
-                ))}
+                {(product?.images?.length ? product.images : [product?.image]).map(
+                  (img, i) => (
+                    <img
+                      key={i}
+                      src={img}
+                      alt={`${product?.name}-${i}`}
+                      className="h-[50px] w-[50px] border p-2 rounded-md"
+                    />
+                  )
+                )}
               </div>
             </div>
 
@@ -268,16 +272,14 @@ useEffect(() => {
                   {Number(averageRating || 0).toFixed(1)}
                   <FaStar className="text-warning-300 ml-1" />
                 </span>
-                <span className="text-neutral-400">
-                  ({reviews.length} reviews)
-                </span>
+                <span className="text-neutral-400">({reviews.length} reviews)</span>
               </div>
 
               {/* Variants */}
-                {variants.length ? (
+              {variants.length ? (
                 <div className="chip-container flex w-full space-x-3 items-center">
                   <p>{product?.variant_value || "Variant"}:</p>
-                  {product.variant.map((v) => (
+                  {variants.map((v) => (
                     <Chip
                       key={v.id}
                       onClick={() => handleSelect(v.label)}
@@ -295,17 +297,13 @@ useEffect(() => {
               <div className="product-detail space-y-4">
                 {/* Summary */}
                 <div className="summary space-y-2">
-                  <h3 className="text-primary-700 font-bold text-base">
-                    Summary
-                  </h3>
+                  <h3 className="text-primary-700 font-bold text-base">Summary</h3>
                   <p className="text-sm">{product?.description}</p>
                 </div>
 
                 {/* Shipment */}
                 <div className="shipment space-y-2">
-                  <h3 className="text-primary-700 font-bold text-base">
-                    Shipment
-                  </h3>
+                  <h3 className="text-primary-700 font-bold text-base">Shipment</h3>
                   <p className="text-sm">
                     Regular shipment start from
                     <span className="font-bold"> Rp.10.000</span>
@@ -323,9 +321,7 @@ useEffect(() => {
                 {/* Review */}
                 <div className="container-review space-y-6">
                   <div className="filter-review space-y-2">
-                    <h3 className="text-primary-700 font-bold text-base">
-                      Review
-                    </h3>
+                    <h3 className="text-primary-700 font-bold text-base">Review</h3>
                     <span>Filter</span>
                     <div className="flex space-x-4">
                       <TxtField
@@ -361,10 +357,7 @@ useEffect(() => {
                   {reviews.length > 0 ? (
                     reviews.map((r) => {
                       const created =
-                        r.createdAt ||
-                        r.created_at ||
-                        r.create_at ||
-                        r.updatedAt;
+                        r.createdAt || r.created_at || r.create_at || r.updatedAt;
 
                       const who = r.user?.firstName
                         ? `${r.user.firstName} ${r.user.lastName ?? ""}`.trim()
@@ -388,7 +381,6 @@ useEffect(() => {
 
                             <div className="w-1 h-1 rounded-full bg-neutral-400" />
 
-                            {/* ✅ Stable during SSR + first hydrate */}
                             <div className="text-sm text-neutral-400">
                               {created && mounted
                                 ? formatDistanceToNow(new Date(created), {
@@ -459,8 +451,7 @@ useEffect(() => {
         <div className="flex w-full items-center space-x-3">
           <QuantityInput min={1} max={stock} value={qty} onChange={setQty} />
           <div className="text-sm font-normal text-neutral-600">
-            Stock :{" "}
-            <span className="font-medium text-neutral-950">{stock}</span>
+            Stock : <span className="font-medium text-neutral-950">{stock}</span>
           </div>
         </div>
 
@@ -513,12 +504,7 @@ useEffect(() => {
         <hr className="w-full border-t border-neutral-200 my-4" />
 
         <div className="flex justify-between space-x-2">
-          <Button
-            iconName="Share"
-            variant="tertiary"
-            size="sm"
-            className="w-full"
-          >
+          <Button iconName="Share" variant="tertiary" size="sm" className="w-full">
             Share product
           </Button>
           <BtnIconToggle iconName="Heart" variant="tertiary" size="sm" />
@@ -527,6 +513,3 @@ useEffect(() => {
     </div>
   );
 }
-
-
-//

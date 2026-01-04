@@ -87,11 +87,16 @@ export default class ProductsController {
       const productOnline = await ProductOnline.query()
         .where('product_onlines.is_active', true)
         .join('products', 'products.id', '=', 'product_onlines.product_id')
-        .where('products.path', path) // 🔥 filter path di query utama
+        // 🔥 support akses via /products/:path maupun /products/:slug
+        .where((q) => {
+          q.where('products.path', path).orWhere('products.slug', path)
+        })
         .preload('product', (q) => {
           q.apply((scopes) => scopes.active())
-            // baris di bawah boleh ada / boleh dihapus, sifatnya redundant tapi aman
-            .where('products.path', path)
+            // redundant tapi aman: pastikan cocok by path/slug
+            .where((q2) => {
+              q2.where('products.path', path).orWhere('products.slug', path)
+            })
             .withCount('reviews', (reviewQuery) => reviewQuery.as('review_count'))
             .withAggregate('reviews', (reviewQuery) => reviewQuery.avg('rating').as('avg_rating'))
             .preload('reviews', (reviewQuery) => {
