@@ -13,3 +13,19 @@ export async function getProducts(params = {}) {
     meta: json?.serve || {}
   };
 }
+export async function getProductByPath(path) {
+  if (!path) return { data: null, dataRaw: null };
+  const safePath = encodeURIComponent(String(path));
+  try {
+    const json = await getApi(`/products/${safePath}`);
+    const raw = json?.serve || null;
+    const normalized = raw ? normalizeProduct(raw) : null;
+    return { data: normalized, dataRaw: raw };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/not found|404/i.test(message)) {
+      return { data: null, dataRaw: null };
+    }
+    throw error;
+  }
+}
