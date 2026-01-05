@@ -49,8 +49,10 @@ export function RegularCard({ product }) {
       (Array.isArray(raw.images) ? raw.images[0] : null) ??
       "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png";
 
-    const slugSource = raw.slug || name;
-    const safeSlug = slugSource ? slugify(String(slugSource)) : "";
+    const slugSource = raw.slug || raw.path || "";
+    const safeSlug = slugSource
+      ? String(slugSource)
+      : slugify(String(name || ""));
 
     return {
       id: String(id),

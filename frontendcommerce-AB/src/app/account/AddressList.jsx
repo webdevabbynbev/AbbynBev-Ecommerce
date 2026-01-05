@@ -124,6 +124,12 @@ export function AddressList() {
       const cityVal = a?.city;
       const provVal = a?.province;
 
+      const areaName =
+        a?.biteshipAreaName ||
+        a?.biteship_area_name ||
+        a?.areaName ||
+        a?.area_name ||
+        "";
       const cityName =
         a?.cityName ||
         a?.city_name ||
@@ -135,7 +141,12 @@ export function AddressList() {
         provinceMap[String(provVal)] ||
         (isNumericLike(provVal) ? String(provVal) : "");
 
-      return { ...a, _cityName: cityName, _provinceName: provinceName };
+      const fallbackArea = areaName && !cityName && !provinceName ? areaName : "";
+      return {
+        ...a,
+        _cityName: cityName || fallbackArea,
+        _provinceName: provinceName,
+      };
     });
   }, [list, cityMap, provinceMap]);
 
