@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import axios from "@/lib/axios";
 import Link from "next/link";
-import { FaShoppingCart } from "react-icons/fa";
 import { BtnIcon } from ".";
 
 export default function CartButton() {
@@ -26,7 +25,7 @@ export default function CartButton() {
 
   return (
     <Link href="/cart" className="relative inline-flex items-center">
-      <BtnIcon iconName="CartShopping" variant="tertiary" size="sm" />
+      <BtnIcon iconName="BasketShopping" variant="tertiary" size="sm" />
 
       {totalQty > 0 && (
         <span className="
