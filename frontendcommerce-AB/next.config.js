@@ -1,22 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  turbopack: {
+    root: __dirname,
+  },
   images: {
-    // ini paling "gampang tembus" untuk localhost
     domains: ["localhost", "127.0.0.1"],
-
-    // tambahan pengaman pattern (tanpa port supaya gak strict)
     remotePatterns: [
-      {
-        protocol: "http",
-        hostname: "localhost",
-        pathname: "/uploads/**",
-      },
-      {
-        protocol: "http",
-        hostname: "127.0.0.1",
-        pathname: "/uploads/**",
-      },
+      { protocol: "http", hostname: "localhost", pathname: "/uploads/**" },
+      { protocol: "http", hostname: "127.0.0.1", pathname: "/uploads/**" },
       { protocol: "https", hostname: "ibyteimg.com", pathname: "/**" },
+      // kalau kamu pakai next/image untuk cloudinary, tambahin ini:
+      { protocol: "https", hostname: "res.cloudinary.com", pathname: "/**" },
     ],
   },
 
@@ -30,4 +24,4 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;

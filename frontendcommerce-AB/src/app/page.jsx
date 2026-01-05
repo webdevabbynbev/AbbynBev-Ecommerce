@@ -1,4 +1,5 @@
 "use client";
+console.log("ENV CLOUD:", process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME);
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -13,17 +14,44 @@ import {
 } from "@/components";
 import { DataCategoryCard, DataBrand } from "@/data";
 import { getProducts } from "@/services/api/product.services";
+import { getCategories } from "@/services/api/category.services";
 
 export default function Home() {
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(true);
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     (async () => {
       try {
+        const res = await getCategories();
+
+        const arr = Array.isArray(res?.serve)
+          ? res.serve
+          : Array.isArray(res?.serve?.data)
+          ? res.serve.data
+          : [];
+
+        const level1 = arr.filter(
+          (c) => c.level === 1 && (c.parentId == null || c.parent_id == null)
+        );
+
+        setCategories(level1);
+      } catch (err) {
+        console.error("getCategories error:", err);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
         const { data } = await getProducts({ page: 1, per_page: 50 });
-        setProducts(data); 
+        setProducts(data);
       } catch (err) {
         console.error("getProducts error:", err);
       } finally {
@@ -63,38 +91,37 @@ export default function Home() {
 
         {loading ? (
           <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {Array.from({ length: skeletonCount }).map((_, i) => (
-              <RegularCardSkeleton key={`pick-skel-${i}`} />
-            ))}
-          </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {Array.from({ length: skeletonCount }).map((_, i) => (
+                <RegularCardSkeleton key={`pick-skel-${i}`} />
+              ))}
+            </div>
 
-          <div className="hidden lg:grid grid-cols-5 gap-4gap-4">
-            {Array.from({ length: 10 }).map((_, i) => (
-              <RegularCardSkeleton key={`pick-skel-${i}`} />
-            ))}
-          </div>
+            <div className="hidden lg:grid grid-cols-5 gap-4">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <RegularCardSkeleton key={`pick-skel-${i}`} />
+              ))}
+            </div>
           </>
         ) : (
           <>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:hidden gap-4">
-            {items.slice(0, maxItems).map((p) => (
-              <RegularCard
-                key={p.id ?? p._id ?? p.slug ?? p.name}
-                product={p}
-              />
-            ))}
-          </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:hidden gap-4">
+              {items.slice(0, maxItems).map((p) => (
+                <RegularCard
+                  key={p.id ?? p._id ?? p.slug ?? p.name}
+                  product={p}
+                />
+              ))}
+            </div>
 
-          <div className="hidden lg:grid grid-cols-5 gap-4">
-            {items.slice(0, 10).map((p) => (
-              <RegularCard
-                key={p.id ?? p._id ?? p.slug ?? p.name}
-                product={p}
-              />
-            ))}
-          </div>
-          
+            <div className="hidden lg:grid grid-cols-5 gap-4">
+              {items.slice(0, 10).map((p) => (
+                <RegularCard
+                  key={p.id ?? p._id ?? p.slug ?? p.name}
+                  product={p}
+                />
+              ))}
+            </div>
           </>
         )}
       </div>
@@ -128,7 +155,7 @@ export default function Home() {
       lg:grid md:grid-cols-8 lg:grid-cols-8 lg:gap-6 lg:overflow-visible justify-between
     "
           >
-            {DataCategoryCard.map((item) => (
+            {categories.map((item) => (
               <div key={item.id} className="shrink-0 snap-start">
                 <CategoryCard {...item} />
               </div>
