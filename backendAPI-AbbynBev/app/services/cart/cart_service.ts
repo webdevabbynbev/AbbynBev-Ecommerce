@@ -40,13 +40,13 @@ export class CartService {
   async addToCart(userId: number, payload: any) {
     return db.transaction(async (trx) => {
       const productId = Number(payload.product_id)
-      const variantId = Number(payload.variant_id)
+      let variantId = Number(payload.variant_id)
       const qty = Number(payload.qty ?? 0)
       const isBuyNow = !!payload.is_buy_now
       const attributes = payload.attributes || []
 
-      if (!productId || !variantId || qty <= 0) {
-        const err: any = new Error('Invalid payload: product_id, variant_id, dan qty wajib diisi')
+      if (!productId || qty <= 0) {
+        const err: any = new Error('Invalid payload: product_id dan qty wajib diisi')
         err.httpStatus = 400
         throw err
       }
@@ -61,6 +61,13 @@ export class CartService {
         const err: any = new Error('Product not available online')
         err.httpStatus = 400
         throw err
+      }
+ if (!variantId) {
+        const fallbackVariant = await ProductVariant.query({ client: trx })
+          .where('product_id', productId)
+          .orderBy('id', 'asc')
+          .first()
+        variantId = Number(fallbackVariant?.id ?? 0)
       }
 
       const variant = await ProductVariant.query({ client: trx }).where('id', variantId).first()

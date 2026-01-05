@@ -13,6 +13,31 @@ export function normalizeProduct(raw) {
     item.brandname ??
     "";
   const brandSlug = item.brand?.slug ?? item.brand_slug ?? item.brandSlug ?? "";
+ const variants = Array.isArray(item.variants) ? item.variants : [];
+  const variantItems = variants
+    .map((variant) => {
+      if (!variant) return null;
+      const attrs = Array.isArray(variant.attributes) ? variant.attributes : [];
+      const attrLabel = attrs
+        .map(
+          (attr) =>
+            attr?.attribute_value ||
+            attr?.label ||
+            attr?.value ||
+            attr?.attribute?.name ||
+            ""
+        )
+        .filter(Boolean)
+        .join(" / ");
+      const fallbackLabel = variant?.name || variant?.sku || variant?.code || "";
+      return {
+        id: variant.id,
+        label: attrLabel || fallbackLabel || `Varian ${variant.id}`,
+        price: Number(variant.price || item.base_price || item.price || 0),
+        stock: Number(variant.stock ?? 0),
+      };
+    })
+    .filter(Boolean);
 
   return {
     ...item,
@@ -43,5 +68,6 @@ export function normalizeProduct(raw) {
       item.categoryname ??
       "",
     slug: item.slug || item.path || "",
+    variantItems,
   };
 }
