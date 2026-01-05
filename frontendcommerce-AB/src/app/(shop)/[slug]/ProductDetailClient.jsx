@@ -66,6 +66,7 @@ export default function ProductDetailClient({ product }) {
     finalPrice;
 
   const stock = selectedVariantObj?.stock ?? product?.stock ?? 0;
+  const subtotal = finalPrice * qty;
 
   const discount =
     product?.sale && realPrice
@@ -156,9 +157,9 @@ export default function ProductDetailClient({ product }) {
   };
 
   return (
-    <div className="container mx-auto w-full py-6 px-10 flex justify-between xl:max-w-[1280px] lg:max-w-[960px]">
-      <div className="wrapper space-y-10 items-center ">
-        <div className="left-wrapper-content w-full flex-row space-y-10">
+    <div className="container mx-auto py-6 px-10 flex w-full flex-col gap-8 px-4 py-6 lg:max-w-[960px] lg:px-8 xl:max-w-[1280px] xl:flex-row xl:justify-between">
+      <div className="wrapper w-full space-y-8">
+        <div className="left-wrapper-content w-full space-y-8">
           {/* Breadcrumb */}
           <Breadcrumb>
             <BreadcrumbList>
@@ -176,17 +177,17 @@ export default function ProductDetailClient({ product }) {
 
               <BreadcrumbSeparator />
 
-              <BreadcrumbItem>
-                <BreadcrumbPage className="truncate w-[300px]">{product?.name}</BreadcrumbPage>
+              <BreadcrumbItem className="min-w-0 flex-1">
+                <BreadcrumbPage className="truncate max-w-[700px]">{product?.name}</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
 
           {/* Left Content */}
-          <div className="left-content w-full flex">
+          <div className="left-content w-full flex flex-col lg:flex-row">
             {/* Product Image */}
             <div className="Image-container">
-              <div className="h-[220px] w-[220px] relative overflow-hidden rounded-lg">
+              <div className="h-auto w-full relative overflow-hidden rounded-lg">
                 {product?.sale && (
                   <img
                     src="/sale-tag.svg"
@@ -199,7 +200,7 @@ export default function ProductDetailClient({ product }) {
                   <img
                     src={product?.image}
                     alt={product?.name}
-                    className="w-full h-full object-cover border border-neutral-400"
+                    className="w-full h-auto object-cover border border-neutral-400 lg:w-full"
                   />
                 </div>
               </div>
@@ -213,14 +214,14 @@ export default function ProductDetailClient({ product }) {
                     key={i}
                     src={img}
                     alt={`${product?.name}-${i}`}
-                    className="h-[50px] w-[50px] border p-2 rounded-md"
+                    className="h-[80px] w-[80px] border p-2 rounded-md"
                   />
                 ))}
               </div>
             </div>
 
             {/* Right Content */}
-            <div className="Content-right w-full space-y-4 px-10">
+            <div className="Content-right w-full space-y-4 lg:px-10 ">
               <div className="title-product">
                 <h1 className="text-lg font-bold">{brandName}</h1>
                 <h2 className="text-xl font-normal">{product?.name}</h2>
@@ -317,7 +318,7 @@ export default function ProductDetailClient({ product }) {
 
                 {/* Review */}
                 <div className="container-review space-y-6">
-                  <div className="filter-review space-y-2">
+                  <div className="flex flex-col space-y-2">
                     <h3 className="text-primary-700 font-bold text-base">
                       Review
                     </h3>
@@ -328,12 +329,12 @@ export default function ProductDetailClient({ product }) {
                         iconLeftName="MagnifyingGlass"
                         variant="outline"
                         size="md"
-                        className="min-w-[280px]"
+                        className="w-full"
                       />
 
                       <Select>
                         <SelectTrigger className="w-[180px]">
-                          <SelectValue placeholder="Filter by rating" />
+                          <SelectValue placeholder="Filter rating" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectGroup>
@@ -415,7 +416,7 @@ export default function ProductDetailClient({ product }) {
       </div>
 
       {/* Sticky Sidebar */}
-      <div className="sticky top-[103px] p-6 space-y-4 outline-1 outline-neutral-100 rounded-3xl bottom-32 items-start w-full max-w-[300px] h-fit bg-white">
+      <div className="hidden sticky top-[103px] p-6 space-y-4 outline-1 outline-neutral-100 rounded-3xl bottom-32 items-start w-full max-w-[300px] h-fit bg-white lg:block">
         <div className="text-xl font-medium">Quantity</div>
 
         <div className="flex justify-between">
@@ -476,7 +477,7 @@ export default function ProductDetailClient({ product }) {
               <div className="finalPrice w-full flex space-x-2 items-center justify-between">
                 <span>Subtotal</span>
                 <span className="text-primary-700 text-base font-bold">
-                  {formatToRupiah(finalPrice)}
+                  {formatToRupiah(subtotal)}
                 </span>
               </div>
             </>
@@ -484,7 +485,7 @@ export default function ProductDetailClient({ product }) {
             <div className="finalPrice w-full flex space-x-2 items-center justify-between">
               <span>Subtotal</span>
               <span className="text-primary-700 text-base font-bold">
-                {formatToRupiah(realPrice)}
+                {formatToRupiah(subtotal)}
               </span>
             </div>
           )}
