@@ -10,6 +10,18 @@ export class ProductCmsMediaService {
     return fileNameWithQuery.split('?')[0]
   }
 
+  private normalizeMediaUrl(url: string) {
+    const trimmed = String(url || '')
+    if (!trimmed) return ''
+    if (trimmed.startsWith('http')) {
+      if (trimmed.includes('res.cloudinary.com')) {
+        return trimmed
+      }
+      return this.extractFileName(trimmed)
+    }
+    return trimmed
+  }
+
   public async upsert(product: Product, payload: CmsProductUpsertPayload, trx: TransactionClientContract) {
     if (!payload.medias?.length) return
 
@@ -17,7 +29,7 @@ export class ProductCmsMediaService {
       await ProductMedia.create(
         {
           productId: product.id,
-          url: this.extractFileName(media.url),
+          url: this.normalizeMediaUrl(media.url),
           type: Number(media.type), // model expects number
           altText: product.name,
         },

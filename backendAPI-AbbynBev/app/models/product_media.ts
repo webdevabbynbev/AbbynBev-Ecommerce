@@ -5,6 +5,7 @@ import Product from './product.js'
 import drive from '@adonisjs/drive/services/main'
 import env from '#start/env'
 import { CustomBaseModel } from '#services/custom_base_model'
+import { cloudinaryImageUrl } from '../utils/cloudinary_url.js'
 
 export default class ProductMedia extends CustomBaseModel {
   @column({ isPrimary: true })
@@ -54,7 +55,19 @@ export default class ProductMedia extends CustomBaseModel {
 
   public async getImageUrl() {
     if (this.url && !this.url.startsWith('http')) {
-      this.url = await drive.use(env.get('DRIVE_DISK')).getSignedUrl(this.url)
+       try {
+        this.url = await drive.use(env.get('DRIVE_DISK')).getSignedUrl(this.url)
+      } catch (error) {
+        if (
+          process.env.CLOUDINARY_CLOUD_NAME &&
+          process.env.CLOUDINARY_API_KEY &&
+          process.env.CLOUDINARY_API_SECRET
+        ) {
+          this.url = cloudinaryImageUrl(this.url)
+        } else {
+          throw error
+        }
+      }
     }
   }
 
