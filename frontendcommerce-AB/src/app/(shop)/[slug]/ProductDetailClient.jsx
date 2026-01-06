@@ -72,7 +72,7 @@ export default function ProductDetailClient({ product }) {
     finalPrice;
 
   const stock = selectedVariantObj?.stock ?? product?.stock ?? 0;
-const subtotal = finalPrice * qty;
+  const subtotal = finalPrice * qty;
 
   const discount =
     product?.sale && realPrice
@@ -211,21 +211,24 @@ const subtotal = finalPrice * qty;
                     src={product?.image}
                     alt={product?.name}
                     className="w-full h-full object-cover border border-neutral-400"
+                    crossOrigin="anonymous"
                   />
                 </div>
               </div>
 
               <div className="flex max-w-[300px] py-2 items-center space-x-4 max-h-64 overflow-x-auto custom-scrollbar">
-                {(product?.images?.length ? product.images : [product?.image]).map(
-                  (img, i) => (
-                    <img
-                      key={i}
-                      src={img}
-                      alt={`${product?.name}-${i}`}
-                      className="h-[50px] w-[50px] border p-2 rounded-md"
-                    />
-                  )
-                )}
+                {(product?.images?.length
+                  ? product.images
+                  : [product?.image]
+                ).map((img, i) => (
+                  <img
+                    key={i}
+                    src={img}
+                    alt={`${product?.name}-${i}`}
+                    className="h-[50px] w-[50px] border p-2 rounded-md"
+                    crossOrigin="anonymous"
+                  />
+                ))}
               </div>
             </div>
 
@@ -273,7 +276,9 @@ const subtotal = finalPrice * qty;
                   {Number(averageRating || 0).toFixed(1)}
                   <FaStar className="text-warning-300 ml-1" />
                 </span>
-                <span className="text-neutral-400">({reviews.length} reviews)</span>
+                <span className="text-neutral-400">
+                  ({reviews.length} reviews)
+                </span>
               </div>
 
               {/* Variants */}
@@ -298,13 +303,17 @@ const subtotal = finalPrice * qty;
               <div className="product-detail space-y-4">
                 {/* Summary */}
                 <div className="summary space-y-2">
-                  <h3 className="text-primary-700 font-bold text-base">Summary</h3>
+                  <h3 className="text-primary-700 font-bold text-base">
+                    Summary
+                  </h3>
                   <p className="text-sm">{product?.description}</p>
                 </div>
 
                 {/* Shipment */}
                 <div className="shipment space-y-2">
-                  <h3 className="text-primary-700 font-bold text-base">Shipment</h3>
+                  <h3 className="text-primary-700 font-bold text-base">
+                    Shipment
+                  </h3>
                   <p className="text-sm">
                     Regular shipment start from
                     <span className="font-bold"> Rp.10.000</span>
@@ -322,7 +331,9 @@ const subtotal = finalPrice * qty;
                 {/* Review */}
                 <div className="container-review space-y-6">
                   <div className="filter-review space-y-2">
-                    <h3 className="text-primary-700 font-bold text-base">Review</h3>
+                    <h3 className="text-primary-700 font-bold text-base">
+                      Review
+                    </h3>
                     <span>Filter</span>
                     <div className="flex space-x-4">
                       <TxtField
@@ -358,7 +369,10 @@ const subtotal = finalPrice * qty;
                   {reviews.length > 0 ? (
                     reviews.map((r) => {
                       const created =
-                        r.createdAt || r.created_at || r.create_at || r.updatedAt;
+                        r.createdAt ||
+                        r.created_at ||
+                        r.create_at ||
+                        r.updatedAt;
 
                       const who = r.user?.firstName
                         ? `${r.user.firstName} ${r.user.lastName ?? ""}`.trim()
@@ -452,7 +466,8 @@ const subtotal = finalPrice * qty;
         <div className="flex w-full items-center space-x-3">
           <QuantityInput min={1} max={stock} value={qty} onChange={setQty} />
           <div className="text-sm font-normal text-neutral-600">
-            Stock : <span className="font-medium text-neutral-950">{stock}</span>
+            Stock :{" "}
+            <span className="font-medium text-neutral-950">{stock}</span>
           </div>
         </div>
 
@@ -505,7 +520,12 @@ const subtotal = finalPrice * qty;
         <hr className="w-full border-t border-neutral-200 my-4" />
 
         <div className="flex justify-between space-x-2">
-          <Button iconName="Share" variant="tertiary" size="sm" className="w-full">
+          <Button
+            iconName="Share"
+            variant="tertiary"
+            size="sm"
+            className="w-full"
+          >
             Share product
           </Button>
           <BtnIconToggle iconName="Heart" variant="tertiary" size="sm" />

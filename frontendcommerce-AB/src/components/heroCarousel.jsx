@@ -73,6 +73,7 @@ export function HeroCarousel() {
                   src={src}
                   alt={b.title || "Banner"}
                   className="w-full h-full object-cover"
+                  crossOrigin="anonymous"
                   onError={(e) => (e.currentTarget.src = "/placeholder.png")}
                 />
               </CarouselItem>
