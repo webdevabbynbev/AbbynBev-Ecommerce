@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Fragment } from "react";
 import { NewArrivaleCard } from "@/components";
 
 const NEW_PRODUCTS = [
@@ -136,11 +136,59 @@ const NEW_PRODUCTS = [
     reviewCount: 29,
     category: "Makeup",
   },
+  {
+    id: 13,
+    slug: "banila-co-clean-it-zero",
+    brand: "BANILA CO",
+    name: "Clean It Zero Purifying Balm",
+    image: "/images/sample-product.jpg",
+    price: 259000,
+    rating: 4.6,
+    reviewCount: 70,
+    category: "Cleanser",
+  },
+  {
+    id: 14,
+    slug: "innisfree-black-tea-ampoule",
+    brand: "INNISFREE",
+    name: "Black Tea Youth Enhancing Ampoule",
+    image: "/images/sample-product.jpg",
+    price: 345000,
+    rating: 4.8,
+    reviewCount: 37,
+    category: "Serum",
+  },
+  {
+    id: 15,
+    slug: "biore-aqua-rich-new",
+    brand: "BIORE",
+    name: "UV Aqua Rich Light Up Essence SPF50+",
+    image: "/images/sample-product.jpg",
+    price: 139000,
+    rating: 4.4,
+    reviewCount: 44,
+    category: "Sunscreen",
+  },
+  {
+    id: 16,
+    slug: "biore-aqua-rich-new",
+    brand: "BIORE",
+    name: "UV Aqua Rich Light Up Essence SPF50+",
+    image: "/images/sample-product.jpg",
+    price: 139000,
+    rating: 4.4,
+    reviewCount: 44,
+    category: "Sunscreen",
+  },
 ];
 
 export default function NewArrivalPage() {
-  const heroProduct = NEW_PRODUCTS[0];
-  const otherProducts = NEW_PRODUCTS.slice(1);
+  const sections = [];
+
+  // 1 hero + 4 small (AMAN untuk grid 5 kolom)
+  for (let i = 0; i < NEW_PRODUCTS.length; i += 5) {
+    sections.push(NEW_PRODUCTS.slice(i, i + 5));
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -154,42 +202,42 @@ export default function NewArrivalPage() {
         </p>
       </div>
 
-      {/* BENTO GRID */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 auto-rows-fr">
-        {/* HERO */}
-        <Link
-          href={`/${heroProduct.slug}`}
-          className="
-            col-span-2
-            row-span-2
-            rounded-2xl
-            border
-            border-neutral-200
-            hover:shadow-md
-            transition-shadow
-            overflow-hidden
-          "
-        >
-          <NewArrivaleCard product={heroProduct} />
-        </Link>
+      {/* Bento Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5 auto-rows-fr grid-flow-dense">
+        {sections.map((group, index) => {
+          const isFullSection = group.length === 5;
+          const hero = isFullSection ? group[0] : null;
+          const rest = isFullSection ? group.slice(1) : group;
+          const isHeroLeft = index % 2 === 0;
 
-        {/* REST */}
-        {otherProducts.map((product) => (
-          <Link
-            key={product.id}
-            href={`/${product.slug}`}
-            className="
-              rounded-xl
-              border
-              border-neutral-200
-              hover:shadow-sm
-              transition-shadow
-              overflow-hidden
-            "
-          >
-            <NewArrivaleCard product={product} />
-          </Link>
-        ))}
+          return (
+            <Fragment key={index}>
+              {/* HERO KIRI (HANYA JIKA SECTION FULL) */}
+              {isHeroLeft && hero && (
+                <div className="col-span-2 row-span-2">
+                  <NewArrivaleCard product={hero} />
+                </div>
+              )}
+
+              {/* SMALL CARDS */}
+              {rest.map((product) => (
+                <div
+                  key={product.id}
+                  className="rounded-xl border border-neutral-200 hover:shadow-sm transition-shadow overflow-hidden"
+                >
+                  <NewArrivaleCard product={product} />
+                </div>
+              ))}
+
+              {/* HERO KANAN (HANYA JIKA SECTION FULL) */}
+              {!isHeroLeft && hero && (
+                <div className="col-span-2 row-span-2">
+                  <NewArrivaleCard product={hero} />
+                </div>
+              )}
+            </Fragment>
+          );
+        })}
       </div>
     </div>
   );
