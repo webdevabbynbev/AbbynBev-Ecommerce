@@ -32,7 +32,7 @@ export function FlashSaleCard({ product, item }) {
               className="w-full h-auto object-cover"
               onError={(e) => {
                 e.currentTarget.src =
-                  "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png";
+                  "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
               }}
             />
           </div>

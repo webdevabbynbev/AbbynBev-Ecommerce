@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
-
 const NEW_PRODUCTS = [
   {
     id: 1,
@@ -140,31 +139,6 @@ const NEW_PRODUCTS = [
   },
 ];
 
-const CATEGORY_FILTERS = [
-  "All",
-  "Makeup",
-  "Serum",
-  "Toner",
-  "Cleanser",
-  "Sunscreen",
-  "Mask",
-];
-
-const RATING_OPTIONS = [
-  { value: 4.5, label: "4.5 & above" },
-  { value: 4, label: "4 & above" },
-  { value: 3.5, label: "3.5 & above" },
-  { value: 0, label: "All rating" },
-];
-
-function StarRow({ count = 5 }) {
-  return (
-    <span className="text-xs text-yellow-400">
-      {"★".repeat(count)}
-    </span>
-  );
-}
-
 function HeartButton() {
   const [active, setActive] = useState(true);
   return (
@@ -200,8 +174,7 @@ export default function NewArrivalPage() {
 
     if (activeCategory !== "All") {
       products = products.filter(
-        (p) =>
-          p.category.toLowerCase() === activeCategory.toLowerCase()
+        (p) => p.category.toLowerCase() === activeCategory.toLowerCase()
       );
     }
 
@@ -213,8 +186,7 @@ export default function NewArrivalPage() {
       const q = search.toLowerCase();
       products = products.filter(
         (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.brand.toLowerCase().includes(q)
+          p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q)
       );
     }
 
@@ -225,132 +197,15 @@ export default function NewArrivalPage() {
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Title */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-1">
-          New arrivals
-        </h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-1">New arrivals</h1>
         <p className="text-sm text-gray-500">
           Produk-produk terbaru yang baru saja hadir di Abby N Bev.
         </p>
       </div>
 
       <div className="flex gap-8">
-        {/* LEFT COLUMN: Banner + Filter */}
-        <aside className="w-64 flex-shrink-0 hidden md:block">
-          {/* Promo banner kiri (seperti gambar) */}
-          <div className="mb-4 rounded-2xl overflow-hidden border border-gray-200 bg-gradient-to-br from-red-600 via-red-500 to-amber-400">
-            <div className="relative h-32 flex">
-              <div className="flex-1 p-4 flex flex-col justify-between text-white">
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.2em] font-semibold">
-                    NEW
-                  </p>
-                  <p className="text-lg font-extrabold leading-tight mt-1">
-                    Luxe Lip Tint
-                  </p>
-                </div>
-                <p className="text-[10px] text-red-100">
-                  Discover the newest long‑lasting lip tint with satin finish.
-                </p>
-              </div>
-              <div className="relative w-24 h-full">
-                <Image
-                  src="/images/sample-product.jpg"
-                  alt="New arrival banner"
-                  fill
-                  className="object-cover"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Filter box */}
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-gray-900">Filter</h2>
-              <span className="text-[11px] text-gray-400 font-medium">
-                Newest
-              </span>
-            </div>
-
-            {/* Category */}
-            <div className="mb-4">
-              <p className="text-xs font-semibold text-gray-500 mb-2">
-                Category
-              </p>
-              <div className="space-y-1">
-                {CATEGORY_FILTERS.map((cat) => (
-                  <label
-                    key={cat}
-                    className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer"
-                  >
-                    <input
-                      type="radio"
-                      name="category"
-                      value={cat}
-                      checked={activeCategory === cat}
-                      onChange={() => setActiveCategory(cat)}
-                      className="h-3 w-3 border-gray-300 text-pink-600 focus:ring-pink-400"
-                    />
-                    <span>{cat}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Rating */}
-            <div className="mb-4">
-              <p className="text-xs font-semibold text-gray-500 mb-2">
-                Rating
-              </p>
-              <div className="space-y-1">
-                {RATING_OPTIONS.map((opt, index) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setMinRating(opt.value)}
-                    className={`w-full flex items-center justify-between rounded-md px-2 py-1 text-[11px] ${
-                      minRating === opt.value
-                        ? "bg-pink-50 text-pink-600"
-                        : "hover:bg-gray-50 text-gray-700"
-                    }`}
-                  >
-                    <div className="flex items-center gap-1">
-                      {index < RATING_OPTIONS.length - 1 && (
-                        <StarRow count={5} />
-                      )}
-                      <span>{opt.label}</span>
-                    </div>
-                    {minRating === opt.value && (
-                      <span className="text-[10px]">✓</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <button className="mt-4 w-full rounded-full bg-pink-600 text-white text-xs font-medium py-2 hover:bg-pink-700 transition-colors">
-              Apply filter
-            </button>
-          </div>
-        </aside>
-
-        {/* RIGHT COLUMN: Search + Grid products */}
+        {/* Grid products */}
         <section className="flex-1">
-          {/* Search bar */}
-          <div className="mb-4">
-            <div className="relative w-full">
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search new arrival product here..."
-                className="w-full rounded-full border border-gray-200 bg-white px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-1 focus:ring-pink-400"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
-                 
-              </span>
-            </div>
-          </div>
-
           {/* Info jumlah produk */}
           <p className="text-xs text-gray-500 mb-3">
             Showing {filteredProducts.length} new products
@@ -375,7 +230,7 @@ export default function NewArrivalPage() {
                   >
                     {/* Image */}
                     <div className="relative mb-3">
-                      <div className="relative w-full aspect-[3/4] rounded-lg overflow-hidden bg-gray-50">
+                      <div className="relative w-full aspect-3/4 rounded-lg overflow-hidden bg-gray-50">
                         <Image
                           src={product.image}
                           alt={product.name}

@@ -47,7 +47,7 @@ export function RegularCard({ product }) {
     const image =
       raw.image ??
       (Array.isArray(raw.images) ? raw.images[0] : null) ??
-      "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png";
+      "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
 
     const slugSource = raw.slug || raw.path || "";
     const safeSlug = slugSource
@@ -151,7 +151,7 @@ export function RegularCard({ product }) {
               className="w-full h-auto object-cover"
               onError={(e) => {
                 e.currentTarget.src =
-                  "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png";
+                  "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
               }}
             />
           </div>
