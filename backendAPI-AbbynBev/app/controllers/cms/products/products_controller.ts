@@ -1,9 +1,15 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import emitter from '@adonisjs/core/services/emitter'
+
 import { createProduct, updateProduct } from '#validators/product'
 import { ProductService } from '#services/product/product_service'
 import { ProductCmsService } from '#services/product/product_cms_service'
 import type { CmsProductUpsertPayload } from '#services/product/product_cms_service'
+
+import ProductMedia from '#models/product_media'
+
+// NOTE: kamu bilang mau tetap pakai utils
+import FileUploadService from '../../../utils/upload_file_service.js'
 
 export default class ProductsController {
   private productService = new ProductService()
@@ -24,10 +30,9 @@ export default class ProductsController {
         )
         .if(status, (q) => q.where('products.status', status))
         .preload('variants', (variantLoader) => {
-          variantLoader.preload('attributes', (attributeLoader) => {
-            attributeLoader
-              .whereNull('attribute_values.deleted_at')
-              .preload('attribute', (q) => q.whereNull('attributes.deleted_at'))
+          variantLoader.preload('medias', (mq) => {
+            mq.apply((scopes) => scopes.active())
+            mq.orderBy('slot', 'asc')
           })
         })
         .preload('discounts')
@@ -48,7 +53,10 @@ export default class ProductsController {
         serve: { data, ...meta },
       })
     } catch (error: any) {
-      return response.status(500).send({ message: error.message || 'Internal Server Error.', serve: [] })
+      return response.status(500).send({
+        message: error.message || 'Internal Server Error.',
+        serve: [],
+      })
     }
   }
 
@@ -61,10 +69,9 @@ export default class ProductsController {
         .apply((scopes) => scopes.active())
         .where('id', productId)
         .preload('variants', (variantLoader) => {
-          variantLoader.preload('attributes', (attributeLoader) => {
-            attributeLoader
-              .whereNull('attribute_values.deleted_at')
-              .preload('attribute', (q) => q.whereNull('attributes.deleted_at'))
+          variantLoader.preload('medias', (mq) => {
+            mq.apply((scopes) => scopes.active())
+            mq.orderBy('slot', 'asc')
           })
         })
         .preload('discounts')
@@ -77,11 +84,16 @@ export default class ProductsController {
         .preload('profileOptions')
         .first()
 
-      if (!dataProduct) return response.status(404).send({ message: 'Product not found', serve: null })
+      if (!dataProduct) {
+        return response.status(404).send({ message: 'Product not found', serve: null })
+      }
 
       return response.status(200).send({ message: 'success', serve: dataProduct })
     } catch (error: any) {
-      return response.status(500).send({ message: error.message || 'Internal Server Error.', serve: [] })
+      return response.status(500).send({
+        message: error.message || 'Internal Server Error.',
+        serve: [],
+      })
     }
   }
 
@@ -95,14 +107,17 @@ export default class ProductsController {
       await (emitter as any).emit('set:activity-log', {
         roleName: auth.user?.role_name,
         userName: auth.user?.name,
-        activity: `Create Product`,
+        activity: 'Create Product',
         menu: 'Product',
         data: created.toJSON(),
       })
 
       return response.status(200).send({ message: 'Successfully created.', serve: created })
     } catch (error: any) {
-      return response.status(500).send({ message: error.message || 'Internal Server Error.', serve: [] })
+      return response.status(500).send({
+        message: error.message || 'Internal Server Error.',
+        serve: [],
+      })
     }
   }
 
@@ -122,14 +137,17 @@ export default class ProductsController {
       await (emitter as any).emit('set:activity-log', {
         roleName: auth.user?.role_name,
         userName: auth.user?.name,
-        activity: `Update Product`,
+        activity: 'Update Product',
         menu: 'Product',
         data: { old: oldData, new: updated.toJSON() },
       })
 
       return response.status(200).send({ message: 'Successfully updated.', serve: updated })
     } catch (error: any) {
-      return response.status(500).send({ message: error.message || 'Internal Server Error.', serve: [] })
+      return response.status(500).send({
+        message: error.message || 'Internal Server Error.',
+        serve: [],
+      })
     }
   }
 
@@ -141,14 +159,117 @@ export default class ProductsController {
       await (emitter as any).emit('set:activity-log', {
         roleName: auth.user?.role_name,
         userName: auth.user?.name,
-        activity: `Delete Product`,
+        activity: 'Delete Product',
         menu: 'Product',
         data: product.toJSON(),
       })
 
       return response.status(200).send({ message: 'Successfully deleted.', serve: [] })
     } catch (error: any) {
-      return response.status(500).send({ message: error.message || 'Internal Server Error.', serve: [] })
+      return response.status(500).send({
+        message: error.message || 'Internal Server Error.',
+        serve: [],
+      })
+    }
+  }
+
+  public async uploadMedia({ request, params, response }: HttpContext) {
+    try {
+      const productId = Number(params.id)
+      if (!productId) return response.badRequest({ message: 'Invalid product id', serve: null })
+
+      const slot = String(request.input('slot') || '').trim()
+      if (!slot) return response.badRequest({ message: 'slot wajib diisi', serve: null })
+
+      const type = Number(request.input('type') || 1)
+      const variantId = request.input('variant_id') ? Number(request.input('variant_id')) : null
+      const altText = String(request.input('alt_text') || '')
+
+      const file = (request as any).file('file', {
+        size: '10mb',
+        extnames: ['jpg', 'jpeg', 'png', 'webp'],
+      })
+
+      if (!file) return response.badRequest({ message: 'file wajib', serve: null })
+      if (file.isValid === false) {
+        return response.badRequest({ message: 'file tidak valid', serve: file.errors })
+      }
+
+      const folder = `products/${productId}`
+      const url = await (FileUploadService as any).uploadFile(file, { folder }, { publicId: slot })
+
+      const media = await ProductMedia.create({
+        variantId,
+        url,
+        altText,
+        type,
+        slot,
+      })
+
+      return response.status(200).send({ message: 'success', serve: media })
+    } catch (error: any) {
+      return response.status(500).send({
+        message: error.message || 'Internal Server Error.',
+        serve: null,
+      })
+    }
+  }
+
+  public async uploadMediaBulk({ request, params, response }: HttpContext) {
+    try {
+      const productId = Number(params.id)
+      if (!productId) return response.badRequest({ message: 'Invalid product id', serve: null })
+
+      const type = Number(request.input('type') || 1)
+      const variantId = request.input('variant_id') ? Number(request.input('variant_id')) : null
+      if (!variantId) return response.badRequest({ message: 'variant_id wajib diisi', serve: null })
+
+      const files = (request as any).files('files', {
+        size: '10mb',
+        extnames: ['jpg', 'jpeg', 'png', 'webp'],
+      }) as any[]
+
+      if (!files || files.length === 0) {
+        return response.badRequest({ message: 'files wajib diisi', serve: null })
+      }
+
+      for (const f of files) {
+        if (f?.isValid === false) {
+          return response.badRequest({ message: 'Ada file yang tidak valid', serve: f.errors })
+        }
+      }
+
+      // slot otomatis 1..N (tanpa startSlot)
+      const folder = `products/${productId}/variant-${variantId}`
+      const created: ProductMedia[] = []
+
+      for (let i = 0; i < files.length; i++) {
+        const slot = String(i + 1)
+
+        const url = await (FileUploadService as any).uploadFile(
+          files[i],
+          { folder },
+          { publicId: slot }
+        )
+
+        // ✅ penting: hanya isi variantId, JANGAN isi productId
+        const media = await ProductMedia.create({
+          variantId,
+          url,
+          altText: '',
+          type,
+          slot,
+        })
+
+        created.push(media)
+      }
+
+      return response.status(200).send({ message: 'success', serve: created })
+    } catch (error: any) {
+      return response.status(500).send({
+        message: error.message || 'Internal Server Error.',
+        serve: null,
+      })
     }
   }
 }
