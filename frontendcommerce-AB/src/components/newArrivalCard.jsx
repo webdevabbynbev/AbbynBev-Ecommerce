@@ -125,7 +125,7 @@ export function NewArrivaleCard({ product }) {
             <img
               src="/sale-tag.svg"
               alt="Sale"
-              className="absolute top-0 left-0 z-10 w-[40px] h-auto"
+              className="absolute top-0 left-0 z-10 w-10 h-auto"
             />
           )}
 
@@ -165,7 +165,7 @@ export function NewArrivaleCard({ product }) {
           </div>
           
 
-          {/* <div className="price flex items-center space-x-2">
+          <div className="price flex items-center space-x-2">
             {hasSale ? (
               <>
                 <div className="text-sm font-bold text-primary-700">
@@ -180,9 +180,9 @@ export function NewArrivaleCard({ product }) {
                 {formatToRupiah(item.price)}
               </div>
             )}
-          </div> */}
+          </div>
 
-          {/* <div className="rating flex space-x-2 items-center">
+          <div className="rating flex space-x-2 items-center">
             <div className="flex space-x-1 items-center">
               {averageRating === 0 ? (
                 <span className="text-xs text-primary-700 font-light">
@@ -191,7 +191,7 @@ export function NewArrivaleCard({ product }) {
               ) : (
                 <div className="flex items-center space-x-1 font-bold text-primary-700 text-xs">
                   <span>{averageRating}</span>
-                  <FaStar className="h-[12px] w-[12px] text-warning-300" />
+                  <FaStar className="h-3 w-3 text-warning-300" />
                 </div>
               )}
             </div>
@@ -199,7 +199,7 @@ export function NewArrivaleCard({ product }) {
             <div className="text-xs font-light text-neutral-300">
               ({reviewsForProduct.length} reviews)
             </div>
-          </div> */}
+          </div>
 
           <div className="text-xs category-brand flex flex-row relative items-center space-x-1.5 overflow-hidden h-6">
             <p className="text-neutral-400 transition-transform duration-300 group-hover:-translate-y-6">

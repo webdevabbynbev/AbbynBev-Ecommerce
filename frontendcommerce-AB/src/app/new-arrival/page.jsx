@@ -154,6 +154,42 @@ export default function NewArrivalPage() {
         </p>
       </div>
 
+      {/* ZIG-ZAG BENTO GRID */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 auto-rows-fr">
+        {NEW_PRODUCTS.map((product, index) => {
+          const isHeroLeft = index === 0;
+          const isHeroRight = index === 6;
+
+          let spanClass = "";
+
+          if (isHeroLeft) {
+            spanClass = "lg:col-span-2 lg:row-span-2";
+          }
+
+          if (isHeroRight) {
+            spanClass = "lg:col-span-2 lg:row-span-2 lg:col-start-3";
+          }
+
+          return (
+            <Link
+              key={product.id}
+              href={`/${product.slug}`}
+              className={`
+                ${spanClass}
+                rounded-xl
+                border
+                border-neutral-200
+                overflow-hidden
+                hover:shadow-md
+                transition-shadow
+              `}
+            >
+              <RegularCard product={product} />
+            </Link>
+          );
+        })}
+      </div>
+
       {/* BENTO GRID */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 auto-rows-fr">
         {/* HERO */}
