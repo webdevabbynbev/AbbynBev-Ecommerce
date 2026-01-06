@@ -55,9 +55,11 @@ type ProductRecord = {
   isFlashsale?: boolean; 
 };
 
+type StatusFilter = "normal" | "war" | "draft";
+
 type QueryParams = {
   name: string;
-  isFlashsale: number; 
+  statusFilter?: StatusFilter;
 };
 
 type ListResponse = {
@@ -218,7 +220,7 @@ const buildColumns = (props: { fetch: () => void; navigate: ReturnType<typeof us
         <Button
           type="primary"
           icon={<EditOutlined />}
-          onClick={() => props.navigate("/product-form")}
+          onClick={() => props.navigate(`/product-form?id=${record.id}`)}
         >
           Edit
         </Button>
@@ -254,7 +256,7 @@ const buildColumns = (props: { fetch: () => void; navigate: ReturnType<typeof us
 const TableProduct: React.FC = () => {
   const navigate = useNavigate();
   const [data, setData] = React.useState<ProductRecord[]>([]);
-  const [params, setParams] = React.useState<QueryParams>({ name: "", isFlashsale: 0 });
+  const [params, setParams] = React.useState<QueryParams>({ name: "" });
   const [pagination, setPagination] = React.useState<TablePaginationConfig>({
     current: 1,
     pageSize: 10,
@@ -269,11 +271,21 @@ const TableProduct: React.FC = () => {
   const fetch = async (q: QueryParams = params, page?: TablePaginationConfig) => {
     setLoading(true);
     try {
-      const resp = (await http.get(
-        `/admin/product?name=${encodeURIComponent(q.name)}&isFlashsale=${
-          q.isFlashsale
-        }&page=${page?.current ?? pagination.current}&per_page=${page?.pageSize ?? pagination.pageSize}`
-      )) as ListResponse;
+      const query = new URLSearchParams();
+      query.set("name", q.name);
+      query.set("page", String(page?.current ?? pagination.current));
+      query.set("per_page", String(page?.pageSize ?? pagination.pageSize));
+
+      if (q.statusFilter === "draft") {
+        query.set("status", "draft");
+      } else if (q.statusFilter === "normal") {
+        query.set("status", "normal");
+        query.set("isFlashsale", "0");
+      } else if (q.statusFilter === "war") {
+        query.set("isFlashsale", "1");
+      }
+
+      const resp = (await http.get(`/admin/product?${query.toString()}`)) as ListResponse;
 
       const serve = resp?.data?.serve;
       if (serve) {
@@ -312,15 +324,15 @@ const TableProduct: React.FC = () => {
       <Card style={{ marginTop: 10 }}>
         <Row gutter={[12, 12]} style={{ width: "100%" }} justify="center" align="middle">
           <Col xs={24} md={11}>
-            <Select<number>
+            <Select<StatusFilter>
               placeholder="Search by status"
               style={{ width: "100%" }}
-              value={params.isFlashsale || undefined}
-              onChange={(val) => setParams((p) => ({ ...p, isFlashsale: val }))}
+              value={params.statusFilter}
+              onChange={(val) => setParams((p) => ({ ...p, statusFilter: val ?? undefined }))}
               options={[
-                { value: 1, label: "Normal Product" },
-                { value: 2, label: "War Product" },
-                { value: 3, label: "Draft" },
+                { value: "normal", label: "Normal Product" },
+                { value: "war", label: "War Product" },
+                { value: "draft", label: "Draft" },
               ]}
               allowClear
             />

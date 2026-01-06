@@ -10,7 +10,7 @@ export type BrandPayload = {
   bannerUrl?: string | null;
   country?: string | null;
   website?: string | null;
-  isActive?: number; 
+  isActive?: number;
 };
 
 export type BrandRecord = BrandPayload & {
@@ -19,9 +19,9 @@ export type BrandRecord = BrandPayload & {
 };
 
 type FormBrandProps = {
-  data?: BrandRecord;            
-  handleClose: () => void;       
-  fetch?: () => void;           
+  data?: BrandRecord;
+  handleClose: () => void;
+  fetch?: () => void;
 };
 
 const FormBrand: React.FC<FormBrandProps> = ({ data, handleClose, fetch }) => {
@@ -111,7 +111,7 @@ const FormBrand: React.FC<FormBrandProps> = ({ data, handleClose, fetch }) => {
         <Input placeholder="https://…" />
       </Form.Item>
 
-      <Form.Item label="Country" name="country">
+      {/* <Form.Item label="Country" name="country">
         <Select
           showSearch
           allowClear
@@ -119,15 +119,15 @@ const FormBrand: React.FC<FormBrandProps> = ({ data, handleClose, fetch }) => {
           optionFilterProp="label"
           options={COUNTRY_OPTIONS}
         />
-      </Form.Item>
-
+      </Form.Item> */}
+      {/* 
       <Form.Item
         label="Website"
         name="website"
         rules={[{ type: "url", message: "Please input a valid URL." }]}
       >
         <Input placeholder="https://example.com" />
-      </Form.Item>
+      </Form.Item> */}
 
       <Form.Item label="Active" name="isActive" valuePropName="checked">
         {}

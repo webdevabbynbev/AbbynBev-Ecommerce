@@ -37,6 +37,8 @@ export default function MasterPage(): React.ReactElement {
         <Route path="/tag-product" element={<TableTag />} />
         <Route path="/persona-product" element={<TablePersona />} />
         <Route path="/banners" element={<TableBanner />} />
+        <Route path="/master-product" element={<TableProduct />} />
+         <Route path="/inventory-product" element={<TableProduct />} />
         <Route path="/activity-logs" element={<TableActivityLog />} />
         <Route path="/faqs" element={<TableFaq />} />
         <Route path="/voucher" element={<TableVoucher />} />

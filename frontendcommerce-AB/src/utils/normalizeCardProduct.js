@@ -1,7 +1,6 @@
 import { slugify } from "./slugify";
 
-const PLACEHOLDER_IMAGE =
-  "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png";
+const PLACEHOLDER_IMAGE = "/placeholder.png";
 
 export function normalizeCardProduct(raw) {
   if (!raw) return null;
