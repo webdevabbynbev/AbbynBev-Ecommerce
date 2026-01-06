@@ -163,7 +163,6 @@ export function NewArrivaleCard({ product }) {
               {item.name}
             </div>
           </div>
-          
 
           <div className="price flex items-center space-x-2">
             {hasSale ? (
