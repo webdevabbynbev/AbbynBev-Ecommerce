@@ -188,14 +188,14 @@ export default function ProductDetailClient({ product }) {
     }
   };
 
-  // ✅ debug opsional (boleh hapus)
-  useEffect(() => {
-    console.log("[ProductDetail] product:", product);
-    console.log("[ProductDetail] variantItems:", product?.variantItems);
-    console.log("[ProductDetail] selectedVariant:", selectedVariant);
-    console.log("[ProductDetail] selectedVariantObj:", selectedVariantObj);
-    console.log("[ProductDetail] variantImages:", variantImages);
-  }, [product, selectedVariant, selectedVariantObj, variantImages]);
+  // debug
+  // useEffect(() => {
+  //   console.log("[ProductDetail] product:", product);
+  //   console.log("[ProductDetail] variantItems:", product?.variantItems);
+  //   console.log("[ProductDetail] selectedVariant:", selectedVariant);
+  //   console.log("[ProductDetail] selectedVariantObj:", selectedVariantObj);
+  //   console.log("[ProductDetail] variantImages:", variantImages);
+  // }, [product, selectedVariant, selectedVariantObj, variantImages]);
 
   return (
     <div className="container mx-auto py-6 px-10 flex w-full flex-col gap-8 px-4 py-6 lg:max-w-[960px] lg:px-8 xl:max-w-[1280px] xl:flex-row xl:justify-between">
@@ -312,8 +312,10 @@ export default function ProductDetailClient({ product }) {
 
               {/* Variants */}
               {variants.length ? (
-                <div className="chip-container flex w-full space-x-3 items-center">
-                  <p>{product?.variant_value || "Variant"}:</p>
+                <>
+                <p>{product?.variant_value || "Variant"}:</p>
+                <div className="chip-container grid grid-cols-4 gap-4 w-full items-center">
+                 
                   {variants.map((v) => (
                     <Chip
                       key={v.id}
@@ -324,6 +326,7 @@ export default function ProductDetailClient({ product }) {
                     </Chip>
                   ))}
                 </div>
+                </>
               ) : null}
 
               <hr className="w-full border-t border-neutral-200 my-4" />

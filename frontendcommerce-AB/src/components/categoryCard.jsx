@@ -6,8 +6,8 @@ const PLACEHOLDER_PUBLIC_ID = "/v1767525417/placeholder-category.png";
 function normalizePublicId(value) {
   return String(value ?? "")
     .trim()
-    .replace(/^\/+/, "")                 // buang slash depan
-    .replace(/\.(png|jpg|jpeg|webp)$/i, ""); // buang ekstensi (opsional)
+    .replace(/^\/+/, "")                 
+    .replace(/\.(png|jpg|jpeg|webp)$/i, "");
 }
 
 function cloudinaryUrl({ cloudName, publicId, width = 120 }) {
