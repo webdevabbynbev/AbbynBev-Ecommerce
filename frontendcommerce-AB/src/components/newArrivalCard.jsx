@@ -7,7 +7,7 @@ import { BtnIconToggle } from ".";
 import { formatToRupiah, slugify, getAverageRating } from "@/utils";
 import { DataReview } from "@/data";
 
-export function RegularCard({ product }) {
+export function NewArrivaleCard({ product }) {
   const [wishlist, setWishlist] = useState([]);
 
   if (!product) return null;
