@@ -9,6 +9,7 @@ import { useWishlist } from "@/context/WishlistContext";
 import { DataReview } from "@/data";
 
 export function RegularCard({ product }) {
+  // const [wishlist, setWishlist] = useState([]); glitch
   const { isWishlisted, addToWishlist } = useWishlist();
 
   if (!product) return null;
@@ -31,6 +32,7 @@ export function RegularCard({ product }) {
 
     const price = Number(
       raw.price ??
+        raw.base_price ??
         raw.basePrice ??
         raw.salePrice ??
         (Array.isArray(raw.prices) ? raw.prices[0] : undefined) ??
@@ -61,8 +63,20 @@ export function RegularCard({ product }) {
       compareAt,
       image,
       rating: Number(raw.rating ?? raw.stars ?? 0),
-      brand: raw.brand ?? raw.brandName ?? "",
-      category: raw.category ?? "",
+      brand:
+        raw.brand?.name ??
+        raw.brand?.brandname ??
+        raw.brand ??
+        raw.brandName ??
+        "",
+      category:
+        raw.categoryType?.name ??
+        raw.category_type?.name ??
+        raw.category?.name ??
+        raw.category?.categoryname ??
+        raw.category ??
+        raw.categoryName ??
+        "",
       slug: safeSlug,
       sale: Boolean(raw.sale),
     };
