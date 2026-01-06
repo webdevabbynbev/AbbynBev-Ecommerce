@@ -70,7 +70,7 @@ export async function regis(
   last_name,
   gender,
   password,
-  send_via = "email"
+  send_via = "whatsapp"
 ) {
   try {
     const payload = {
@@ -80,7 +80,7 @@ export async function regis(
       last_name: s(last_name),
       gender: n(gender),
       password: String(password ?? ""),
-      send_via: s(send_via) || "email",
+      send_via: s(send_via) || "whatsapp",
     };
 
     if (!payload.email) throw new Error("Email wajib diisi");
