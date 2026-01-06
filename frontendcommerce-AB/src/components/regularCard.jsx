@@ -1,16 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { FaStar } from "react-icons/fa6";
 import { BtnIconToggle } from ".";
 import { formatToRupiah, slugify, getAverageRating } from "@/utils";
+import { useWishlist } from "@/context/WishlistContext";
 import { DataReview } from "@/data";
 
 export function RegularCard({ product }) {
-
-  const [wishlist, setWishlist] = useState([]);
-
+  const { isWishlisted, addToWishlist } = useWishlist();
 
   if (!product) return null;
 
@@ -48,7 +47,7 @@ export function RegularCard({ product }) {
     const image =
       raw.image ??
       (Array.isArray(raw.images) ? raw.images[0] : null) ??
-      "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png";
+      "/placeholder.png";
 
     const slugSource = raw.slug || raw.path || "";
     const safeSlug = slugSource
@@ -72,31 +71,11 @@ export function RegularCard({ product }) {
   const hasSale =
     Number.isFinite(item.compareAt) && item.compareAt > item.price;
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("wishlist");
-      if (stored) setWishlist(JSON.parse(stored));
-    } catch (e) {
-      console.log("Wishlist parse error:", e);
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("wishlist", JSON.stringify(wishlist));
-    } catch (e) {
-      console.log("Wishlist save error:", e);
-    }
-  }, [wishlist]);
-
   const handleWishlist = () => {
-    setWishlist((prev) => {
-      const exists = prev.some((p) => p.id === item.id);
-      return exists ? prev.filter((p) => p.id !== item.id) : [...prev, item];
-    });
+    addToWishlist(item.id);
   };
 
-  const isWishlisted = wishlist.some((p) => p.id === item.id);
+  const wishlisted = isWishlisted(item.id);
 
   const reviewsForProduct = Array.isArray(DataReview)
     ? DataReview.filter((r) => r.productID === item.id)
@@ -114,7 +93,7 @@ export function RegularCard({ product }) {
             <img
               src="/sale-tag.svg"
               alt="Sale"
-              className="absolute top-0 left-0 z-10 w-[40px] h-auto"
+              className="absolute top-0 left-0 z-10 w-10 h-auto"
             />
           )}
 
@@ -128,8 +107,8 @@ export function RegularCard({ product }) {
               iconName="Heart"
               variant="tertiary"
               size="md"
-              aria-pressed={isWishlisted}
-              title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+              aria-pressed={wishlisted}
+              title={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
             />
           </div>
 
@@ -138,9 +117,9 @@ export function RegularCard({ product }) {
               src={item.image}
               alt={item.name}
               className="w-full h-auto object-cover"
+              crossOrigin="anonymous"
               onError={(e) => {
-                e.currentTarget.src =
-                  "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png";
+                e.currentTarget.src = "/placeholder.png";
               }}
             />
           </div>
@@ -179,7 +158,7 @@ export function RegularCard({ product }) {
               ) : (
                 <div className="flex items-center space-x-1 font-bold text-primary-700 text-xs">
                   <span>{averageRating}</span>
-                  <FaStar className="h-[12px] w-[12px] text-warning-300" />
+                  <FaStar className="h-3 w-3 text-warning-300" />
                 </div>
               )}
             </div>

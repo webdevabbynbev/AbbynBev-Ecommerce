@@ -11,7 +11,11 @@ import {
   Tag,
   message,
 } from "antd";
-import type { ColumnsType, TablePaginationConfig, TableProps } from "antd/es/table";
+import type {
+  ColumnsType,
+  TablePaginationConfig,
+  TableProps,
+} from "antd/es/table";
 import { PlusOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import http from "../../../api/http";
 import FormBrand from "../../Forms/Brand/FormBrand";
@@ -54,35 +58,50 @@ type ColumnsCtx = {
   fetch: () => void;
 };
 
+// --- BAGIAN YANG DIUBAH ADA DI SINI ---
 const columns = (props: ColumnsCtx): ColumnsType<BrandRecord> => [
   {
     title: "Name",
     dataIndex: "name",
   },
   {
-    title: "Country",
-    dataIndex: "country",
-    render: (v?: string | null) => v ?? "-",
-    responsive: ["md"],
-  },
-  {
-    title: "Website",
-    dataIndex: "website",
+    title: "Logo ",
+    dataIndex: "logoUrl",
+    // Perubahan: Menggunakan tag img jika url tersedia
     render: (v?: string | null) =>
       v ? (
-        <a href={v} target="_blank" rel="noreferrer">
-          {v}
-        </a>
+        <img
+          src={v}
+          alt="Brand Logo"
+          style={{ width: 50, height: 50, objectFit: "contain" }}
+        />
       ) : (
         "-"
       ),
-    responsive: ["lg"],
+    responsive: ["md"],
   },
+  // {
+  //   title: "Website",
+  //   dataIndex: "website",
+  //   render: (v?: string | null) =>
+  //     v ? (
+  //       <a href={v} target="_blank" rel="noreferrer">
+  //         {v}
+  //       </a>
+  //     ) : (
+  //       "-"
+  //     ),
+  //   responsive: ["lg"],
+  // },
   {
     title: "Status",
     dataIndex: "isActive",
     render: (val?: number) =>
-      val === 1 ? <Tag color="#41BA2D">Active</Tag> : <Tag color="#FF3434">Inactive</Tag>,
+      val === 1 ? (
+        <Tag color="#41BA2D">Active</Tag>
+      ) : (
+        <Tag color="#FF3434">Inactive</Tag>
+      ),
     align: "center",
     width: 140,
   },
@@ -205,7 +224,10 @@ const TableBrand: React.FC = () => {
             <span style={{ fontSize: 12 }}>entries</span>
           </div>
 
-          <Space style={{ marginLeft: "auto" }} className="flex align-center mt-2">
+          <Space
+            style={{ marginLeft: "auto" }}
+            className="flex align-center mt-2"
+          >
             <Search
               placeholder="Search Brand"
               onSearch={(val) => {

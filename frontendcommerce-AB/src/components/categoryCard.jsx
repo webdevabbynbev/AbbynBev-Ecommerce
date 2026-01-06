@@ -6,7 +6,7 @@ const PLACEHOLDER_PUBLIC_ID = "/v1767525417/placeholder-category.png";
 function normalizePublicId(value) {
   return String(value ?? "")
     .trim()
-    .replace(/^\/+/, "")                 // buang slash depan
+    .replace(/^\/+/, "") // buang slash depan
     .replace(/\.(png|jpg|jpeg|webp)$/i, ""); // buang ekstensi (opsional)
 }
 
@@ -27,7 +27,10 @@ export function CategoryCard({
   const label = title ?? name ?? "";
   const publicId = iconPublicId ?? icon_public_id ?? "";
 
-  const src = cloudinaryUrl({ cloudName: cloudName || process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME, publicId });
+  const src = cloudinaryUrl({
+    cloudName: cloudName || process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+    publicId,
+  });
 
   return (
     <div className="group w-full min-w-[80px] flex flex-col items-center justify-center rounded-xl p-2 space-y-2 cursor-pointer">
@@ -37,13 +40,15 @@ export function CategoryCard({
         className="mx-auto h-[32px] w-[32px] lg:h-[50px] w-[50px] object-contain
                    transition-transform duration-200
                    lg:group-hover:-translate-y-1 lg:group-hover:scale-105"
+        crossOrigin="anonymous"
         onError={(e) => {
           // anti-loop: fallback cuma sekali
           if (e.currentTarget.dataset.fallback === "1") return;
           e.currentTarget.dataset.fallback = "1";
 
           e.currentTarget.src = cloudinaryUrl({
-            cloudName: cloudName || process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+            cloudName:
+              cloudName || process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
             publicId: PLACEHOLDER_PUBLIC_ID,
           });
         }}

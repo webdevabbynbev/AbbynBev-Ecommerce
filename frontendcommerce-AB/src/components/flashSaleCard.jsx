@@ -4,10 +4,14 @@ import { useMemo } from "react";
 import { formatToRupiah, normalizeCardProduct, slugify } from "@/utils";
 
 export function FlashSaleCard({ product, item }) {
-  const data = useMemo(() => normalizeCardProduct(product ?? item), [product, item]);
+  const data = useMemo(
+    () => normalizeCardProduct(product ?? item),
+    [product, item]
+  );
   if (!data) return null;
 
-  const hasSale = Number.isFinite(data.compareAt) && data.compareAt > data.price;
+  const hasSale =
+    Number.isFinite(data.compareAt) && data.compareAt > data.price;
 
   const slugSource = data.slug || item?.slug || data.name;
   const safeSlug = slugSource ? slugify(String(slugSource)) : "";
@@ -30,9 +34,9 @@ export function FlashSaleCard({ product, item }) {
               src={data.image}
               alt={data.name}
               className="w-full h-auto object-cover"
+              crossOrigin="anonymous"
               onError={(e) => {
-                e.currentTarget.src =
-                  "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png";
+                e.currentTarget.src = "/placeholder.png";
               }}
             />
           </div>
