@@ -39,23 +39,52 @@ const RATING_OPTIONS = [
 
 export default function ProductDetailClient({ product }) {
   const router = useRouter();
+
   // ✅ Prevent hydration mismatch for relative time
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const variants = product?.variantItems ?? []; // [{ id, label, price, stock }]
+  // ✅ variants dari backend (variantItems sudah berisi images)
+  const variants = product?.variantItems ?? []; // [{ id, label, price, stock, images }]
   const [selectedVariant, setSelectedVariant] = useState(
     variants.length ? variants[0].label : null
   );
-  const [qty, setQty] = useState(1);
 
-  const selectedVariantObj = variants.find((v) => v.label === selectedVariant);
+  const selectedVariantObj = useMemo(() => {
+    return variants.find((v) => v.label === selectedVariant) || null;
+  }, [variants, selectedVariant]);
 
+  // ✅ kalau selectedVariant kosong tapi variants ada, set default
   useEffect(() => {
     if (!selectedVariant && variants.length > 0) {
       setSelectedVariant(variants[0].label);
     }
   }, [selectedVariant, variants]);
+
+  // ✅ SATU sumber images: ambil dari selectedVariantObj.images
+  // fallback: product.images, lalu product.image
+  const variantImages = useMemo(() => {
+    const imgs =
+      selectedVariantObj?.images?.length
+        ? selectedVariantObj.images
+        : Array.isArray(product?.images) && product.images.length
+        ? product.images
+        : product?.image
+        ? [product.image]
+        : [];
+
+    return imgs.filter(Boolean);
+  }, [selectedVariantObj, product?.images, product?.image]);
+
+  // ✅ activeImage untuk gambar utama + sidebar
+  const [activeImage, setActiveImage] = useState("");
+
+  // ✅ setiap variant berubah, set gambar pertama jadi active
+  useEffect(() => {
+    setActiveImage(variantImages[0] || "");
+  }, [variantImages]);
+
+  const [qty, setQty] = useState(1);
 
   const finalPrice =
     selectedVariantObj?.price ??
@@ -122,12 +151,7 @@ export default function ProductDetailClient({ product }) {
       }
 
       const variantItems = product?.variantItems ?? [];
-      let variant =
-        selectedVariantObj ?? (variantItems.length ? variantItems[0] : null);
-
-      if (!variant && variantItems.length > 0) {
-        variant = variantItems[0];
-      }
+      let variant = selectedVariantObj ?? (variantItems.length ? variantItems[0] : null);
 
       if (!variant) {
         alert("Varian produk tidak ditemukan");
@@ -164,6 +188,15 @@ export default function ProductDetailClient({ product }) {
     }
   };
 
+  // ✅ debug opsional (boleh hapus)
+  useEffect(() => {
+    console.log("[ProductDetail] product:", product);
+    console.log("[ProductDetail] variantItems:", product?.variantItems);
+    console.log("[ProductDetail] selectedVariant:", selectedVariant);
+    console.log("[ProductDetail] selectedVariantObj:", selectedVariantObj);
+    console.log("[ProductDetail] variantImages:", variantImages);
+  }, [product, selectedVariant, selectedVariantObj, variantImages]);
+
   return (
     <div className="container mx-auto py-6 px-10 flex w-full flex-col gap-8 px-4 py-6 lg:max-w-[960px] lg:px-8 xl:max-w-[1280px] xl:flex-row xl:justify-between">
       <div className="wrapper w-full space-y-8">
@@ -186,7 +219,9 @@ export default function ProductDetailClient({ product }) {
               <BreadcrumbSeparator />
 
               <BreadcrumbItem className="min-w-0 flex-1">
-                <BreadcrumbPage className="truncate max-w-[700px]">{product?.name}</BreadcrumbPage>
+                <BreadcrumbPage className="truncate max-w-[700px]">
+                  {product?.name}
+                </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -206,7 +241,7 @@ export default function ProductDetailClient({ product }) {
 
                 <div>
                   <img
-                    src={product?.image}
+                    src={activeImage || product?.image}
                     alt={product?.name}
                     className="w-full h-auto object-cover border border-neutral-400 lg:w-full"
                   />
@@ -214,15 +249,15 @@ export default function ProductDetailClient({ product }) {
               </div>
 
               <div className="flex max-w-[300px] py-2 items-center space-x-4 max-h-64 overflow-x-auto custom-scrollbar">
-                {(product?.images?.length
-                  ? product.images
-                  : [product?.image]
-                ).map((img, i) => (
+                {variantImages.map((img, i) => (
                   <img
                     key={i}
                     src={img}
                     alt={`${product?.name}-${i}`}
-                    className="h-[80px] w-[80px] border p-2 rounded-md"
+                    onClick={() => setActiveImage(img)}
+                    className={`h-[80px] w-[80px] border p-2 rounded-md cursor-pointer ${
+                      activeImage === img ? "ring-2 ring-primary-700" : ""
+                    }`}
                   />
                 ))}
               </div>
@@ -247,7 +282,7 @@ export default function ProductDetailClient({ product }) {
 
                     <div className="reapPrice-container flex space-x-2 items-center">
                       <span className="text-base font-medium text-neutral-400 line-through">
-                        {formatToRupiah(finalPrice)}
+                        {formatToRupiah(realPrice)}
                       </span>
 
                       {discount > 0 && (
@@ -305,25 +340,19 @@ export default function ProductDetailClient({ product }) {
                 <div className="shipment space-y-2">
                   <h3 className="text-primary-700 font-bold text-base">Shipment</h3>
                   <p className="text-sm">
-                    Regular shipment start from
-                    <span className="font-bold"> Rp.10.000</span>
+                    Regular shipment start from <span className="font-bold"> Rp.10.000</span>
                   </p>
                   <p className="text-sm">
-                    Estimated time arrived
-                    <span className="font-bold"> 3–5 days</span>
+                    Estimated time arrived <span className="font-bold"> 3–5 days</span>
                     <span className="text-neutral-300"> | </span>
-                    <span className="text-primary-700 font-medium">
-                      See our shipping partner
-                    </span>
+                    <span className="text-primary-700 font-medium">See our shipping partner</span>
                   </p>
                 </div>
 
                 {/* Review */}
                 <div className="container-review space-y-6">
                   <div className="flex flex-col space-y-2">
-                    <h3 className="text-primary-700 font-bold text-base">
-                      Review
-                    </h3>
+                    <h3 className="text-primary-700 font-bold text-base">Review</h3>
                     <span>Filter</span>
                     <div className="flex space-x-4">
                       <TxtField
@@ -402,9 +431,7 @@ export default function ProductDetailClient({ product }) {
                       );
                     })
                   ) : (
-                    <p className="text-neutral-400">
-                      Belum ada review untuk produk ini.
-                    </p>
+                    <p className="text-neutral-400">Belum ada review untuk produk ini.</p>
                   )}
                 </div>
               </div>
@@ -421,7 +448,7 @@ export default function ProductDetailClient({ product }) {
           <div className="ContainerImage flex items-start">
             <div className="imageOnly">
               <img
-                src={product?.image}
+                src={activeImage || product?.image}
                 alt={product?.name}
                 className="h-[100px] w-[100px]"
               />

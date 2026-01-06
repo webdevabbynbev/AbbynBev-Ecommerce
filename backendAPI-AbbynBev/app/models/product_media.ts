@@ -5,6 +5,7 @@ import Product from './product.js'
 import drive from '@adonisjs/drive/services/main'
 import env from '#start/env'
 import { CustomBaseModel } from '#services/custom_base_model'
+import ProductVariant from './product_variant.js'
 
 export default class ProductMedia extends CustomBaseModel {
   @column({ isPrimary: true })
@@ -19,8 +20,16 @@ export default class ProductMedia extends CustomBaseModel {
   @column()
   declare productId: number
 
+  // ✅ NEW (kalau tabel kamu ada variant_id)
+  @column()
+  declare variantId: number | null
+
   @column()
   declare type: number
+
+  // ✅ NEW (kalau tabel kamu ada slot)
+  @column()
+  declare slot: string
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -34,13 +43,8 @@ export default class ProductMedia extends CustomBaseModel {
   @belongsTo(() => Product)
   declare product: BelongsTo<typeof Product>
 
-  public static active = scope((query) => {
-    return query.whereNull('deleted_at')
-  })
-
-  public static trashed = scope((query) => {
-    query.whereNotNull('deleted_at')
-  })
+  public static active = scope((query) => query.whereNull('deleted_at'))
+  public static trashed = scope((query) => query.whereNotNull('deleted_at'))
 
   public async softDelete() {
     this.deletedAt = DateTime.now()
@@ -53,16 +57,18 @@ export default class ProductMedia extends CustomBaseModel {
   }
 
   public async getImageUrl() {
+    // Cloudinary URL diawali http(s), jadi aman (nggak akan di-signed)
     if (this.url && !this.url.startsWith('http')) {
       this.url = await drive.use(env.get('DRIVE_DISK')).getSignedUrl(this.url)
     }
   }
 
+  @belongsTo(() => ProductVariant, { foreignKey: 'variantId' })
+  declare variant: BelongsTo<typeof ProductVariant>
+
   @afterFetch()
   public static async getImageUrlAfterFetch(models: ProductMedia[]) {
-    for (const model of models) {
-      await model.getImageUrl()
-    }
+    for (const model of models) await model.getImageUrl()
   }
 
   @afterFind()
