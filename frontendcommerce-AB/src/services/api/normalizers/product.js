@@ -4,7 +4,14 @@ export function normalizeProduct(raw) {
   const item = raw.product || raw;
 
   const medias = Array.isArray(item.medias) ? item.medias : [];
-  const brandName = item.brand?.name ?? item.brand ?? "";
+  const brandName =
+    item.brand?.name ??
+    item.brand?.brandname ??
+    item.brand_name ??
+    item.brandName ??
+    item.brand ??
+    item.brandname ??
+    "";
   const brandSlug = item.brand?.slug ?? item.brand_slug ?? item.brandSlug ?? "";
   const variants = Array.isArray(item.variants) ? item.variants : [];
   const variantItems = variants
@@ -45,9 +52,22 @@ export function normalizeProduct(raw) {
         item.realprice ??
         0
     ),
-    image: item.image || medias[0]?.url || "/placeholder.png",
+    image:
+      item.image ||
+      medias[0]?.url ||
+      "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png",
     brand: brandName,
     brandSlug,
+    category:
+      item.categoryType?.name ??
+      item.category_type?.name ??
+      item.category?.name ??
+      item.category?.categoryname ??
+      item.category_name ??
+      item.categoryName ??
+      item.category ??
+      item.categoryname ??
+      "",
     slug: item.slug || item.path || "",
     variantItems,
   };
