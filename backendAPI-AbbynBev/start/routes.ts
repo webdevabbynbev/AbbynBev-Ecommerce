@@ -87,6 +87,7 @@ const BannerOrdersController = () => import('#controllers/cms/banners/banner_ord
         const AuthPasswordResetController = () => import('#controllers/auth/auth_password_reset_controller')
         const AuthAccountController = () => import('#controllers/auth/auth_account_controller')
 
+const RegionsController = () => import('#controllers/frontend/regions_controller')
 
       
 
@@ -565,3 +566,14 @@ router.get('/user-carts', [CmsDashboardCartsController, 'getUserCart'])
         router.get('/less-product-sell', [CmsDashboardProductsController, 'getLessProductSell'])
 
         router.get('/user-carts', [CmsDashboardCartsController, 'getUserCart'])
+
+
+        router
+  .group(() => {
+    router.get('/regions/cities', [RegionsController, 'cities'])
+router.get('/regions/districts', [RegionsController, 'districts'])
+router.get('/regions/sub-districts', [RegionsController, 'subDistricts'])
+router.get('/regions/postal-codes', [RegionsController, 'postalCodes'])
+
+  })
+  .use(middleware.auth({ guards: ['api'] }))
