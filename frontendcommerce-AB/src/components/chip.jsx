@@ -2,7 +2,7 @@ const Chip = ({ isActive, onClick, children, className="", ...props }) => {
   return (
     <button
       onClick={onClick}
-      className={`w-full min-w-30 h-auto rounded-full py-2 px-4 text-primary-700 text-xs outline-1 outline-primary-700
+      className={`w-auto h-auto rounded-full py-2 px-4 text-primary-700 text-xs outline-1 outline-primary-700
       ${
         isActive
           ? "bg-primary-700 text-white border-primary-700 hover:cursor-pointer"

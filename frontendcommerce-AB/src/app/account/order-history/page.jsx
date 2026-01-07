@@ -103,7 +103,7 @@ const normalizeOrders = (rows) => {
         medias?.[0]?.url ||
         p?.thumbnail ||
         p?.image ||
-        "/placeholder.png";
+        "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
 
       const variantName =
         d?.variant?.sku ||

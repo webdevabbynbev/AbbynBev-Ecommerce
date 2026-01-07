@@ -161,7 +161,7 @@ function normalizeOrder(rawInput) {
   const items = details.map((d) => {
     const p = d?.product || {};
     const medias = Array.isArray(p?.medias) ? p.medias : [];
-    const thumb = medias?.[0]?.url || p?.thumbnail || p?.image || "/placeholder.png";
+    const thumb = medias?.[0]?.url || p?.thumbnail || p?.image || "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";;
 
     return {
       id:

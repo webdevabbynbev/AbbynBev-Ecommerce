@@ -23,12 +23,10 @@ import {
 export function NewAddress({ onSuccess }) {
   const [open, setOpen] = useState(false);
 
-  // form
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [street, setStreet] = useState("");
 
-  // biteship search
   const [areaQuery, setAreaQuery] = useState("");
   const [areas, setAreas] = useState([]);
   const [loadingAreas, setLoadingAreas] = useState(false);
@@ -58,22 +56,18 @@ export function NewAddress({ onSuccess }) {
     setLoadingAreas(false);
   };
 
-  // reset ketika dialog ditutup
   useEffect(() => {
     if (!open) {
       resetAll();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // fetch areas with debounce
   useEffect(() => {
     if (!open) return;
 
     const q = String(areaQuery || "").trim();
     if (timerRef.current) clearTimeout(timerRef.current);
 
-    // kalau user masih kosongin query, reset list
     if (!q) {
       setAreas([]);
       setAreaId("");
@@ -82,7 +76,6 @@ export function NewAddress({ onSuccess }) {
       return;
     }
 
-    // biar gak spam API untuk 1-2 huruf
     if (q.length < 3) {
       setAreas([]);
       setAreaId("");

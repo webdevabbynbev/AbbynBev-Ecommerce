@@ -91,6 +91,13 @@ const MenuAdmin = (level: RoleEnumType): MenuProps["items"] => {
             label: "Tag",
             icon: <TagsOutlined />,
           },
+
+          helper.hasAnyPermission(level, [helper.RoleEnum.GUDANG, helper.RoleEnum.MEDIA]) && {
+            key: "/product-media",
+            label: "Product Media",
+            icon: <PicCenterOutlined />,
+          },
+
           helper.hasAnyPermission(level, [helper.RoleEnum.GUDANG]) && {
             key: "/category-types",
             icon: <ApartmentOutlined />,

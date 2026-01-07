@@ -176,7 +176,7 @@ export default function CheckoutPage() {
             {checkoutItems.map((item, idx) => {
               const product = item.product || {};
 
-              const image = product.thumbnail || product.image || "/placeholder.png";
+              const image = product.thumbnail || product.image || "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";;
               const quantity = n(item?.qtyCheckout ?? item?.qty ?? item?.quantity ?? 1, 1);
               const isBusy = loadingItemId !== null && loadingItemId === item.id;
 

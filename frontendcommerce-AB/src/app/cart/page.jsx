@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Toaster } from "sonner";
 import axios from "@/lib/axios";
 import Image from "next/image";
 
@@ -234,7 +235,7 @@ export default function CartPage() {
             const id = item?.id;
             const product = item.product || {};
             const image =
-              product.thumbnail || product.image || "/placeholder.png";
+              product.thumbnail || product.image || "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";;
             const quantity = getQuantity(item);
             const busy = loadingItemId !== null && loadingItemId === id;
 

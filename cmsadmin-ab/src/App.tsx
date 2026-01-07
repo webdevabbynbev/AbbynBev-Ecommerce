@@ -11,7 +11,7 @@ import DashboardPage from "./pages/DashboardPage";
 import ForgotPage from "./pages/ForgotPage";
 import MasterPage from "./pages/MasterPage";
 import AddProductPage from "./pages/AddProductPage";
-import ProductMediasPage from "./admin/products/[id]/medias/page";
+import ProductMediasPage from "./admin/products/[id]/pages";
 
 export default function App() {
   return (

@@ -5,6 +5,7 @@ import GoogleProvider from "@/components/googleProvider";
 import { AuthProvider } from "@/context/AuthContext";
 import { WishlistProvider } from "@/context/WishlistContext";
 import { NavbarClientGate } from "@/components/navbar";
+import { Toaster } from "sonner";
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -42,6 +43,7 @@ export default function RootLayout({ children }) {
                 {children}
                 <div className="lg:hidden h-24" />
               </main>
+              <Toaster position="top-center" />
               <MobileBottomNav />
               <Footer />
             </WishlistProvider>

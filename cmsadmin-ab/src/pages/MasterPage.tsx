@@ -25,6 +25,8 @@ import TableProfileCategoryOption from "../components/Tables/ProfileCategory/Tab
 import TableFlashSale from "../components/Tables/FlashSale/TableFlashSale";
 import TableProduct from "../components/Tables/Product/TableProduct";
 import TableTransaction from "../components/Transaction/TableTransaction";
+import ProductMediaUploader from "./productMediaPage";
+import ProductMediaPage from "./productMediaPage";
 
 
 
@@ -38,7 +40,7 @@ export default function MasterPage(): React.ReactElement {
         <Route path="/persona-product" element={<TablePersona />} />
         <Route path="/banners" element={<TableBanner />} />
         <Route path="/master-product" element={<TableProduct />} />
-         <Route path="/inventory-product" element={<TableProduct />} />
+        <Route path="/inventory-product" element={<TableProduct />} />
         <Route path="/activity-logs" element={<TableActivityLog />} />
         <Route path="/faqs" element={<TableFaq />} />
         <Route path="/voucher" element={<TableVoucher />} />
@@ -57,6 +59,7 @@ export default function MasterPage(): React.ReactElement {
         <Route path="/flash-sale" element={<TableFlashSale />} />
         <Route path="/inventory-product" element={<TableProduct />} />
         <Route path="/transactions" element={<TableTransaction />} />
+        <Route path="/product-media" element={<ProductMediaPage />} />
         {/* Redirect default */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
