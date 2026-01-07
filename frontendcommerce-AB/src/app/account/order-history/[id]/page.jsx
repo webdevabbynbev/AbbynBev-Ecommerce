@@ -66,7 +66,9 @@ function unwrapResponse(raw) {
   // handle: { data: TransactionEcommerce, waybill }
   if (
     raw?.data &&
-    (raw?.waybill !== undefined || raw?.data?.transaction || raw?.data?.transactionId)
+    (raw?.waybill !== undefined ||
+      raw?.data?.transaction ||
+      raw?.data?.transactionId)
   ) {
     raw = raw.data;
   }
@@ -127,7 +129,9 @@ function buildAddressText(userAddress) {
     userAddress?.zipCode ||
     "";
 
-  const line2Old = [subDistrict, district, city, province].filter(Boolean).join(", ");
+  const line2Old = [subDistrict, district, city, province]
+    .filter(Boolean)
+    .join(", ");
   const line2 = areaName || line2Old;
 
   return {
@@ -161,12 +165,18 @@ function normalizeOrder(rawInput) {
   const items = details.map((d) => {
     const p = d?.product || {};
     const medias = Array.isArray(p?.medias) ? p.medias : [];
-    const thumb = medias?.[0]?.url || p?.thumbnail || p?.image || "/placeholder.png";
+    const thumb =
+      medias?.[0]?.url ||
+      p?.thumbnail ||
+      p?.image ||
+      "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
 
     return {
       id:
         d?.id ??
-        `${trx?.transactionNumber || trx?.transaction_number || "trx"}-${d?.productId || "item"}`,
+        `${trx?.transactionNumber || trx?.transaction_number || "trx"}-${
+          d?.productId || "item"
+        }`,
       name: p?.name || p?.title || "-",
       variant: d?.variant?.sku || d?.variant?.name || d?.attributes || "-",
       qty: n(d?.qty, 0),
@@ -175,12 +185,19 @@ function normalizeOrder(rawInput) {
     };
   });
 
-  const computedSubtotal = items.reduce((sum, it) => sum + n(it.price, 0) * n(it.qty, 0), 0);
+  const computedSubtotal = items.reduce(
+    (sum, it) => sum + n(it.price, 0) * n(it.qty, 0),
+    0
+  );
   const subtotal = n(trx?.subTotal ?? trx?.sub_total, 0) || computedSubtotal;
 
-  const shipmentFee = n(sh?.price ?? ecommerce?.shippingCost ?? ecommerce?.shipping_cost, 0);
+  const shipmentFee = n(
+    sh?.price ?? ecommerce?.shippingCost ?? ecommerce?.shipping_cost,
+    0
+  );
   const total =
-    n(trx?.grandTotal ?? trx?.grand_total ?? trx?.amount ?? trx?.total, 0) || subtotal + shipmentFee;
+    n(trx?.grandTotal ?? trx?.grand_total ?? trx?.amount ?? trx?.total, 0) ||
+    subtotal + shipmentFee;
 
   const addrText = buildAddressText(userAddress);
 
@@ -201,7 +218,8 @@ function normalizeOrder(rawInput) {
     user?.phone ||
     "-";
 
-  const courierName = sh?.service || ecommerce?.courierName || ecommerce?.courier_name || "-";
+  const courierName =
+    sh?.service || ecommerce?.courierName || ecommerce?.courier_name || "-";
 
   const courierService =
     sh?.serviceType ||
@@ -255,7 +273,9 @@ export default function OrderTrackingPage() {
   const [confirming, setConfirming] = useState(false);
   const [infoMsg, setInfoMsg] = useState("");
 
-  const transactionNumberFromUrl = params?.id ? decodeURIComponent(params.id) : "";
+  const transactionNumberFromUrl = params?.id
+    ? decodeURIComponent(params.id)
+    : "";
 
   const fetchOrder = async () => {
     if (!transactionNumberFromUrl) return;
@@ -270,7 +290,8 @@ export default function OrderTrackingPage() {
           transaction_number: transactionNumberFromUrl,
         });
 
-        const payload = res0?.data?.serve?.data || res0?.data?.data || res0?.data;
+        const payload =
+          res0?.data?.serve?.data || res0?.data?.data || res0?.data;
 
         if (payload) {
           setOrder(normalizeOrder(payload));
@@ -282,7 +303,11 @@ export default function OrderTrackingPage() {
 
       // 2) fallback list by filter
       const res = await axios.get("/transaction", {
-        params: { transaction_number: transactionNumberFromUrl, page: 1, per_page: 1 },
+        params: {
+          transaction_number: transactionNumberFromUrl,
+          page: 1,
+          per_page: 1,
+        },
       });
 
       const row = res?.data?.serve?.data?.[0];
@@ -296,7 +321,9 @@ export default function OrderTrackingPage() {
     } catch (err) {
       console.log("Error order detail:", err?.response?.data || err);
       setOrder(null);
-      setErrorMsg(err?.response?.data?.message || "Failed to load order detail");
+      setErrorMsg(
+        err?.response?.data?.message || "Failed to load order detail"
+      );
     } finally {
       setLoading(false);
     }
@@ -305,7 +332,9 @@ export default function OrderTrackingPage() {
   const handleConfirmDone = async () => {
     if (!order?.transactionNumber || confirming) return;
 
-    const ok = window.confirm("Selesaikan pesanan ini? Status akan jadi Completed.");
+    const ok = window.confirm(
+      "Selesaikan pesanan ini? Status akan jadi Completed."
+    );
     if (!ok) return;
 
     try {
@@ -321,7 +350,9 @@ export default function OrderTrackingPage() {
       await fetchOrder();
     } catch (err) {
       console.log("Confirm error:", err?.response?.data || err);
-      setErrorMsg(err?.response?.data?.message || "Gagal menyelesaikan pesanan.");
+      setErrorMsg(
+        err?.response?.data?.message || "Gagal menyelesaikan pesanan."
+      );
     } finally {
       setConfirming(false);
     }
@@ -379,7 +410,9 @@ export default function OrderTrackingPage() {
         ← Back to My Order
       </button>
 
-      <h1 className="text-2xl font-semibold text-gray-900 mb-6">Order Tracking</h1>
+      <h1 className="text-2xl font-semibold text-gray-900 mb-6">
+        Order Tracking
+      </h1>
 
       <div className="bg-white border border-pink-100 rounded-xl p-6 mb-8 shadow-sm">
         <div className="flex items-center justify-between gap-2">
@@ -414,7 +447,8 @@ export default function OrderTrackingPage() {
                 {!isLast && (
                   <div
                     className={
-                      "flex-1 h-[2px] mx-2 " + (index < currentStep ? "bg-pink-600" : "bg-gray-200")
+                      "flex-1 h-0.5 mx-2 " +
+                      (index < currentStep ? "bg-pink-600" : "bg-gray-200")
                     }
                   />
                 )}
@@ -441,12 +475,18 @@ export default function OrderTrackingPage() {
       <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Order Detail</h2>
-            <p className="text-xs text-gray-500 mt-1">Order ID: {order.transactionNumber}</p>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Order Detail
+            </h2>
+            <p className="text-xs text-gray-500 mt-1">
+              Order ID: {order.transactionNumber}
+            </p>
           </div>
 
           <div className="text-right space-y-2">
-            <p className="text-xs text-gray-500">No pesanan: {order.transactionNumber}</p>
+            <p className="text-xs text-gray-500">
+              No pesanan: {order.transactionNumber}
+            </p>
             <span
               className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${order.statusCls}`}
             >
@@ -485,48 +525,72 @@ export default function OrderTrackingPage() {
             </div>
             <div>
               <p className="text-gray-400 mb-1">Estimated Delivery</p>
-              <p className="text-gray-800">{order.shipping.estimatedDelivery}</p>
+              <p className="text-gray-800">
+                {order.shipping.estimatedDelivery}
+              </p>
             </div>
             <div>
               <p className="text-gray-400 mb-1">Courier</p>
               <p className="text-gray-800">
                 {order.shipping.courier}
-                {order.shipping.serviceType ? ` (${order.shipping.serviceType})` : ""}
+                {order.shipping.serviceType
+                  ? ` (${order.shipping.serviceType})`
+                  : ""}
               </p>
             </div>
           </div>
 
           <div className="mt-3 text-xs">
             <p className="text-gray-400 mb-1">Resi</p>
-            <p className="text-gray-800 font-medium">{order.shipping.resi ? order.shipping.resi : "-"}</p>
+            <p className="text-gray-800 font-medium">
+              {order.shipping.resi ? order.shipping.resi : "-"}
+            </p>
           </div>
         </div>
 
         <div className="border border-gray-100 rounded-lg p-4 mb-6">
-          <h3 className="text-sm font-semibold text-gray-900 mb-2">Shipping Address</h3>
+          <h3 className="text-sm font-semibold text-gray-900 mb-2">
+            Shipping Address
+          </h3>
           <div className="text-xs text-gray-700 space-y-1">
             <p className="font-medium">{order.address.name}</p>
             <p>{order.address.line1}</p>
             <p>{order.address.line2}</p>
-            {order.address.postal ? <p>{`Postal: ${order.address.postal}`}</p> : null}
+            {order.address.postal ? (
+              <p>{`Postal: ${order.address.postal}`}</p>
+            ) : null}
             <p>{order.address.phone}</p>
           </div>
         </div>
 
         <div className="space-y-4 mb-6">
           {order.items.map((item) => (
-            <div key={item.id} className="flex items-start gap-4 border border-gray-100 rounded-lg p-3">
-              <div className="relative w-16 h-16 flex-shrink-0 bg-gray-50 rounded-md overflow-hidden">
-                <Image src={item.image} alt={item.name} fill className="object-cover" />
+            <div
+              key={item.id}
+              className="flex items-start gap-4 border border-gray-100 rounded-lg p-3"
+            >
+              <div className="relative w-16 h-16 shrink-0 bg-gray-50 rounded-md overflow-hidden">
+                <Image
+                  src={item.image}
+                  alt={item.name}
+                  fill
+                  className="object-cover"
+                />
               </div>
 
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Variant: {item.variant}</p>
+                <p className="text-sm font-semibold text-gray-900 truncate">
+                  {item.name}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Variant: {item.variant}
+                </p>
                 <p className="text-xs text-gray-500 mt-0.5">x{item.qty}</p>
               </div>
 
-              <div className="text-sm font-medium text-gray-900">Rp {money(item.price)}</div>
+              <div className="text-sm font-medium text-gray-900">
+                Rp {money(item.price)}
+              </div>
             </div>
           ))}
         </div>
@@ -534,22 +598,30 @@ export default function OrderTrackingPage() {
         <div className="border-t border-gray-100 pt-4 space-y-1 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-500">Subtotal Product</span>
-            <span className="font-medium text-gray-900">Rp {money(order.subtotal)}</span>
+            <span className="font-medium text-gray-900">
+              Rp {money(order.subtotal)}
+            </span>
           </div>
 
           <div className="flex justify-between">
             <span className="text-gray-500">service charges</span>
-            <span className="font-medium text-gray-900">Rp {money(order.serviceCharges)}</span>
+            <span className="font-medium text-gray-900">
+              Rp {money(order.serviceCharges)}
+            </span>
           </div>
 
           <div className="flex justify-between">
             <span className="text-gray-500">Shipment</span>
-            <span className="font-medium text-gray-900">Rp {money(order.shipmentFee)}</span>
+            <span className="font-medium text-gray-900">
+              Rp {money(order.shipmentFee)}
+            </span>
           </div>
 
           <div className="flex justify-between pt-2 border-t border-dashed border-gray-200 mt-2">
             <span className="text-base font-semibold text-gray-900">Total</span>
-            <span className="text-base font-bold text-pink-600">Rp {money(order.total)}</span>
+            <span className="text-base font-bold text-pink-600">
+              Rp {money(order.total)}
+            </span>
           </div>
         </div>
       </div>
