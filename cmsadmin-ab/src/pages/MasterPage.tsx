@@ -25,10 +25,7 @@ import TableProfileCategoryOption from "../components/Tables/ProfileCategory/Tab
 import TableFlashSale from "../components/Tables/FlashSale/TableFlashSale";
 import TableProduct from "../components/Tables/Product/TableProduct";
 import TableTransaction from "../components/Transaction/TableTransaction";
-import ProductMediaUploader from "./productMediaPage";
-import ProductMediaPage from "./productMediaPage";
-
-
+import TableRamadanEvent from "../components/Tables/Ramadan/TableRamadanEvent";
 
 export default function MasterPage(): React.ReactElement {
   return (
@@ -54,12 +51,18 @@ export default function MasterPage(): React.ReactElement {
         <Route path="/category-types" element={<TableCategoryType />} />
         <Route path="/concern" element={<TableConcern />} />
         <Route path="/concern-option" element={<TableConcernOption />} />
-        <Route path="/profile-category-filter" element={<TableProfileCategory />} />
-        <Route path="/profile-category-option" element={<TableProfileCategoryOption />} />
+        <Route
+          path="/profile-category-filter"
+          element={<TableProfileCategory />}
+        />
+        <Route
+          path="/profile-category-option"
+          element={<TableProfileCategoryOption />}
+        />
         <Route path="/flash-sale" element={<TableFlashSale />} />
         <Route path="/inventory-product" element={<TableProduct />} />
         <Route path="/transactions" element={<TableTransaction />} />
-        <Route path="/product-media" element={<ProductMediaPage />} />
+        <Route path="/ramadan-event" element={<TableRamadanEvent />} />
         {/* Redirect default */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

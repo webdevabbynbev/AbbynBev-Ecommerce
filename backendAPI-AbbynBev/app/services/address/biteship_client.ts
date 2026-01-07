@@ -123,7 +123,7 @@ export class BiteshipClient {
     }
 
     const countries = String(params.countries || 'ID').trim()
-    const type = String(params.type || 'single').trim()
+    const type = String(params.type || 'multi').trim()
 
     const cacheKey = `biteship:areas:${countries}:${type}:${input.toLowerCase()}`
     return this.cache.cachedFetch(cacheKey, this.TTL_SEARCH_MS, async () => {

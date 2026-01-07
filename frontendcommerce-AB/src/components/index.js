@@ -23,8 +23,9 @@ export { LoginRegisModalForm } from "./auth/loginRegis.jsx";
 export { RegularCardSkeleton } from "./skeleton/skeletonCollection.jsx";
 export { AddressCard } from "../app/account/AddressCard.jsx";
 export { Checkbox } from "./ui/Checkbox.jsx";
-export { FlashSaleCarousel } from "./carousel/flashSaleCarousel.jsx";
-export { NewArrivaleCard } from "./card/newArrivalCard.jsx";
+export { FlashSaleCarousel } from "./flashSaleCarousel.jsx";
+export { NewArrivaleCard } from "./newArrivalCard.jsx";
+export { LoadingSpinner } from "./loadingSpinner.jsx";
 export { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/Tabs.jsx";
 
 export {

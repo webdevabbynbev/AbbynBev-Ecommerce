@@ -238,7 +238,7 @@ const CarouselIndicators = React.forwardRef(({ className }, ref) => {
             "h-2 w-2 rounded-full transition-all duration-200",
             selectedIndex === idx
               ? "bg-primary-700 scale-115"
-              : "bg-white border-1 border-primary-700 hover:bg-primary-400"
+              : "bg-white border border-primary-700 hover:bg-primary-400"
           )}
           aria-label={`Go to slide ${idx + 1}`}
         />

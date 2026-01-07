@@ -19,8 +19,8 @@ const damion = Damion({
 });
 
 export const metadata = {
-  title: "Abby n Bev",
-  description: "Toko kecantikan bandung",
+  title: "Abby n Bev | Situs Belanja Online Makeup dan Skincare Terbaik Di Indonesia",
+  description: "Situs Belanja Online Makeup dan Skincare Terbaik Di Indonesia",
 };
 
 export default function RootLayout({ children }) {
@@ -31,7 +31,7 @@ export default function RootLayout({ children }) {
       suppressHydrationWarning
     >
       <body
-        className="flex flex-col min-h-screen font-sans bg-[#f7f7f7]"
+        className="flex flex-col min-h-screen font-sans bg-main"
         suppressHydrationWarning
       >
         <GoogleProvider>
