@@ -73,7 +73,7 @@ export default function Home() {
     if (!loading && (!items || items.length === 0)) return null;
 
     return (
-      <div className="xl:max-w-[1280px] lg:max-w-[960px] mx-auto px-6 space-y-6">
+      <div className="xl:max-w-7xl lg:max-w-240 mx-auto px-6 space-y-6">
         <div className="flex items-start justify-between">
           <div className="flex-row space-y-1">
             <h3
@@ -133,13 +133,13 @@ export default function Home() {
 
   return (
     <div className="Container items-center justify-center mx-auto overflow-visible">
-      <div className="Hero-wrapper w-full flex flex-row py-0 lg:py-6 justify-between h-full mx-auto xl:max-w-[1280px] lg:max-w-[960px]">
+      <div className="Hero-wrapper w-full flex flex-row py-0 lg:py-6 justify-between h-full mx-auto xl:max-w-7xl lg:max-w-240">
         <div className="h-auto w-full px-0 lg:px-6 items-center">
           <HeroCarousel />
         </div>
       </div>
 
-      <div className="ContainerCategory p-6 space-y-4 mx-auto w-full xl:max-w-[1280px] lg:max-w-[960px] overflow-hidden">
+      <div className="ContainerCategory p-6 space-y-4 mx-auto w-full xl:max-w-7xl lg:max-w-240 overflow-hidden">
         <h3 className="text-primary-700 text-lg font-bold">Kategori</h3>
         <div className="w-full">
           <div
@@ -165,7 +165,7 @@ export default function Home() {
       </div>
 
       <div className="ContainerFlashSale w-full flex-col bg-primary-100 items-center justify-center bg-[url('/Logo_SVG_AB.svg')] bg-no-repeat bg-center">
-        <div className="Wrapper p-6 flex flex-col xl:max-w-[1280px] lg:max-w-[960px] mx-auto">
+        <div className="Wrapper p-6 flex flex-col xl:max-w-7xl lg:max-w-240 mx-auto">
           <div className="leftWrapper justify-between flex flex-row w-full space-y-6">
             <div className="texts flex-row">
               <h3 className="font-damion text-3xl text-primary-700">
@@ -205,7 +205,7 @@ export default function Home() {
       </div>
 
       <div className="Brand-Container flex px-10 py-10 bg-primary-100 items-center justify-center space-x-6 bg-[url('/Logo_SVG_AB.svg')] bg-no-repeat bg-center">
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:max-w-[1280px] lg:max-w-[960px] mx-auto gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:max-w-7xl lg:max-w-240 mx-auto gap-6">
           <div className="Wrapper flex-row w-full space-y-6">
             <h3 className="font-damion text-3xl text-primary-700">
               Shop by brands
@@ -225,7 +225,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="Conten-wrapper grid grid-cols-2 md:grid-cols-4 gap-6 min-w-[50%] max-w-[1536px] mx-auto">
+          <div className="Conten-wrapper grid grid-cols-2 md:grid-cols-4 gap-6 min-w-[50%] max-w-384 mx-auto">
             {DataBrand.slice(0, 8).map((item) => (
               <BrandCard key={item.id} {...item} />
             ))}

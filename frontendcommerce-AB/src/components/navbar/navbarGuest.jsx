@@ -38,7 +38,7 @@ export function NavbarGuest({
           <div className="flex items-center gap-3">
             <Image src="/Logoabby-text.svg" alt="Logo" width={160} height={80} />
             <SearchBar
-              className="max-w-[300px]"
+              className="max-w-75"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onSearch={onSearch}

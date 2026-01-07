@@ -165,7 +165,7 @@ const subtotal = finalPrice * qty;
   };
 
   return (
-    <div className="container mx-auto w-full py-6 px-10 flex justify-between xl:max-w-[1280px] lg:max-w-[960px]">
+    <div className="container mx-auto w-full py-6 px-10 flex justify-between xl:max-w-7xl lg:max-w-240">
       <div className="wrapper space-y-10 items-center ">
         <div className="left-wrapper-content w-full flex-row space-y-10">
           {/* Breadcrumb */}
@@ -186,7 +186,7 @@ const subtotal = finalPrice * qty;
               <BreadcrumbSeparator />
 
               <BreadcrumbItem>
-                <BreadcrumbPage className="truncate w-[300px]">
+                <BreadcrumbPage className="truncate w-75">
                   {product?.name}
                 </BreadcrumbPage>
               </BreadcrumbItem>
@@ -197,12 +197,12 @@ const subtotal = finalPrice * qty;
           <div className="left-content w-full flex">
             {/* Product Image */}
             <div className="Image-container">
-              <div className="h-[220px] w-[220px] relative overflow-hidden rounded-lg">
+              <div className="h-55 w-55 relative overflow-hidden rounded-lg">
                 {product?.sale && (
                   <img
                     src="/sale-tag.svg"
                     alt="Sale"
-                    className="absolute top-0 left-0 z-10 w-[40px] h-auto"
+                    className="absolute top-0 left-0 z-10 w-10 h-auto"
                   />
                 )}
 
@@ -215,14 +215,14 @@ const subtotal = finalPrice * qty;
                 </div>
               </div>
 
-              <div className="flex max-w-[300px] py-2 items-center space-x-4 max-h-64 overflow-x-auto custom-scrollbar">
+              <div className="flex max-w-75 py-2 items-center space-x-4 max-h-64 overflow-x-auto custom-scrollbar">
                 {(product?.images?.length ? product.images : [product?.image]).map(
                   (img, i) => (
                     <img
                       key={i}
                       src={img}
                       alt={`${product?.name}-${i}`}
-                      className="h-[50px] w-[50px] border p-2 rounded-md"
+                      className="h-12.5 w-12.5 border p-2 rounded-md"
                     />
                   )
                 )}
@@ -330,11 +330,11 @@ const subtotal = finalPrice * qty;
                         iconLeftName="MagnifyingGlass"
                         variant="outline"
                         size="md"
-                        className="min-w-[280px]"
+                        className="min-w-70"
                       />
 
                       <Select>
-                        <SelectTrigger className="w-[180px]">
+                        <SelectTrigger className="w-45">
                           <SelectValue placeholder="Filter by rating" />
                         </SelectTrigger>
                         <SelectContent>
@@ -413,7 +413,7 @@ const subtotal = finalPrice * qty;
       </div>
 
       {/* Sticky Sidebar */}
-      <div className="sticky top-[103px] p-6 space-y-4 outline-1 outline-neutral-100 rounded-3xl bottom-32 items-start w-full max-w-[300px] h-fit bg-white">
+      <div className="sticky top-25.75 p-6 space-y-4 outline-1 outline-neutral-100 rounded-3xl bottom-32 items-start w-full max-w-75 h-fit bg-white">
         <div className="text-xl font-medium">Quantity</div>
 
         <div className="flex justify-between">
@@ -422,7 +422,7 @@ const subtotal = finalPrice * qty;
               <img
                 src={product?.image}
                 alt={product?.name}
-                className="h-[100px] w-[100px]"
+                className="h-25 w-25"
               />
             </div>
 
@@ -431,7 +431,7 @@ const subtotal = finalPrice * qty;
                 <img
                   src="/sale-tag-square.svg"
                   alt="Sale"
-                  className="w-[32px] h-[32px]"
+                  className="w-8 h-8"
                 />
               )}
 

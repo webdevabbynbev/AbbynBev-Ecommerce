@@ -57,7 +57,7 @@ export function Navbar() {
 
   return (
     <nav className="sticky top-0 z-50 w-full bg-white border-b border-primary-700">
-      <div className="mx-auto w-full max-w-[1536px] px-4 sm:px-6 lg:px-10 py-4">
+      <div className="mx-auto w-full max-w-384 px-4 sm:px-6 lg:px-10 py-4">
         {isAuthed ? (
           <NavbarLoggedIn
             pathname={pathname}
