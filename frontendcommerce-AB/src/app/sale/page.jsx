@@ -182,11 +182,7 @@ function calcDiscountPercent(price, originalPrice) {
 }
 
 function StarRow({ count = 5 }) {
-  return (
-    <span className="text-xs text-yellow-400">
-      {"★".repeat(count)}
-    </span>
-  );
+  return <span className="text-xs text-yellow-400">{"★".repeat(count)}</span>;
 }
 
 function HeartButton() {
@@ -226,27 +222,22 @@ export default function SalePage() {
     // Filter kategori
     if (activeCategory !== "All") {
       products = products.filter(
-        (p) =>
-          p.category.toLowerCase() === activeCategory.toLowerCase()
+        (p) => p.category.toLowerCase() === activeCategory.toLowerCase()
       );
     }
 
-    
     if (minRating > 0) {
       products = products.filter((p) => p.rating >= minRating);
     }
 
-  
     if (search.trim()) {
       const q = search.toLowerCase();
       products = products.filter(
         (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.brand.toLowerCase().includes(q)
+          p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q)
       );
     }
 
-    
     if (sortBy === "lowest") {
       products.sort((a, b) => a.price - b.price);
     } else if (sortBy === "highest") {
@@ -266,7 +257,7 @@ export default function SalePage() {
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* BANNER SALE */}
       <div className="mb-8">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-pink-300 via-pink-200 to-amber-200 h-40 md:h-52 flex items-center px-6 md:px-10">
+        <div className="relative overflow-hidden rounded-2xl bg-linear-to-r from-pink-300 via-pink-200 to-amber-200 h-40 md:h-52 flex items-center px-6 md:px-10">
           {/* Ilustrasi kanan (dummy gradient box) */}
           <div className="absolute -right-10 -bottom-16 w-52 h-52 bg-pink-400/40 rounded-full blur-3xl" />
           <div className="absolute right-10 top-4 hidden md:block">
@@ -304,9 +295,7 @@ export default function SalePage() {
             placeholder="Search product for this sale here..."
             className="w-full rounded-full border border-gray-200 bg-white px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-1 focus:ring-pink-400"
           />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
-          
-          </span>
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></span>
         </div>
 
         {/* Sort dropdown */}
@@ -329,7 +318,7 @@ export default function SalePage() {
       {/* MAIN LAYOUT: SIDEBAR FILTER + GRID PRODUK */}
       <div className="flex gap-8">
         {/* SIDEBAR FILTER */}
-        <aside className="w-64 flex-shrink-0 hidden md:block">
+        <aside className="w-64 shrink-0 hidden md:block">
           <div className="bg-white border border-gray-200 rounded-xl p-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-gray-900">Filter</h2>
@@ -365,9 +354,7 @@ export default function SalePage() {
 
             {/* Rating */}
             <div className="mb-4">
-              <p className="text-xs font-semibold text-gray-500 mb-2">
-                Rating
-              </p>
+              <p className="text-xs font-semibold text-gray-500 mb-2">Rating</p>
               <div className="space-y-1">
                 {RATING_OPTIONS.map((opt, index) => (
                   <button
@@ -430,12 +417,16 @@ export default function SalePage() {
                   >
                     {/* Image + badge */}
                     <div className="relative mb-3">
-                      <div className="relative w-full aspect-[3/4] rounded-lg overflow-hidden bg-gray-50">
+                      <div className="relative w-full aspect-3/4 rounded-lg overflow-hidden bg-gray-50">
                         <Image
                           src={product.image}
                           alt={product.name}
                           fill
                           className="object-contain"
+                          onError={(e) => {
+                            e.currentTarget.src =
+                              "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
+                          }}
                         />
                       </div>
 

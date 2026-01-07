@@ -25,6 +25,7 @@ export { DialogCard } from "./dialogCard.jsx";
 export { Checkbox } from "./ui/Checkbox.jsx";
 export { FlashSaleCarousel } from "./flashSaleCarousel.jsx";
 export { NewArrivaleCard } from "./newArrivalCard.jsx";
+export { LoadingSpinner } from "./loadingSpinner.jsx";
 export { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/Tabs.jsx";
 
 export {

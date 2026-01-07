@@ -219,7 +219,7 @@ export function LoginRegisModalForm() {
                   <img
                     src="/logo-abby-combine.svg"
                     alt="logo"
-                    className="w-[120px] h-auto"
+                    className="w-30 h-auto"
                   />
                 </div>
 
@@ -310,7 +310,7 @@ export function LoginRegisModalForm() {
                   <img
                     src="/logo-abby-combine.svg"
                     alt="logo"
-                    className="w-[120px] h-auto"
+                    className="w-30 h-auto"
                   />
                 </div>
 

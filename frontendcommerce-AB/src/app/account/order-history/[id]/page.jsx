@@ -447,7 +447,7 @@ export default function OrderTrackingPage() {
                 {!isLast && (
                   <div
                     className={
-                      "flex-1 h-[2px] mx-2 " +
+                      "flex-1 h-0.5 mx-2 " +
                       (index < currentStep ? "bg-pink-600" : "bg-gray-200")
                     }
                   />
@@ -569,7 +569,7 @@ export default function OrderTrackingPage() {
               key={item.id}
               className="flex items-start gap-4 border border-gray-100 rounded-lg p-3"
             >
-              <div className="relative w-16 h-16 flex-shrink-0 bg-gray-50 rounded-md overflow-hidden">
+              <div className="relative w-16 h-16 shrink-0 bg-gray-50 rounded-md overflow-hidden">
                 <Image
                   src={item.image}
                   alt={item.name}

@@ -39,7 +39,7 @@ export function HeroCarousel() {
   // wrapper responsif: tinggi mengikuti lebar
   const Wrapper = ({ children }) => (
     <div className="w-full">
-      <div className="relative w-full overflow-hidden rounded-lg aspect-[16/6]">
+      <div className="relative w-full overflow-hidden rounded-lg aspect-16/6">
         {children}
       </div>
     </div>

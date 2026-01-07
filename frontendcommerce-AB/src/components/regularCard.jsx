@@ -1,16 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FaStar } from "react-icons/fa6";
 import { BtnIconToggle } from ".";
 import { formatToRupiah, slugify, getAverageRating } from "@/utils";
-import { useWishlist } from "@/context/WishlistContext";
 import { DataReview } from "@/data";
 
 export function RegularCard({ product }) {
-  // const [wishlist, setWishlist] = useState([]); glitch
-  const { isWishlisted, addToWishlist } = useWishlist();
+  const [wishlist, setWishlist] = useState([]);
 
   if (!product) return null;
 
@@ -85,11 +83,31 @@ export function RegularCard({ product }) {
   const hasSale =
     Number.isFinite(item.compareAt) && item.compareAt > item.price;
 
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("wishlist");
+      if (stored) setWishlist(JSON.parse(stored));
+    } catch (e) {
+      console.log("Wishlist parse error:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("wishlist", JSON.stringify(wishlist));
+    } catch (e) {
+      console.log("Wishlist save error:", e);
+    }
+  }, [wishlist]);
+
   const handleWishlist = () => {
-    addToWishlist(item.id);
+    setWishlist((prev) => {
+      const exists = prev.some((p) => p.id === item.id);
+      return exists ? prev.filter((p) => p.id !== item.id) : [...prev, item];
+    });
   };
 
-  const wishlisted = isWishlisted(item.id);
+  const isWishlisted = wishlist.some((p) => p.id === item.id);
 
   const reviewsForProduct = Array.isArray(DataReview)
     ? DataReview.filter((r) => r.productID === item.id)
@@ -113,16 +131,14 @@ export function RegularCard({ product }) {
 
           <div className="absolute top-4 right-4 z-10">
             <BtnIconToggle
+              active={isWishlisted}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 handleWishlist();
               }}
-              iconName="Heart"
               variant="tertiary"
               size="md"
-              aria-pressed={wishlisted}
-              title={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
             />
           </div>
 
@@ -131,7 +147,6 @@ export function RegularCard({ product }) {
               src={item.image}
               alt={item.name}
               className="w-full h-auto object-cover"
-              crossOrigin="anonymous"
               onError={(e) => {
                 e.currentTarget.src =
                   "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";

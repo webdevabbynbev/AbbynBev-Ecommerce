@@ -92,7 +92,7 @@ export function SearchBar({
         iconLeftName="MagnifyingGlass"
         variant="outline"
         size="md"
-        className="w-full min-w-[300px]"
+        className="w-full min-w-75"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => {
@@ -113,7 +113,7 @@ export function SearchBar({
           ) : items.length === 0 ? (
             <div className="p-3 text-sm">Tidak ada suggestion.</div>
           ) : (
-            <ul className="max-h-[320px] overflow-auto">
+            <ul className="max-h-80 overflow-auto">
               {items.slice(0, 4).map((p) => (
                 <li key={p.id || p.slug || p.name}>
                   <button

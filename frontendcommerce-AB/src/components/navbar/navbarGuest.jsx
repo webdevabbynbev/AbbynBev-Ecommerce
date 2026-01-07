@@ -36,12 +36,11 @@ export function NavbarGuest({
         {/* LEFT SIDE */}
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
-            <Image src="/Logoabby-text.svg" alt="Logo" width={160} height={80} />
-            <SearchBar
-              className="max-w-[300px]"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onSearch={onSearch}
+            <Image
+              src="/Logoabby-text.svg"
+              alt="Logo"
+              width={160}
+              height={80}
             />
           </div>
 
@@ -76,7 +75,15 @@ export function NavbarGuest({
         </div>
 
         {/* RIGHT SIDE */}
-        <LoginRegisModalForm />
+        <div className="flex items-center gap-3">
+          <SearchBar
+            className="max-w-75"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onSearch={onSearch}
+          />
+          <LoginRegisModalForm />
+        </div>
       </div>
     </>
   );
