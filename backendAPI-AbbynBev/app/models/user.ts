@@ -17,6 +17,8 @@ import Transaction from './transaction.js'
 import TransactionPos from './transaction_pos.js'
 import TransactionEcommerce from './transaction_ecommerce.js'
 import UserAddress from './user_address.js'
+import RamadanCheckin from './ramadan_checkin.js'
+import RamadanCheckinExemption from './ramadan_checkin_exemption.js'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['email'],
@@ -132,7 +134,6 @@ export default class User extends compose(CustomBaseModel, AuthFinder) {
     }
   }
 
-
   @afterFetch()
   public static async getImageUrlAfterFetch(models: User[]) {
     for (const model of models) {
@@ -179,4 +180,14 @@ export default class User extends compose(CustomBaseModel, AuthFinder) {
     foreignKey: 'userId',
   })
   declare addresses: HasMany<typeof UserAddress>
+
+  @hasMany(() => RamadanCheckin, {
+    foreignKey: 'userId',
+  })
+  declare ramadanCheckins: HasMany<typeof RamadanCheckin>
+
+  @hasMany(() => RamadanCheckinExemption, {
+    foreignKey: 'userId',
+  })
+  declare ramadanExemptions: HasMany<typeof RamadanCheckinExemption>
 }
