@@ -28,6 +28,7 @@ import {
   QuantityInput,
   Button,
   BtnIconToggle,
+  MobileProductActionBar
 } from "@/components";
 
 const RATING_OPTIONS = [
@@ -195,7 +196,7 @@ export default function ProductDetailClient({ product }) {
   // }, [product, selectedVariant, selectedVariantObj, variantImages]);
 
   return (
-    <div className="container mx-auto py-6 px-10 flex w-full flex-col gap-8 px-4 py-6 lg:max-w-[1080px] lg:flex-row xl:justify-between xl:max-w-[1280px] xl:flex-row xl:justify-between">
+    <div className="container mx-auto w-full py-6 px-10 flex justify-between xl:max-w-7xl lg:max-w-6xl">
       <div className="wrapper w-full space-y-8">
         <div className="left-wrapper-content w-full space-y-8">
           {/* Breadcrumb */}
@@ -467,7 +468,6 @@ export default function ProductDetailClient({ product }) {
           </div>
         </div>
       </div>
-
       {/* Sticky Sidebar */}
       <div className="hidden sticky top-[103px] p-6 space-y-4 outline-1 outline-neutral-100 rounded-3xl bottom-32 items-start w-full max-w-[300px] h-fit bg-white lg:block">
         <div className="text-xl font-medium">Quantity</div>
@@ -574,6 +574,11 @@ export default function ProductDetailClient({ product }) {
           <BtnIconToggle iconName="Heart" variant="tertiary" size="sm" />
         </div>
       </div>
+      <MobileProductActionBar
+        stock={stock}
+        onQtyChange={setQty}
+        onAddToCart={handleAddToCart}
+      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { Skeleton } from ".";
+import { Skeleton } from "..";
 import { cn } from "@/lib/utils";
 
 export function RegularCardSkeleton({ className }) {

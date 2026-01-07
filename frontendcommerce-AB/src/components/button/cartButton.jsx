@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import axios from "@/lib/axios";
 import Link from "next/link";
-import { BtnIcon } from ".";
+import { BtnIcon } from "..";
 
 export default function CartButton() {
   const [totalQty, setTotalQty] = useState(0);

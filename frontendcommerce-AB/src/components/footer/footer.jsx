@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Button } from ".";
+import { Button } from "..";
 import { FaTiktok, FaInstagram } from "react-icons/fa";
 
 export function Footer() {

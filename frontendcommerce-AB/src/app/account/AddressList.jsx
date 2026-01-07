@@ -59,7 +59,6 @@ export function AddressList() {
   // ---- hydrate province/city names so UI doesn't show numeric IDs
   const hydrateLocationNames = async (data) => {
     try {
-      // ambil semua provinceId yang numeric
       const provinceIds = Array.from(
         new Set(
           data

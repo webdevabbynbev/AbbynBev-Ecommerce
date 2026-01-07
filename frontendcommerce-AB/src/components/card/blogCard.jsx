@@ -1,5 +1,5 @@
 "use client";
-import { BtnIcon, BtnIconToggle } from ".";
+import { BtnIcon, BtnIconToggle } from "..";
 import { formatDistanceToNow } from "date-fns";
 
 export function BlogCard({

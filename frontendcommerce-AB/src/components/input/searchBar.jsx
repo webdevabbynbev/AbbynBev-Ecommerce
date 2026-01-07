@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
-import { TxtField } from ".";
+import { TxtField } from "..";
 
 export function SearchBar({
   className = "",
