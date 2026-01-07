@@ -1,6 +1,8 @@
 "use client";
 import { useDebounce } from "@/app/hooks/useDebounce";
 import React, { useMemo, useState, useEffect } from "react";
+import axios from "@/lib/axios"; // ambil dari backend (NEXT_PUBLIC_API_URL)
+
 import {
   Button,
   TxtField,
@@ -16,31 +18,13 @@ import { FaStar } from "react-icons/fa6";
 
 import { formatToRupiah } from "@/utils";
 
-// ✅ import data langsung dari file JS-mu
+// import data filter lain (tetap dipakai)
 import {
-  DataFace,
-  DataEyebrow,
-  DataLips,
-  DataCleanser,
-  DataMoisturizer,
-  DataTreatment,
-  DataBooster,
-  DataSunCare,
-  DataShampoo,
-  DataHairStyling,
-  DataHairTreatment,
-  DataHairTools,
-  DataMakeUpBrush,
-  DataOrganizer,
-  DataMenicure,
-  DataFacial,
-  DataMakeupTools,
   DataSkinConcern,
   DataBodyConcern,
   DataHairConcern,
   DataRating,
   DataBrand,
-  
 } from "@/data";
 
 export function Filter() {
@@ -50,6 +34,10 @@ export function Filter() {
   const [maxPrice, setMaxPrice] = useState("");
   const [showTooltipMin, setShowTooltipMin] = useState(false);
   const [showTooltipMax, setShowTooltipMax] = useState(false);
+
+  // category dari DB
+  const [categoryTypes, setCategoryTypes] = useState([]);
+  const [catLoading, setCatLoading] = useState(false);
 
   // brand (opsional)
   const [showBrandFilter, setShowBrandFilter] = useState(true);
@@ -89,12 +77,35 @@ export function Filter() {
     const raw = e.target.value.replace(/[^\d]/g, "");
     if (type === "min") setMinPrice(raw);
     else setMaxPrice(raw);
-    // tooltip sederhana
+
     const isNum = /^\d*$/.test(e.target.value);
     type === "min" ? setShowTooltipMin(!isNum) : setShowTooltipMax(!isNum);
   };
 
-  // sections: Makeup, Skincare, Haircare, Bath & Body
+  // fetch category dari DB
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      try {
+        setCatLoading(true);
+        const res = await axios.get("/category-types");
+        const arr = Array.isArray(res?.data?.serve) ? res.data.serve : [];
+        if (alive) setCategoryTypes(arr);
+      } catch (err) {
+        console.error("Failed to load category-types:", err);
+        if (alive) setCategoryTypes([]); // tanpa fallback dummy
+      } finally {
+        if (alive) setCatLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // concern sections (tetap sama)
   const concern_sections = useMemo(
     () => [
       {
@@ -107,7 +118,6 @@ export function Filter() {
             leftBar: false,
             list: DataSkinConcern,
             prefix: "skinconcern",
-            // field label di data: item.skinconcern
             getLabel: (row) => row.skinconcern,
           },
         ],
@@ -144,256 +154,65 @@ export function Filter() {
     [selectedFilters]
   );
 
-  const sections = useMemo(
-    () => [
-      {
-        key: "makeup",
-        title: "Makeup",
-        items: [
-          {
-            value: "face",
-            label: "Face",
-            render: () => (
-              <SubList
-                data={DataFace}
-                prefix="face"
-                selectedFilters={selectedFilters}
-                onSelect={handleSelect}
-              />
-            ),
-          },
-          {
-            value: "eyebrow",
-            label: "Eyebrow",
-            leftBar: false,
-            render: () => (
-              <SubList
-                data={DataEyebrow}
-                prefix="eyebrow"
-                selectedFilters={selectedFilters}
-                onSelect={handleSelect}
-              />
-            ),
-          },
-          {
-            value: "lips",
-            label: "Lips",
-            render: () => (
-              <SubList
-                data={DataLips}
-                prefix="lips"
-                selectedFilters={selectedFilters}
-                onSelect={handleSelect}
-              />
-            ),
-          },
-        ],
-      },
-      {
-        key: "skincare",
-        title: "Skincare",
-        items: [
-          {
-            value: "cleanser",
-            label: "Cleanser",
-            render: () => (
-              <SubList
-                data={DataCleanser}
-                prefix="cleanser"
-                selectedFilters={selectedFilters}
-                onSelect={handleSelect}
-              />
-            ),
-          },
-          {
-            value: "moisturizer",
-            label: "Moisturizer",
-            render: () => (
-              <SubList
-                data={DataMoisturizer}
-                prefix="moisturizer"
-                selectedFilters={selectedFilters}
-                onSelect={handleSelect}
-              />
-            ),
-          },
-          {
-            value: "treatment",
-            label: "Treatment",
-            render: () => (
-              <SubList
-                data={DataTreatment}
-                prefix="treatment"
-                selectedFilters={selectedFilters}
-                onSelect={handleSelect}
-              />
-            ),
-          },
-          {
-            value: "booster",
-            label: "Booster",
-            render: () => (
-              <SubList
-                data={DataBooster}
-                prefix="booster"
-                selectedFilters={selectedFilters}
-                onSelect={handleSelect}
-              />
-            ),
-          },
-          {
-            value: "suncare",
-            label: "Suncare",
-            render: () => (
-              <SubList
-                data={DataSunCare}
-                prefix="suncare"
-                selectedFilters={selectedFilters}
-                onSelect={handleSelect}
-              />
-            ),
-          },
-        ],
-      },
-      {
-        key: "haircare",
-        title: "Haircare",
-        items: [
-          {
-            value: "shampoo",
-            label: "Shampoo",
-            render: () => (
-              <SubList
-                data={DataShampoo}
-                prefix="shampoo"
-                selectedFilters={selectedFilters}
-                onSelect={handleSelect}
-              />
-            ),
-          },
-          {
-            value: "hairstyling",
-            label: "Hair styling",
-            render: () => (
-              <SubList
-                data={DataHairStyling}
-                prefix="hairstyling"
-                selectedFilters={selectedFilters}
-                onSelect={handleSelect}
-              />
-            ),
-          },
-          {
-            value: "hairtreatment",
-            label: "Hair treatment",
-            render: () => (
-              <SubList
-                data={DataHairTreatment}
-                prefix="hairtreatment"
-                selectedFilters={selectedFilters}
-                onSelect={handleSelect}
-              />
-            ),
-          },
-          {
-            value: "hairtools",
-            label: "Hair tools",
-            render: () => (
-              <SubList
-                data={DataHairTools}
-                prefix="hairtools"
-                selectedFilters={selectedFilters}
-                onSelect={handleSelect}
-              />
-            ),
-          },
-        ],
-      },
-      {
-        key: "bathbody",
-        title: "Bath and body",
-        items: [
-          {
-            value: "makeupbrush",
-            label: "Makeup Brush",
-            render: () => (
-              <SubList
-                data={DataMakeUpBrush}
-                prefix="makeupbrush"
-                selectedFilters={selectedFilters}
-                onSelect={handleSelect}
-              />
-            ),
-          },
-          {
-            value: "organizer",
-            label: "Organizer",
-            render: () => (
-              <SubList
-                data={DataOrganizer}
-                prefix="organizer"
-                selectedFilters={selectedFilters}
-                onSelect={handleSelect}
-              />
-            ),
-          },
-          {
-            value: "menipedi",
-            label: "Menicure & Pedicure",
-            render: () => (
-              <SubList
-                data={DataMenicure}
-                prefix="menipedi"
-                selectedFilters={selectedFilters}
-                onSelect={handleSelect}
-              />
-            ),
-          },
-          {
-            value: "facial",
-            label: "Facial",
-            render: () => (
-              <SubList
-                data={DataFacial}
-                prefix="facial"
-                selectedFilters={selectedFilters}
-                onSelect={handleSelect}
-              />
-            ),
-          },
-          {
-            value: "makeuptools",
-            label: "Makeup Tools",
-            render: () => (
-              <SubList
-                data={DataMakeupTools}
-                prefix="makeuptools"
-                selectedFilters={selectedFilters}
-                onSelect={handleSelect}
-              />
-            ),
-          },
-        ],
-      },
-    ],
-    [selectedFilters]
-  );
+  // ✅ Sections category hanya dari DB (tanpa fallback)
+  const sections = useMemo(() => {
+    const roots = Array.isArray(categoryTypes) ? categoryTypes : [];
+    if (roots.length === 0) return [];
+
+    return roots.map((root) => {
+      const children = Array.isArray(root?.children) ? root.children : [];
+
+      const itemsLevel2 = (children.length ? children : [root]).map((child) => {
+        const grand = Array.isArray(child?.children) ? child.children : [];
+
+        const list = grand.length
+          ? grand.map((g) => ({ id: g.id, label: g.name }))
+          : [{ id: child.id, label: child.name }];
+
+        return {
+          value: `cat-${child.id}`,
+          label: child?.name || "Category",
+          leftBar: true,
+          render: () => (
+            <SubList
+              data={list}
+              prefix="category_type"
+              selectedFilters={selectedFilters}
+              onSelect={handleSelect}
+            />
+          ),
+        };
+      });
+
+      return {
+        key: `cat-root-${root.id}`,
+        title: root?.name || "Category",
+        items: itemsLevel2,
+      };
+    });
+  }, [categoryTypes, selectedFilters]);
 
   return (
     <div className="flex-row space-y-10 h-full max-w-[300px]">
-      {/* Title */}
+      {/* Category */}
       <div className="TitleCat-1 flex-row w-full space-y-4">
-        <h3 className="font-medium text-sm">Category</h3>
+        <h3 className="font-medium text-sm">
+          Category {catLoading ? "(loading...)" : ""}
+        </h3>
         <hr className="w-full border-t border-primary-700 py-2" />
-        {/* Kategori utama */}
-        {sections.map((s) => (
-          <NestedSection
-            key={s.key}
-            title={s.title}
-            items={s.items}
-            outerClassName={`Accordion${s.title}`}
-          />
-        ))}
+
+        {catLoading ? null : sections.length === 0 ? (
+          <div className="text-sm text-gray-500">No categories found</div>
+        ) : (
+          sections.map((s) => (
+            <NestedSection
+              key={s.key}
+              title={s.title}
+              items={s.items}
+              outerClassName={`Accordion${s.title}`}
+            />
+          ))
+        )}
       </div>
 
       {/* Price Range */}
@@ -443,7 +262,7 @@ export function Filter() {
         </div>
       </div>
 
-      {/* Skin/Body/Hair concern */}
+      {/* By concern */}
       <div className="TitleCat-3 flex-row w-full space-y-2">
         <h3 className="w-[146px] font-medium text-base">By concern</h3>
         <hr className="w-full border-t border-primary-700 my-4" />
@@ -459,52 +278,51 @@ export function Filter() {
 
       {/* Brand (opsional) */}
       {showBrandFilter && (
-        <>
-          <div className="TitleCat-4 flex-row w-full space-y-2 justify-between">
-            <h3 className="w-auto font-medium text-base">Brand</h3>
-            <hr className="w-full border-t border-primary-700 my-4" />
-            <TxtField
-              placeholder="Search brand here..."
-              iconLeftName="MagnifyingGlass"
-              variant="outline"
-              className="w-full"
-              value={brandSearch ?? ""}
-              onChange={(e) => setBrandSearch(e.target.value)}
-            />
-            <div>
-              {brandSearch && (
-                <Button
-                  variant="tertiary"
-                  size="sm"
-                  onClick={() => setBrandSearch("")}
-                >
-                  Clear
-                </Button>
-              )}
-            </div>
+        <div className="TitleCat-4 flex-row w-full space-y-2 justify-between">
+          <h3 className="w-auto font-medium text-base">Brand</h3>
+          <hr className="w-full border-t border-primary-700 my-4" />
+          <TxtField
+            placeholder="Search brand here..."
+            iconLeftName="MagnifyingGlass"
+            variant="outline"
+            className="w-full"
+            value={brandSearch ?? ""}
+            onChange={(e) => setBrandSearch(e.target.value)}
+          />
 
-            <div className="flex flex-wrap gap-4 w-full py-2 px-1 h-auto max-h-64 overflow-y-auto custom-scrollbar">
-              {filteredBrands.length === 0 ? (
-                <div>brand tidak ditemukan </div>
-              ) : (
-                filteredBrands.map((item) => {
-                  const uniqueId = `brand-${item.id}`;
-                  const isActive = selectedFilters.includes(uniqueId);
-                  return (
-                    <Chip
-                      key={item.id}
-                      label={item.brandname}
-                      onClick={() => handleSelect("brand", item.id)}
-                      isActive={isActive}
-                    >
-                      {item.brandname}
-                    </Chip>
-                  );
-                })
-              )}
-            </div>
+          <div>
+            {brandSearch && (
+              <Button
+                variant="tertiary"
+                size="sm"
+                onClick={() => setBrandSearch("")}
+              >
+                Clear
+              </Button>
+            )}
           </div>
-        </>
+
+          <div className="flex flex-wrap gap-4 w-full py-2 px-1 h-auto max-h-64 overflow-y-auto custom-scrollbar">
+            {filteredBrands.length === 0 ? (
+              <div>brand tidak ditemukan</div>
+            ) : (
+              filteredBrands.map((item) => {
+                const uniqueId = `brand-${item.id}`;
+                const isActive = selectedFilters.includes(uniqueId);
+                return (
+                  <Chip
+                    key={item.id}
+                    label={item.brandname}
+                    onClick={() => handleSelect("brand", item.id)}
+                    isActive={isActive}
+                  >
+                    {item.brandname}
+                  </Chip>
+                );
+              })
+            )}
+          </div>
+        </div>
       )}
 
       {/* Rating */}

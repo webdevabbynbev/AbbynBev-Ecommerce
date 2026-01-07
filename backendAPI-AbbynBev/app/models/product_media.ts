@@ -59,7 +59,19 @@ export default class ProductMedia extends CustomBaseModel {
   public async getImageUrl() {
     // Cloudinary URL diawali http(s), jadi aman (nggak akan di-signed)
     if (this.url && !this.url.startsWith('http')) {
-      this.url = await drive.use(env.get('DRIVE_DISK')).getSignedUrl(this.url)
+       try {
+        this.url = await drive.use(env.get('DRIVE_DISK')).getSignedUrl(this.url)
+      } catch (error) {
+        if (
+          process.env.CLOUDINARY_CLOUD_NAME &&
+          process.env.CLOUDINARY_API_KEY &&
+          process.env.CLOUDINARY_API_SECRET
+        ) {
+          this.url = cloudinaryImageUrl(this.url)
+        } else {
+          throw error
+        }
+      }
     }
   }
 

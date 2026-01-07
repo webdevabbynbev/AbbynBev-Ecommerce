@@ -307,7 +307,9 @@ export default function ProductDetailClient({ product }) {
                   {Number(averageRating || 0).toFixed(1)}
                   <FaStar className="text-warning-300 ml-1" />
                 </span>
-                <span className="text-neutral-400">({reviews.length} reviews)</span>
+                <span className="text-neutral-400">
+                  ({reviews.length} reviews)
+                </span>
               </div>
 
               {/* Variants */}
@@ -335,13 +337,17 @@ export default function ProductDetailClient({ product }) {
               <div className="product-detail space-y-4">
                 {/* Summary */}
                 <div className="summary space-y-2">
-                  <h3 className="text-primary-700 font-bold text-base">Summary</h3>
+                  <h3 className="text-primary-700 font-bold text-base">
+                    Summary
+                  </h3>
                   <p className="text-sm">{product?.description}</p>
                 </div>
 
                 {/* Shipment */}
                 <div className="shipment space-y-2">
-                  <h3 className="text-primary-700 font-bold text-base">Shipment</h3>
+                  <h3 className="text-primary-700 font-bold text-base">
+                    Shipment
+                  </h3>
                   <p className="text-sm">
                     Regular shipment start from <span className="font-bold"> Rp.10.000</span>
                   </p>
@@ -391,7 +397,10 @@ export default function ProductDetailClient({ product }) {
                   {reviews.length > 0 ? (
                     reviews.map((r) => {
                       const created =
-                        r.createdAt || r.created_at || r.create_at || r.updatedAt;
+                        r.createdAt ||
+                        r.created_at ||
+                        r.create_at ||
+                        r.updatedAt;
 
                       const who = r.user?.firstName
                         ? `${r.user.firstName} ${r.user.lastName ?? ""}`.trim()
@@ -483,7 +492,8 @@ export default function ProductDetailClient({ product }) {
         <div className="flex w-full items-center space-x-3">
           <QuantityInput min={1} max={stock} value={qty} onChange={setQty} />
           <div className="text-sm font-normal text-neutral-600">
-            Stock : <span className="font-medium text-neutral-950">{stock}</span>
+            Stock :{" "}
+            <span className="font-medium text-neutral-950">{stock}</span>
           </div>
         </div>
 
@@ -536,7 +546,12 @@ export default function ProductDetailClient({ product }) {
         <hr className="w-full border-t border-neutral-200 my-4" />
 
         <div className="flex justify-between space-x-2">
-          <Button iconName="Share" variant="tertiary" size="sm" className="w-full">
+          <Button
+            iconName="Share"
+            variant="tertiary"
+            size="sm"
+            className="w-full"
+          >
             Share product
           </Button>
           <BtnIconToggle iconName="Heart" variant="tertiary" size="sm" />

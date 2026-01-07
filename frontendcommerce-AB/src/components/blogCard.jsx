@@ -16,13 +16,16 @@ export function BlogCard({
   return (
     <div
       className="Container flex-row bg-white p-4 w-full h-auto space-y-4 rounded-3xl
-                    hover:-translate-y-[2px] hover:outline-1 outline-primary-300 transition-all ease-in-out cursor-pointer duration-300"
+                    hover:-translate-y-0.5 hover:outline-1 outline-primary-300 transition-all ease-in-out cursor-pointer duration-300"
     >
       <div className="Content-wrapper flex justify-between">
         <div className="wrapper-left-content flex space-x-2 items-center">
           <span className="text-sm">Abby n Bev</span>
           <div className="w-1 h-1 rounded-full bg-neutral-400"></div>
-          <span className="text-sm text-neutral400 "> {formatDistanceToNow(create_at)} </span>
+          <span className="text-sm text-neutral400 ">
+            {" "}
+            {formatDistanceToNow(create_at)}{" "}
+          </span>
         </div>
         {/* <BtnIcon variant="tertiary" size="sm" iconName="EllipsisV"/> */}
       </div>
@@ -43,7 +46,9 @@ export function BlogCard({
 
       <div className="flex space-x-4">
         <div className="flex items-center space-x-3">
-          <BtnIconToggle variant="tertiary" size="sm" iconName="ThumbsUp" > </BtnIconToggle>
+          <BtnIconToggle variant="tertiary" size="sm" iconName="ThumbsUp">
+            {" "}
+          </BtnIconToggle>
           <p className="text-sm">{like}</p>
         </div>
         <div className="flex items-center space-x-3">

@@ -13,7 +13,7 @@ export function normalizeProduct(raw) {
     item.brandname ??
     "";
   const brandSlug = item.brand?.slug ?? item.brand_slug ?? item.brandSlug ?? "";
- const variants = Array.isArray(item.variants) ? item.variants : [];
+  const variants = Array.isArray(item.variants) ? item.variants : [];
   const variantItems = variants
     .map((variant) => {
       if (!variant) return null;
@@ -29,7 +29,8 @@ export function normalizeProduct(raw) {
         )
         .filter(Boolean)
         .join(" / ");
-      const fallbackLabel = variant?.name || variant?.sku || variant?.code || "";
+      const fallbackLabel =
+        variant?.name || variant?.sku || variant?.code || "";
       return {
         id: variant.id,
         label: attrLabel || fallbackLabel || `Varian ${variant.id}`,

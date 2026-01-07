@@ -129,11 +129,13 @@ export function SearchBar({
                         src={p.image.url}
                         alt={p.name}
                         className="w-10 h-10 rounded-md object-cover border"
+                        crossOrigin="anonymous"
                       />
                     ) : (
                       <img
-                        src="https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png"
+                        src="/placeholder.png"
                         className="w-10 h-10 rounded-md object-cover border"
+                        crossOrigin="anonymous"
                       />
                     )}
 
