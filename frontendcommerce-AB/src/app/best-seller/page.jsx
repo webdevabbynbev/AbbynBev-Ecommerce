@@ -197,8 +197,7 @@ const BestSeller = () => {
                   }`}
                   onClick={(event) => {
                     event.preventDefault();
-                    if (currentPage < totalPages)
-                      setCurrentPage((p) => p + 1);
+                    if (currentPage < totalPages) setCurrentPage((p) => p + 1);
                   }}
                 />
               </PaginationItem>

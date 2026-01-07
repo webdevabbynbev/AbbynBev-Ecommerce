@@ -1,193 +1,47 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { NewArrivaleCard } from "@/components";
-
-const NEW_PRODUCTS = [
-  {
-    id: 1,
-    slug: "loreal-new-lip-tint",
-    brand: "L'ORÉAL",
-    name: "NEW Luxe Satin Lip Tint",
-    image: "/images/sample-product.jpg",
-    price: 159000,
-    rating: 4.7,
-    reviewCount: 32,
-    category: "Makeup",
-  },
-  {
-    id: 2,
-    slug: "cosrx-snail-advanced-foam",
-    brand: "COSRX",
-    name: "Advanced Snail Gentle Foam Cleanser",
-    image: "/images/sample-product.jpg",
-    price: 145000,
-    rating: 4.5,
-    reviewCount: 21,
-    category: "Cleanser",
-  },
-  {
-    id: 3,
-    slug: "avoskin-hydrating-serum",
-    brand: "AVOSKIN",
-    name: "Hydrating Glow Serum",
-    image: "/images/sample-product.jpg",
-    price: 189000,
-    rating: 4.8,
-    reviewCount: 18,
-    category: "Serum",
-  },
-  {
-    id: 4,
-    slug: "hada-labo-brightening-wash",
-    brand: "HADA LABO",
-    name: "Brightening Face Wash",
-    image: "/images/sample-product.jpg",
-    price: 69000,
-    rating: 4.3,
-    reviewCount: 40,
-    category: "Cleanser",
-  },
-  {
-    id: 5,
-    slug: "laneige-water-sleeping-mask",
-    brand: "LANEIGE",
-    name: "Water Sleeping Mask Fresh",
-    image: "/images/sample-product.jpg",
-    price: 329000,
-    rating: 4.6,
-    reviewCount: 55,
-    category: "Mask",
-  },
-  {
-    id: 6,
-    slug: "somebymi-cica-cleansing-balm",
-    brand: "SOME BY MI",
-    name: "Cica Cleansing Balm",
-    image: "/images/sample-product.jpg",
-    price: 179000,
-    rating: 4.4,
-    reviewCount: 22,
-    category: "Cleanser",
-  },
-  {
-    id: 7,
-    slug: "skin1004-new-sunscreen",
-    brand: "SKIN1004",
-    name: "Madagascar Centella Air-Fit Suncream SPF50+",
-    image: "/images/sample-product.jpg",
-    price: 149000,
-    rating: 4.7,
-    reviewCount: 60,
-    category: "Sunscreen",
-  },
-  {
-    id: 8,
-    slug: "cosrx-propolis-toner",
-    brand: "COSRX",
-    name: "Full Fit Propolis Toner",
-    image: "/images/sample-product.jpg",
-    price: 210000,
-    rating: 4.5,
-    reviewCount: 48,
-    category: "Toner",
-  },
-  {
-    id: 9,
-    slug: "banila-co-clean-it-zero",
-    brand: "BANILA CO",
-    name: "Clean It Zero Purifying Balm",
-    image: "/images/sample-product.jpg",
-    price: 259000,
-    rating: 4.6,
-    reviewCount: 70,
-    category: "Cleanser",
-  },
-  {
-    id: 10,
-    slug: "innisfree-black-tea-ampoule",
-    brand: "INNISFREE",
-    name: "Black Tea Youth Enhancing Ampoule",
-    image: "/images/sample-product.jpg",
-    price: 345000,
-    rating: 4.8,
-    reviewCount: 37,
-    category: "Serum",
-  },
-  {
-    id: 11,
-    slug: "biore-aqua-rich-new",
-    brand: "BIORE",
-    name: "UV Aqua Rich Light Up Essence SPF50+",
-    image: "/images/sample-product.jpg",
-    price: 139000,
-    rating: 4.4,
-    reviewCount: 44,
-    category: "Sunscreen",
-  },
-  {
-    id: 12,
-    slug: "etude-fixing-tint",
-    brand: "ETUDE",
-    name: "Fixing Tint Velvet",
-    image: "/images/sample-product.jpg",
-    price: 125000,
-    rating: 4.5,
-    reviewCount: 29,
-    category: "Makeup",
-  },
-  {
-    id: 13,
-    slug: "banila-co-clean-it-zero",
-    brand: "BANILA CO",
-    name: "Clean It Zero Purifying Balm",
-    image: "/images/sample-product.jpg",
-    price: 259000,
-    rating: 4.6,
-    reviewCount: 70,
-    category: "Cleanser",
-  },
-  {
-    id: 14,
-    slug: "innisfree-black-tea-ampoule",
-    brand: "INNISFREE",
-    name: "Black Tea Youth Enhancing Ampoule",
-    image: "/images/sample-product.jpg",
-    price: 345000,
-    rating: 4.8,
-    reviewCount: 37,
-    category: "Serum",
-  },
-  {
-    id: 15,
-    slug: "biore-aqua-rich-new",
-    brand: "BIORE",
-    name: "UV Aqua Rich Light Up Essence SPF50+",
-    image: "/images/sample-product.jpg",
-    price: 139000,
-    rating: 4.4,
-    reviewCount: 44,
-    category: "Sunscreen",
-  },
-  {
-    id: 16,
-    slug: "biore-aqua-rich-new",
-    brand: "BIORE",
-    name: "UV Aqua Rich Light Up Essence SPF50+",
-    image: "/images/sample-product.jpg",
-    price: 139000,
-    rating: 4.4,
-    reviewCount: 44,
-    category: "Sunscreen",
-  },
-];
+import { getProducts } from "@/services/api/product.services";
+import { getBrands } from "@/services/api/brands.services";
 
 export default function NewArrivalPage() {
   const sections = [];
+  const [products, setProducts] = useState([]);
+  const [, setLoading] = useState(false);
+  const [, setBrands] = useState([]);
+  const [, setMeta] = useState({});
+  const page = 1;
+  const itemsPerPage = 16;
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [resProducts, resBrands] = await Promise.all([
+          getProducts({
+            page: page,
+            per_page: itemsPerPage,
+          }),
+          getBrands(),
+        ]);
+
+        setProducts(resProducts.data || []);
+        setMeta(resProducts.meta || {});
+        setBrands(resBrands.data || []);
+      } catch (error) {
+        console.error("Gagal mengambil data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [1, 16]);
 
   // 1 hero + 4 small (AMAN untuk grid 5 kolom)
-  for (let i = 0; i < NEW_PRODUCTS.length; i += 5) {
-    sections.push(NEW_PRODUCTS.slice(i, i + 5));
+  for (let i = 0; i < products.length; i += 5) {
+    sections.push(products.slice(i, i + 5));
   }
 
   return (
