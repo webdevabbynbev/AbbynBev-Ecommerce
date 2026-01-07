@@ -4,6 +4,40 @@ export function normalizeProduct(raw) {
   const item = raw.product || raw;
 
   const medias = Array.isArray(item.medias) ? item.medias : [];
+    const variants = Array.isArray(item.variants) ? item.variants : [];
+  const variantMediaList = variants
+    .flatMap((variant) => {
+      const mediasForVariant = Array.isArray(variant?.medias) ? variant.medias : [];
+      return mediasForVariant.map((media) => ({
+        url: media?.url,
+        slot: media?.slot,
+        variantId: variant?.id ?? null,
+        updatedAt: media?.updatedAt ?? media?.updated_at,
+      }));
+    })
+    .filter((media) => Boolean(media.url));
+  const mediaList = [...medias, ...variantMediaList]
+    .map((media) => ({
+      url: media?.url,
+      slot: media?.slot,
+      variantId: media?.variantId ?? media?.variant_id ?? media?.variant?.id ?? null,
+      updatedAt: media?.updatedAt ?? media?.updated_at,
+    }))
+    .filter((media) => Boolean(media.url));
+  const sortMedia = (a, b) => {
+    const slotA = Number(a.slot ?? 0);
+    const slotB = Number(b.slot ?? 0);
+    if (Number.isFinite(slotA) && Number.isFinite(slotB) && slotA !== slotB) {
+      return slotA - slotB;
+    }
+    const timeA = Date.parse(a.updatedAt ?? "") || 0;
+    const timeB = Date.parse(b.updatedAt ?? "") || 0;
+    return timeB - timeA;
+  };
+  const uniqueUrls = (items) => Array.from(new Set(items.map((m) => m.url)));
+  const productImages = uniqueUrls(
+    mediaList.filter((media) => !media.variantId).sort(sortMedia)
+  );
   const brandName =
     item.brand?.name ??
     item.brand?.brandname ??
@@ -13,7 +47,6 @@ export function normalizeProduct(raw) {
     item.brandname ??
     "";
   const brandSlug = item.brand?.slug ?? item.brand_slug ?? item.brandSlug ?? "";
-  const variants = Array.isArray(item.variants) ? item.variants : [];
   const variantItems = variants
     .map((variant) => {
       if (!variant) return null;
@@ -31,11 +64,17 @@ export function normalizeProduct(raw) {
         .join(" / ");
       const fallbackLabel =
         variant?.name || variant?.sku || variant?.code || "";
+      const variantImages = uniqueUrls(
+        mediaList
+          .filter((media) => String(media.variantId) === String(variant.id))
+          .sort(sortMedia)
+      );
       return {
         id: variant.id,
         label: attrLabel || fallbackLabel || `Varian ${variant.id}`,
         price: Number(variant.price || item.base_price || item.price || 0),
         stock: Number(variant.stock ?? 0),
+        images: variantImages,
       };
     })
     .filter(Boolean);

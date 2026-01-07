@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import api from "../../../../api/http";
-import helper from "../../../../utils/helper";
+import api from "../../../api/http";
+import helper from "../../../utils/helper";
 
 type Variant = {
   id: number;

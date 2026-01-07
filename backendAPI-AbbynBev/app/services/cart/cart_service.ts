@@ -101,7 +101,7 @@ export class CartService {
 
         await existing.save()
 
-        return { message: 'Cart updated (merged)', serve: existing, httpStatus: 200 }
+        return { message: 'Produk berhasil ditambahkan', serve: existing, httpStatus: 200 }
       }
 
       if (Number(variant.stock) < qty) {
@@ -126,7 +126,7 @@ export class CartService {
 
       await cart.save()
 
-      return { message: 'Successfully added to cart.', serve: cart, httpStatus: 200 }
+      return { message: 'Produk dimasukan ke keranjang belanja.', serve: cart, httpStatus: 200 }
     })
   }
 

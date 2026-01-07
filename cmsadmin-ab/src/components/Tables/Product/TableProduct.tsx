@@ -19,6 +19,7 @@ import {
   EditOutlined,
   SearchOutlined,
   CopyOutlined,
+  PictureOutlined,
 } from "@ant-design/icons";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -223,6 +224,13 @@ const buildColumns = (props: { fetch: () => void; navigate: ReturnType<typeof us
           onClick={() => props.navigate(`/product-form?id=${record.id}`)}
         >
           Edit
+        </Button>
+
+        <Button
+          icon={<PictureOutlined />}
+          onClick={() => props.navigate("/products-media")}
+        >
+          Media
         </Button>
 
         <Popconfirm

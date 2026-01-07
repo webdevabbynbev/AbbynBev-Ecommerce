@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { FaStar } from "react-icons/fa";
 import { formatToRupiah, getDiscountPercent } from "@/utils";
+import { toast } from "sonner";
 import axios from "@/lib/axios";
 
 import {
@@ -40,12 +41,12 @@ const RATING_OPTIONS = [
 export default function ProductDetailClient({ product }) {
   const router = useRouter();
 
-  // ✅ Prevent hydration mismatch for relative time
+  // Prevent hydration mismatch for relative time
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  // ✅ variants dari backend (variantItems sudah berisi images)
-  const variants = product?.variantItems ?? []; // [{ id, label, price, stock, images }]
+  // variants dari backend (variantItems sudah berisi images)
+  const variants = product?.variantItems ?? [];
   const [selectedVariant, setSelectedVariant] = useState(
     variants.length ? variants[0].label : null
   );
@@ -54,32 +55,31 @@ export default function ProductDetailClient({ product }) {
     return variants.find((v) => v.label === selectedVariant) || null;
   }, [variants, selectedVariant]);
 
-  // ✅ kalau selectedVariant kosong tapi variants ada, set default
+  // kalau selectedVariant kosong tapi variants ada, set default
   useEffect(() => {
     if (!selectedVariant && variants.length > 0) {
       setSelectedVariant(variants[0].label);
     }
   }, [selectedVariant, variants]);
 
-  // ✅ SATU sumber images: ambil dari selectedVariantObj.images
+  // SATU sumber images: ambil dari selectedVariantObj.images
   // fallback: product.images, lalu product.image
   const variantImages = useMemo(() => {
-    const imgs =
-      selectedVariantObj?.images?.length
-        ? selectedVariantObj.images
-        : Array.isArray(product?.images) && product.images.length
-        ? product.images
-        : product?.image
-        ? [product.image]
-        : [];
+    const imgs = selectedVariantObj?.images?.length
+      ? selectedVariantObj.images
+      : Array.isArray(product?.images) && product.images.length
+      ? product.images
+      : product?.image
+      ? [product.image]
+      : [];
 
     return imgs.filter(Boolean);
   }, [selectedVariantObj, product?.images, product?.image]);
 
-  // ✅ activeImage untuk gambar utama + sidebar
+  // activeImage untuk gambar utama + sidebar
   const [activeImage, setActiveImage] = useState("");
 
-  // ✅ setiap variant berubah, set gambar pertama jadi active
+  // etiap variant berubah, set gambar pertama jadi active
   useEffect(() => {
     setActiveImage(variantImages[0] || "");
   }, [variantImages]);
@@ -136,25 +136,26 @@ export default function ProductDetailClient({ product }) {
         typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
       if (!token) {
-        alert("Silakan login dulu untuk menambahkan ke keranjang.");
-        if (typeof window !== "undefined") {
-          window.location.href = "/sign-in";
-        } else {
-          router.push("/sign-in");
-        }
+        toast.error("Silakan login dulu untuk menambahkan ke keranjang.", {
+          action: {
+            label: "Login",
+            onClick: () => router.push("/sign-in"),
+          },
+        });
         return;
       }
 
       if (!product?.id) {
-        alert("Product id tidak ditemukan");
+        toast("Product id tidak ditemukan");
         return;
       }
 
       const variantItems = product?.variantItems ?? [];
-      let variant = selectedVariantObj ?? (variantItems.length ? variantItems[0] : null);
+      let variant =
+        selectedVariantObj ?? (variantItems.length ? variantItems[0] : null);
 
       if (!variant) {
-        alert("Varian produk tidak ditemukan");
+        toast("Varian produk tidak ditemukan");
         return;
       }
 
@@ -167,7 +168,7 @@ export default function ProductDetailClient({ product }) {
       };
 
       const res = await axios.post("/cart", payload);
-      alert(res.data?.message || "Produk berhasil dimasukkan ke keranjang");
+      toast(res.data?.message || "Produk berhasil dimasukkan ke keranjang");
     } catch (error) {
       console.error("Gagal menambah ke keranjang", error);
       const isUnauthorized = error?.response?.status === 401;
@@ -175,30 +176,26 @@ export default function ProductDetailClient({ product }) {
         ? "Sesi kamu habis. Silakan login ulang."
         : error?.response?.data?.message ||
           "Terjadi kesalahan saat menambah ke keranjang";
-      alert(msg);
+      toast(msg);
 
-      if (isUnauthorized) {
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("token");
-          window.location.href = "/sign-in";
-        } else {
-          router.push("/sign-in");
-        }
+      if (isUnauthorized && typeof window !== "undefined") {
+        localStorage.removeItem("token");
+        router.push("/sign-in");
       }
     }
   };
 
-  // ✅ debug opsional (boleh hapus)
-  useEffect(() => {
-    console.log("[ProductDetail] product:", product);
-    console.log("[ProductDetail] variantItems:", product?.variantItems);
-    console.log("[ProductDetail] selectedVariant:", selectedVariant);
-    console.log("[ProductDetail] selectedVariantObj:", selectedVariantObj);
-    console.log("[ProductDetail] variantImages:", variantImages);
-  }, [product, selectedVariant, selectedVariantObj, variantImages]);
+  // debug
+  // useEffect(() => {
+  //   console.log("[ProductDetail] product:", product);
+  //   console.log("[ProductDetail] variantItems:", product?.variantItems);
+  //   console.log("[ProductDetail] selectedVariant:", selectedVariant);
+  //   console.log("[ProductDetail] selectedVariantObj:", selectedVariantObj);
+  //   console.log("[ProductDetail] variantImages:", variantImages);
+  // }, [product, selectedVariant, selectedVariantObj, variantImages]);
 
   return (
-    <div className="container mx-auto py-6 px-10 flex w-full flex-col gap-8 px-4 py-6 lg:max-w-[960px] lg:px-8 xl:max-w-[1280px] xl:flex-row xl:justify-between">
+    <div className="container mx-auto py-6 px-10 flex w-full flex-col gap-8 px-4 py-6 lg:max-w-[1080px] lg:flex-row xl:justify-between xl:max-w-[1280px] xl:flex-row xl:justify-between">
       <div className="wrapper w-full space-y-8">
         <div className="left-wrapper-content w-full space-y-8">
           {/* Breadcrumb */}
@@ -219,7 +216,7 @@ export default function ProductDetailClient({ product }) {
               <BreadcrumbSeparator />
 
               <BreadcrumbItem className="min-w-0 flex-1">
-                <BreadcrumbPage className="truncate max-w-[700px]">
+                <BreadcrumbPage className="truncate max-w-[360px]">
                   {product?.name}
                 </BreadcrumbPage>
               </BreadcrumbItem>
@@ -243,7 +240,7 @@ export default function ProductDetailClient({ product }) {
                   <img
                     src={activeImage || product?.image}
                     alt={product?.name}
-                    className="w-full h-auto object-cover border border-neutral-400 lg:w-full"
+                    className="w-full h-auto object-cover border border-neutral-400 lg:max-w-[300px] lg:max-h-[300px]"
                   />
                 </div>
               </div>
@@ -314,17 +311,31 @@ export default function ProductDetailClient({ product }) {
 
               {/* Variants */}
               {variants.length ? (
-                <div className="chip-container flex w-full space-x-3 items-center">
+                <div className="chip-container flex flex-wrap w-full gap-4 items-center">
                   <p>{product?.variant_value || "Variant"}:</p>
-                  {variants.map((v) => (
-                    <Chip
-                      key={v.id}
-                      onClick={() => handleSelect(v.label)}
-                      isActive={selectedVariant === v.label}
-                    >
-                      {v.label}
-                    </Chip>
-                  ))}
+                  {variants.map((v) => {
+                    const variantThumb = Array.isArray(v?.images)
+                      ? v.images[0]
+                      : null;
+                    return (
+                      <Chip
+                        key={v.id}
+                        onClick={() => handleSelect(v.label)}
+                        isActive={selectedVariant === v.label}
+                      >
+                        <span className="flex items-center gap-2">
+                          {variantThumb ? (
+                            <img
+                              src={variantThumb}
+                              alt={v.label}
+                              className="h-5 w-5 rounded-xs object-cover"
+                            />
+                          ) : null}
+                          <span>{v.label}</span>
+                        </span>
+                      </Chip>
+                    );
+                  })}
                 </div>
               ) : null}
 
@@ -346,19 +357,25 @@ export default function ProductDetailClient({ product }) {
                     Shipment
                   </h3>
                   <p className="text-sm">
-                    Regular shipment start from <span className="font-bold"> Rp.10.000</span>
+                    Regular shipment start from{" "}
+                    <span className="font-bold"> Rp.10.000</span>
                   </p>
                   <p className="text-sm">
-                    Estimated time arrived <span className="font-bold"> 3–5 days</span>
+                    Estimated time arrived{" "}
+                    <span className="font-bold"> 3–5 days</span>
                     <span className="text-neutral-300"> | </span>
-                    <span className="text-primary-700 font-medium">See our shipping partner</span>
+                    <span className="text-primary-700 font-medium">
+                      See our shipping partner
+                    </span>
                   </p>
                 </div>
 
                 {/* Review */}
                 <div className="container-review space-y-6">
                   <div className="flex flex-col space-y-2">
-                    <h3 className="text-primary-700 font-bold text-base">Review</h3>
+                    <h3 className="text-primary-700 font-bold text-base">
+                      Review
+                    </h3>
                     <span>Filter</span>
                     <div className="flex space-x-4">
                       <TxtField
@@ -440,7 +457,9 @@ export default function ProductDetailClient({ product }) {
                       );
                     })
                   ) : (
-                    <p className="text-neutral-400">Belum ada review untuk produk ini.</p>
+                    <p className="text-neutral-400">
+                      Belum ada review untuk produk ini.
+                    </p>
                   )}
                 </div>
               </div>
@@ -453,8 +472,8 @@ export default function ProductDetailClient({ product }) {
       <div className="hidden sticky top-[103px] p-6 space-y-4 outline-1 outline-neutral-100 rounded-3xl bottom-32 items-start w-full max-w-[300px] h-fit bg-white lg:block">
         <div className="text-xl font-medium">Quantity</div>
 
-        <div className="flex justify-between">
-          <div className="ContainerImage flex items-start">
+        <div className="flex flex-row gap-4">
+          <div className="ContainerImage flex h-fit w-full items-start">
             <div className="imageOnly">
               <img
                 src={activeImage || product?.image}
@@ -471,16 +490,17 @@ export default function ProductDetailClient({ product }) {
                   className="w-8 h-8"
                 />
               )}
+            </div>
+          </div>
+          <div className="flex flex-col space-y-2">
+            <div className="text-sm font-normal line-clamp-2">
+              {product?.name}
+            </div>
 
-              <div className="text-sm font-normal line-clamp-2">
-                {product?.name}
-              </div>
-
-              <div className="flex space-x-1 items-center">
-                <div className="text-xs text-neutral-600">Variant:</div>
-                <div className="text-xs font-bold text-primary-700">
-                  {selectedVariant ? selectedVariant : "-"}
-                </div>
+            <div className="flex space-x-1 items-center">
+              <div className="text-xs text-neutral-600">Variant:</div>
+              <div className="text-xs font-bold text-primary-700">
+                {selectedVariant ? selectedVariant : "-"}
               </div>
             </div>
           </div>

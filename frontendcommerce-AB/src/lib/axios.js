@@ -16,7 +16,7 @@ api.interceptors.request.use((config) => {
   config.headers = config.headers || {};
   config.headers.Accept = "application/json";
 
-  const token = getToken(); // ✅ auto null kalau expired
+  const token = getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
