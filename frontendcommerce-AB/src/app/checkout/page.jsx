@@ -176,7 +176,7 @@ export default function CheckoutPage() {
             {checkoutItems.map((item, idx) => {
               const product = item.product || {};
 
-              const image = product.thumbnail || product.image || "/placeholder.png";
+              const image = product.thumbnail || product.image || "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
               const quantity = n(item?.qtyCheckout ?? item?.qty ?? item?.quantity ?? 1, 1);
               const isBusy = loadingItemId !== null && loadingItemId === item.id;
 
@@ -224,7 +224,7 @@ export default function CheckoutPage() {
                             -
                           </button>
 
-                          <span className="min-w-[32px] text-center">
+                          <span className="min-w-8 text-center">
                             {quantity}
                           </span>
 
@@ -258,7 +258,7 @@ export default function CheckoutPage() {
           </div>
 
           {/* ADDRESS */}
-          <div className="p-4 font-medium text-base bg-muted border-1 border-neutral-100 w-full rounded-2xl space-y-6">
+          <div className="p-4 font-medium text-base bg-muted border border-neutral-100 w-full rounded-2xl space-y-6">
             <div className="flex w-full items-center justify-between">
               <h3 className="font-bold">Shipping address</h3>
               <NewAddress onSuccess={() => reloadAddresses()} />
@@ -414,7 +414,7 @@ export default function CheckoutPage() {
         </div>
 
         {/* RIGHT */}
-        <div className="w-[360px] bg-white border rounded-2xl shadow-md p-6 h-fit">
+        <div className="w-90 bg-white border rounded-2xl shadow-md p-6 h-fit">
           <h2 className="text-xl font-semibold mb-6">Payment</h2>
 
           <div className="space-y-5">

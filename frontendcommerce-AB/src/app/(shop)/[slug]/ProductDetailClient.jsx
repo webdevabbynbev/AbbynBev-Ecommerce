@@ -235,7 +235,7 @@ export default function ProductDetailClient({ product }) {
                   <img
                     src="/sale-tag.svg"
                     alt="Sale"
-                    className="absolute top-0 left-0 z-10 w-[40px] h-auto"
+                    className="absolute top-0 left-0 z-10 w-10 h-auto"
                   />
                 )}
 
@@ -459,7 +459,7 @@ export default function ProductDetailClient({ product }) {
               <img
                 src={activeImage || product?.image}
                 alt={product?.name}
-                className="h-[100px] w-[100px]"
+                className="h-25 w-25"
               />
             </div>
 
@@ -468,7 +468,7 @@ export default function ProductDetailClient({ product }) {
                 <img
                   src="/sale-tag-square.svg"
                   alt="Sale"
-                  className="w-[32px] h-[32px]"
+                  className="w-8 h-8"
                 />
               )}
 

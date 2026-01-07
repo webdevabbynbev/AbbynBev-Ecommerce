@@ -193,89 +193,7 @@ export function Filter() {
   }, [categoryTypes, selectedFilters]);
 
   return (
-    <div className="flex-row space-y-10 h-full max-w-[300px]">
-      {/* Category */}
-      <div className="TitleCat-1 flex-row w-full space-y-4">
-        <h3 className="font-medium text-sm">
-          Category {catLoading ? "(loading...)" : ""}
-        </h3>
-        <hr className="w-full border-t border-primary-700 py-2" />
-
-        {catLoading ? null : sections.length === 0 ? (
-          <div className="text-sm text-gray-500">No categories found</div>
-        ) : (
-          sections.map((s) => (
-            <NestedSection
-              key={s.key}
-              title={s.title}
-              items={s.items}
-              outerClassName={`Accordion${s.title}`}
-            />
-          ))
-        )}
-      </div>
-
-      {/* Price Range */}
-      <div className="TitleCat-2 flex-row w-full space-y-4">
-        <h3 className="w-[146px] font-medium text-base">Price range</h3>
-        <hr className="w-full border-t border-primary-700 my-4" />
-        <div className="Price flex-row w-full space-y-2 items-center">
-          <div className="textfieldmin w-full">
-            <TooltipProvider>
-              <Tooltip open={showTooltipMin}>
-                <TooltipTrigger asChild>
-                  <TxtField
-                    label="minimum price"
-                    value={formatToRupiah(minPrice)}
-                    onChange={(e) => handleChangePrice(e, "min")}
-                    placeholder="Rp.0"
-                    variant="outline"
-                    className="w-full"
-                  />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>You can only enter a number</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-
-          <div className="textfieldmax w-full">
-            <TooltipProvider>
-              <Tooltip open={showTooltipMax}>
-                <TooltipTrigger asChild>
-                  <TxtField
-                    label="maximum price"
-                    value={formatToRupiah(maxPrice)}
-                    onChange={(e) => handleChangePrice(e, "max")}
-                    placeholder="Rp.0"
-                    variant="outline"
-                    className="w-full"
-                  />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>You can only enter a number</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        </div>
-      </div>
-
-      {/* By concern */}
-      <div className="TitleCat-3 flex-row w-full space-y-2">
-        <h3 className="w-[146px] font-medium text-base">By concern</h3>
-        <hr className="w-full border-t border-primary-700 my-4" />
-        {concern_sections.map((s) => (
-          <NestedSection
-            key={s.key}
-            title={s.title}
-            items={s.items}
-            outerClassName={`Accordion${s.title}`}
-          />
-        ))}
-      </div>
-
+    <div className="flex-row space-y-10 h-full max-w-75">
       {/* Brand (opsional) */}
       {showBrandFilter && (
         <div className="TitleCat-4 flex-row w-full space-y-2 justify-between">
@@ -325,11 +243,93 @@ export function Filter() {
         </div>
       )}
 
+      {/* Category */}
+      <div className="TitleCat-1 flex-row w-full space-y-4">
+        <h3 className="font-medium text-sm">
+          Category {catLoading ? "(loading...)" : ""}
+        </h3>
+        <hr className="w-full border-t border-primary-700 py-2" />
+
+        {catLoading ? null : sections.length === 0 ? (
+          <div className="text-sm text-gray-500">No categories found</div>
+        ) : (
+          sections.map((s) => (
+            <NestedSection
+              key={s.key}
+              title={s.title}
+              items={s.items}
+              outerClassName={`Accordion${s.title}`}
+            />
+          ))
+        )}
+      </div>
+
+      {/* Price Range */}
+      <div className="TitleCat-2 flex-row w-full space-y-4">
+        <h3 className="w-36.5 font-medium text-base">Price range</h3>
+        <hr className="w-full border-t border-primary-700 my-4" />
+        <div className="Price flex-row w-full space-y-2 items-center">
+          <div className="textfieldmin w-full">
+            <TooltipProvider>
+              <Tooltip open={showTooltipMin}>
+                <TooltipTrigger asChild>
+                  <TxtField
+                    label="minimum price"
+                    value={formatToRupiah(minPrice)}
+                    onChange={(e) => handleChangePrice(e, "min")}
+                    placeholder="Rp.0"
+                    variant="outline"
+                    className="w-full"
+                  />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>You can only enter a number</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+
+          <div className="textfieldmax w-full">
+            <TooltipProvider>
+              <Tooltip open={showTooltipMax}>
+                <TooltipTrigger asChild>
+                  <TxtField
+                    label="maximum price"
+                    value={formatToRupiah(maxPrice)}
+                    onChange={(e) => handleChangePrice(e, "max")}
+                    placeholder="Rp.0"
+                    variant="outline"
+                    className="w-full"
+                  />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>You can only enter a number</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        </div>
+      </div>
+
+      {/* By concern */}
+      <div className="TitleCat-3 flex-row w-full space-y-2">
+        <h3 className="w-36.5 font-medium text-base">By concern</h3>
+        <hr className="w-full border-t border-primary-700 my-4" />
+        {concern_sections.map((s) => (
+          <NestedSection
+            key={s.key}
+            title={s.title}
+            items={s.items}
+            outerClassName={`Accordion${s.title}`}
+          />
+        ))}
+      </div>
+
       {/* Rating */}
       <div className="TitleCat-5 flex-row w-full space-x-4 justify-between items-center">
         <div className="items-center flex space-x-2">
           <h3 className="w-auto font-medium text-base">Rating</h3>
-          <FaStar className="text-warning-300 h-[20px] w-[20px]" />
+          <FaStar className="text-warning-300 h-5 w-5" />
         </div>
         <hr className="w-full border-t border-primary-700 my-4" />
         <div className="flex flex-wrap gap-4 w-full py-2 px-1">
