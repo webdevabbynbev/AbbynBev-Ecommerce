@@ -39,23 +39,52 @@ const RATING_OPTIONS = [
 
 export default function ProductDetailClient({ product }) {
   const router = useRouter();
+
   // ✅ Prevent hydration mismatch for relative time
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const variants = product?.variantItems ?? []; // [{ id, label, price, stock }]
+  // ✅ variants dari backend (variantItems sudah berisi images)
+  const variants = product?.variantItems ?? []; // [{ id, label, price, stock, images }]
   const [selectedVariant, setSelectedVariant] = useState(
     variants.length ? variants[0].label : null
   );
-  const [qty, setQty] = useState(1);
 
-  const selectedVariantObj = variants.find((v) => v.label === selectedVariant);
+  const selectedVariantObj = useMemo(() => {
+    return variants.find((v) => v.label === selectedVariant) || null;
+  }, [variants, selectedVariant]);
 
+  // ✅ kalau selectedVariant kosong tapi variants ada, set default
   useEffect(() => {
     if (!selectedVariant && variants.length > 0) {
       setSelectedVariant(variants[0].label);
     }
   }, [selectedVariant, variants]);
+
+  // ✅ SATU sumber images: ambil dari selectedVariantObj.images
+  // fallback: product.images, lalu product.image
+  const variantImages = useMemo(() => {
+    const imgs =
+      selectedVariantObj?.images?.length
+        ? selectedVariantObj.images
+        : Array.isArray(product?.images) && product.images.length
+        ? product.images
+        : product?.image
+        ? [product.image]
+        : [];
+
+    return imgs.filter(Boolean);
+  }, [selectedVariantObj, product?.images, product?.image]);
+
+  // ✅ activeImage untuk gambar utama + sidebar
+  const [activeImage, setActiveImage] = useState("");
+
+  // ✅ setiap variant berubah, set gambar pertama jadi active
+  useEffect(() => {
+    setActiveImage(variantImages[0] || "");
+  }, [variantImages]);
+
+  const [qty, setQty] = useState(1);
 
   const finalPrice =
     selectedVariantObj?.price ??
@@ -72,7 +101,7 @@ export default function ProductDetailClient({ product }) {
     finalPrice;
 
   const stock = selectedVariantObj?.stock ?? product?.stock ?? 0;
-const subtotal = finalPrice * qty;
+  const subtotal = finalPrice * qty;
 
   const discount =
     product?.sale && realPrice
@@ -122,12 +151,7 @@ const subtotal = finalPrice * qty;
       }
 
       const variantItems = product?.variantItems ?? [];
-      let variant =
-        selectedVariantObj ?? (variantItems.length ? variantItems[0] : null);
-
-      if (!variant && variantItems.length > 0) {
-        variant = variantItems[0];
-      }
+      let variant = selectedVariantObj ?? (variantItems.length ? variantItems[0] : null);
 
       if (!variant) {
         alert("Varian produk tidak ditemukan");
@@ -164,10 +188,19 @@ const subtotal = finalPrice * qty;
     }
   };
 
+  // ✅ debug opsional (boleh hapus)
+  useEffect(() => {
+    console.log("[ProductDetail] product:", product);
+    console.log("[ProductDetail] variantItems:", product?.variantItems);
+    console.log("[ProductDetail] selectedVariant:", selectedVariant);
+    console.log("[ProductDetail] selectedVariantObj:", selectedVariantObj);
+    console.log("[ProductDetail] variantImages:", variantImages);
+  }, [product, selectedVariant, selectedVariantObj, variantImages]);
+
   return (
-    <div className="container mx-auto w-full py-6 px-10 flex justify-between xl:max-w-7xl lg:max-w-240">
-      <div className="wrapper space-y-10 items-center ">
-        <div className="left-wrapper-content w-full flex-row space-y-10">
+    <div className="container mx-auto py-6 px-10 flex w-full flex-col gap-8 px-4 py-6 lg:max-w-[960px] lg:px-8 xl:max-w-[1280px] xl:flex-row xl:justify-between">
+      <div className="wrapper w-full space-y-8">
+        <div className="left-wrapper-content w-full space-y-8">
           {/* Breadcrumb */}
           <Breadcrumb>
             <BreadcrumbList>
@@ -185,8 +218,8 @@ const subtotal = finalPrice * qty;
 
               <BreadcrumbSeparator />
 
-              <BreadcrumbItem>
-                <BreadcrumbPage className="truncate w-75">
+              <BreadcrumbItem className="min-w-0 flex-1">
+                <BreadcrumbPage className="truncate max-w-[700px]">
                   {product?.name}
                 </BreadcrumbPage>
               </BreadcrumbItem>
@@ -194,10 +227,10 @@ const subtotal = finalPrice * qty;
           </Breadcrumb>
 
           {/* Left Content */}
-          <div className="left-content w-full flex">
+          <div className="left-content w-full flex flex-col lg:flex-row">
             {/* Product Image */}
             <div className="Image-container">
-              <div className="h-55 w-55 relative overflow-hidden rounded-lg">
+              <div className="h-auto w-full relative overflow-hidden rounded-lg">
                 {product?.sale && (
                   <img
                     src="/sale-tag.svg"
@@ -208,29 +241,30 @@ const subtotal = finalPrice * qty;
 
                 <div>
                   <img
-                    src={product?.image}
+                    src={activeImage || product?.image}
                     alt={product?.name}
-                    className="w-full h-full object-cover border border-neutral-400"
+                    className="w-full h-auto object-cover border border-neutral-400 lg:w-full"
                   />
                 </div>
               </div>
 
-              <div className="flex max-w-75 py-2 items-center space-x-4 max-h-64 overflow-x-auto custom-scrollbar">
-                {(product?.images?.length ? product.images : [product?.image]).map(
-                  (img, i) => (
-                    <img
-                      key={i}
-                      src={img}
-                      alt={`${product?.name}-${i}`}
-                      className="h-12.5 w-12.5 border p-2 rounded-md"
-                    />
-                  )
-                )}
+              <div className="flex max-w-[300px] py-2 items-center space-x-4 max-h-64 overflow-x-auto custom-scrollbar">
+                {variantImages.map((img, i) => (
+                  <img
+                    key={i}
+                    src={img}
+                    alt={`${product?.name}-${i}`}
+                    onClick={() => setActiveImage(img)}
+                    className={`h-[80px] w-[80px] border p-2 rounded-md cursor-pointer ${
+                      activeImage === img ? "ring-2 ring-primary-700" : ""
+                    }`}
+                  />
+                ))}
               </div>
             </div>
 
             {/* Right Content */}
-            <div className="Content-right w-full space-y-4 px-10">
+            <div className="Content-right w-full space-y-4 lg:px-10 ">
               <div className="title-product">
                 <h1 className="text-lg font-bold">{brandName}</h1>
                 <h2 className="text-xl font-normal">{product?.name}</h2>
@@ -248,7 +282,7 @@ const subtotal = finalPrice * qty;
 
                     <div className="reapPrice-container flex space-x-2 items-center">
                       <span className="text-base font-medium text-neutral-400 line-through">
-                        {formatToRupiah(finalPrice)}
+                        {formatToRupiah(realPrice)}
                       </span>
 
                       {discount > 0 && (
@@ -273,7 +307,9 @@ const subtotal = finalPrice * qty;
                   {Number(averageRating || 0).toFixed(1)}
                   <FaStar className="text-warning-300 ml-1" />
                 </span>
-                <span className="text-neutral-400">({reviews.length} reviews)</span>
+                <span className="text-neutral-400">
+                  ({reviews.length} reviews)
+                </span>
               </div>
 
               {/* Variants */}
@@ -298,30 +334,30 @@ const subtotal = finalPrice * qty;
               <div className="product-detail space-y-4">
                 {/* Summary */}
                 <div className="summary space-y-2">
-                  <h3 className="text-primary-700 font-bold text-base">Summary</h3>
+                  <h3 className="text-primary-700 font-bold text-base">
+                    Summary
+                  </h3>
                   <p className="text-sm">{product?.description}</p>
                 </div>
 
                 {/* Shipment */}
                 <div className="shipment space-y-2">
-                  <h3 className="text-primary-700 font-bold text-base">Shipment</h3>
+                  <h3 className="text-primary-700 font-bold text-base">
+                    Shipment
+                  </h3>
                   <p className="text-sm">
-                    Regular shipment start from
-                    <span className="font-bold"> Rp.10.000</span>
+                    Regular shipment start from <span className="font-bold"> Rp.10.000</span>
                   </p>
                   <p className="text-sm">
-                    Estimated time arrived
-                    <span className="font-bold"> 3–5 days</span>
+                    Estimated time arrived <span className="font-bold"> 3–5 days</span>
                     <span className="text-neutral-300"> | </span>
-                    <span className="text-primary-700 font-medium">
-                      See our shipping partner
-                    </span>
+                    <span className="text-primary-700 font-medium">See our shipping partner</span>
                   </p>
                 </div>
 
                 {/* Review */}
                 <div className="container-review space-y-6">
-                  <div className="filter-review space-y-2">
+                  <div className="flex flex-col space-y-2">
                     <h3 className="text-primary-700 font-bold text-base">Review</h3>
                     <span>Filter</span>
                     <div className="flex space-x-4">
@@ -330,12 +366,12 @@ const subtotal = finalPrice * qty;
                         iconLeftName="MagnifyingGlass"
                         variant="outline"
                         size="md"
-                        className="min-w-70"
+                        className="w-full"
                       />
 
                       <Select>
-                        <SelectTrigger className="w-45">
-                          <SelectValue placeholder="Filter by rating" />
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Filter rating" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectGroup>
@@ -358,7 +394,10 @@ const subtotal = finalPrice * qty;
                   {reviews.length > 0 ? (
                     reviews.map((r) => {
                       const created =
-                        r.createdAt || r.created_at || r.create_at || r.updatedAt;
+                        r.createdAt ||
+                        r.created_at ||
+                        r.create_at ||
+                        r.updatedAt;
 
                       const who = r.user?.firstName
                         ? `${r.user.firstName} ${r.user.lastName ?? ""}`.trim()
@@ -401,9 +440,7 @@ const subtotal = finalPrice * qty;
                       );
                     })
                   ) : (
-                    <p className="text-neutral-400">
-                      Belum ada review untuk produk ini.
-                    </p>
+                    <p className="text-neutral-400">Belum ada review untuk produk ini.</p>
                   )}
                 </div>
               </div>
@@ -413,14 +450,14 @@ const subtotal = finalPrice * qty;
       </div>
 
       {/* Sticky Sidebar */}
-      <div className="sticky top-25.75 p-6 space-y-4 outline-1 outline-neutral-100 rounded-3xl bottom-32 items-start w-full max-w-75 h-fit bg-white">
+      <div className="hidden sticky top-[103px] p-6 space-y-4 outline-1 outline-neutral-100 rounded-3xl bottom-32 items-start w-full max-w-[300px] h-fit bg-white lg:block">
         <div className="text-xl font-medium">Quantity</div>
 
         <div className="flex justify-between">
           <div className="ContainerImage flex items-start">
             <div className="imageOnly">
               <img
-                src={product?.image}
+                src={activeImage || product?.image}
                 alt={product?.name}
                 className="h-25 w-25"
               />
@@ -452,7 +489,8 @@ const subtotal = finalPrice * qty;
         <div className="flex w-full items-center space-x-3">
           <QuantityInput min={1} max={stock} value={qty} onChange={setQty} />
           <div className="text-sm font-normal text-neutral-600">
-            Stock : <span className="font-medium text-neutral-950">{stock}</span>
+            Stock :{" "}
+            <span className="font-medium text-neutral-950">{stock}</span>
           </div>
         </div>
 
@@ -505,7 +543,12 @@ const subtotal = finalPrice * qty;
         <hr className="w-full border-t border-neutral-200 my-4" />
 
         <div className="flex justify-between space-x-2">
-          <Button iconName="Share" variant="tertiary" size="sm" className="w-full">
+          <Button
+            iconName="Share"
+            variant="tertiary"
+            size="sm"
+            className="w-full"
+          >
             Share product
           </Button>
           <BtnIconToggle iconName="Heart" variant="tertiary" size="sm" />

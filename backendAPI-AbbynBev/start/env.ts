@@ -71,9 +71,15 @@ export default await Env.create(new URL('../', import.meta.url), {
   MIDTRANS_ENV: Env.schema.enum(['sandbox', 'production'] as const),
 
   // WhatsApp API (optional)
-  WHATSAPP_PHONE_NUMBER_ID: Env.schema.string.optional(),
-  WHATSAPP_ACCESS_TOKEN: Env.schema.string.optional(),
-  WHATSAPP_API_URL: Env.schema.string.optional(),
+// Di file start/env.ts
+WHATSAPP_PHONE_NUMBER_ID: Env.schema.string(),
+WHATSAPP_ACCESS_TOKEN: Env.schema.string(),
+WHATSAPP_API_URL: Env.schema.string(),
+
+// Yang ini baru boleh optional karena di Service kamu sudah ada default-nya
+WHATSAPP_TEMPLATE_NAME: Env.schema.string.optional(),
+WHATSAPP_TEMPLATE_LANG: Env.schema.string.optional(),
+
 
   // =========================
   // BITESHIP (Wajib kalau Komerce dihapus)

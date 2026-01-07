@@ -1,8 +1,9 @@
 import { Plus_Jakarta_Sans, Damion } from "next/font/google";
 import "./globals.css";
-import {Footer, MobileBottomNav } from "../components";
+import { Footer, MobileBottomNav } from "../components";
 import GoogleProvider from "@/components/googleProvider";
 import { AuthProvider } from "@/context/AuthContext";
+import { WishlistProvider } from "@/context/WishlistContext";
 import { NavbarClientGate } from "@/components/navbar";
 
 const plusJakarta = Plus_Jakarta_Sans({
@@ -34,14 +35,16 @@ export default function RootLayout({ children }) {
       >
         <GoogleProvider>
           <AuthProvider>
-            <NavbarClientGate />
+            <WishlistProvider>
+              <NavbarClientGate />
 
-            <main className="flex-1">
-              {children}
-              <div className="lg:hidden h-24" />
-            </main>
-            <MobileBottomNav />
-            <Footer />
+              <main className="flex-1">
+                {children}
+                <div className="lg:hidden h-24" />
+              </main>
+              <MobileBottomNav />
+              <Footer />
+            </WishlistProvider>
           </AuthProvider>
         </GoogleProvider>
       </body>

@@ -1,8 +1,13 @@
 "use client";
+
 console.log("ENV CLOUD:", process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME);
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+// Tambahkan useSearchParams
+import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
+// Import Toast (Pastikan path import ini sesuai dengan lokasi komponen Sonner kamu)
+import { toast } from "sonner";
+
 import {
   RegularCardSkeleton,
   RegularCard,
@@ -21,7 +26,30 @@ export default function Home() {
   const [productsLoading, setProductsLoading] = useState(true);
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+
   const router = useRouter();
+  const searchParams = useSearchParams(); // Hook untuk baca URL
+
+  // --- LOGIC BARU: CEK SESSION EXPIRED ---
+  useEffect(() => {
+    const isExpired = searchParams.get("session_expired");
+    if (isExpired) {
+      // 1. Munculkan Popup/Toast
+      toast.error("Sesi Berakhir", {
+        description: "Waktu login Anda habis. Silakan login kembali.",
+        duration: 5000,
+        action: {
+          label: "Login",
+          onClick: () => router.push("/sign-in"), // Sesuaikan rute login kamu
+        },
+      });
+
+      // 2. Bersihkan URL (Hapus ?session_expired=true biar bersih)
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, "", newUrl);
+    }
+  }, [searchParams, router]);
+  // ---------------------------------------
 
   useEffect(() => {
     (async () => {
