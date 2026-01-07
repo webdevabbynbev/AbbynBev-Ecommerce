@@ -12,7 +12,7 @@ export default function ProfileSkeleton() {
       <div className="container rounded-4xl bg-white p-4 space-y-4 border border-neutral-100">
         <div className="flex sm:flex-col md:flex-row w-full h-auto md:items-center sm:items-start justify-between gap-4">
           {/* Avatar */}
-          <div className="avatar rounded-full h-[100px] min-w-[100px] bg-neutral-200" />
+          <div className="avatar rounded-full h-25 min-w-25 bg-neutral-200" />
 
           {/* Profile data */}
           <div className="profile-data w-full items-start flex-row space-y-2">
@@ -39,7 +39,7 @@ export default function ProfileSkeleton() {
         </div>
 
         {/* Address list card */}
-        <div className="p-4 font-medium text-base bg-muted/40 bg-neutral-50 border border-neutral-100 w-full rounded-2xl space-y-6">
+        <div className="p-4 font-medium text-base bg-neutral-50 border border-neutral-100 w-full rounded-2xl space-y-6">
           <div className="flex w-full items-center justify-between">
             <div className="h-5 w-28 bg-neutral-200 rounded" />
             <div className="h-9 w-36 bg-neutral-200 rounded-xl" />
@@ -67,7 +67,7 @@ export default function ProfileSkeleton() {
       </div>
 
       {/* Account management */}
-      <div className="p-4 font-medium text-base space-y-6 bg-muted/40 bg-neutral-50 border border-neutral-100 w-full rounded-2xl">
+      <div className="p-4 font-medium text-base space-y-6 bg-neutral-50 border border-neutral-100 w-full rounded-2xl">
         <div className="flex w-full items-center justify-between">
           <div className="h-5 w-40 bg-neutral-200 rounded" />
         </div>

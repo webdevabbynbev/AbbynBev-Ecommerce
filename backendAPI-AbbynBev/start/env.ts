@@ -74,7 +74,7 @@ export default await Env.create(new URL('../', import.meta.url), {
 // Di file start/env.ts
 WHATSAPP_PHONE_NUMBER_ID: Env.schema.string(),
 WHATSAPP_ACCESS_TOKEN: Env.schema.string(),
-WHATSAPP_API_URL: Env.schema.string(),
+WHATSAPP_API_URL: Env.schema.string.optional(),
 
 // Yang ini baru boleh optional karena di Service kamu sudah ada default-nya
 WHATSAPP_TEMPLATE_NAME: Env.schema.string.optional(),

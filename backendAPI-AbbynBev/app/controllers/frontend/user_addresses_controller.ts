@@ -64,7 +64,7 @@ export default class UserAddressesController {
     try {
       const input = String(request.qs().input || '').trim()
       const countries = String(request.qs().countries || 'ID').trim()
-      const type = String(request.qs().type || 'single').trim()
+      const type = String(request.qs().type || 'multi').trim()
 
       const { data: areas, cached, coalesced } = await this.biteship.searchAreas({ input, countries, type })
 

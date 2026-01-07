@@ -42,11 +42,15 @@ api.interceptors.response.use(
       if (typeof window !== "undefined") {
         const path = window.location.pathname;
         const isAuthPage =
-          path === "/login" || path === "/register" || path.startsWith("/auth");
+          path === "/login" ||
+          path === "/register" ||
+          path.startsWith("/auth") ||
+          path === "/sign-in";
 
         if (!isAuthPage) {
-          // gunakan replace supaya tidak nambah history dan tidak "bounce"
-          window.location.replace("/login");
+          alert("Sesi Anda telah berakhir, silahkan login kembali.");
+          window.location.href = "/?session_expired=true";
+          return new Promise(() => {});
         }
       }
     }

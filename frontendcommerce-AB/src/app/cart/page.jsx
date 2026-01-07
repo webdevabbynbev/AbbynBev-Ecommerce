@@ -235,7 +235,7 @@ export default function CartPage() {
             const id = item?.id;
             const product = item.product || {};
             const image =
-              product.thumbnail || product.image || "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";;
+              product.thumbnail || product.image || "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
             const quantity = getQuantity(item);
             const busy = loadingItemId !== null && loadingItemId === id;
 
@@ -294,7 +294,7 @@ export default function CartPage() {
                           -
                         </button>
 
-                        <span className="min-w-[32px] text-center">
+                        <span className="min-w-8 text-center">
                           {quantity}
                         </span>
 
