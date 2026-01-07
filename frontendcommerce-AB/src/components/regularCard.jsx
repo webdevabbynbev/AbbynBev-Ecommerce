@@ -131,16 +131,14 @@ export function RegularCard({ product }) {
 
           <div className="absolute top-4 right-4 z-10">
             <BtnIconToggle
+              active={isWishlisted}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 handleWishlist();
               }}
-              iconName="Heart"
               variant="tertiary"
               size="md"
-              aria-pressed={isWishlisted}
-              title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
             />
           </div>
 

@@ -2,10 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { FaStar } from "react-icons/fa6";
 import { BtnIconToggle } from ".";
-import { formatToRupiah, slugify, getAverageRating } from "@/utils";
-import { DataReview } from "@/data";
+import { slugify } from "@/utils";
 
 export function NewArrivaleCard({ product }) {
   const [wishlist, setWishlist] = useState([]);
@@ -109,12 +107,6 @@ export function NewArrivaleCard({ product }) {
 
   const isWishlisted = wishlist.some((p) => p.id === item.id);
 
-  const reviewsForProduct = Array.isArray(DataReview)
-    ? DataReview.filter((r) => r.productID === item.id)
-    : [];
-
-  const averageRating = getAverageRating(reviewsForProduct);
-
   const href = item.slug ? `/${encodeURIComponent(item.slug)}` : "#";
 
   return (
@@ -122,38 +114,54 @@ export function NewArrivaleCard({ product }) {
       <Link href={href}>
         <div className="image flex w-full items-center justify-center relative">
           {(item.sale || hasSale) && (
-            <img
-              src="/sale-tag.svg"
-              alt="Sale"
-              className="absolute top-0 left-0 z-10 w-10 h-auto"
-            />
+            <div className="relative group">
+              <img
+                src={item.image}
+                alt={item.name}
+                className="w-full h-auto object-cover"
+                onError={(e) => {
+                  e.currentTarget.src =
+                    "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
+                }}
+              />
+
+              {/* Tooltip */}
+              <div className="pointer-events-none absolute bottom-2 left-1/2 z-20 w-max max-w-[90%] -translate-x-1/2 rounded-md bg-black/80 px-2 py-1 text-xs text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                {item.name}
+              </div>
+            </div>
           )}
 
           <div className="absolute top-4 right-4 z-10">
             <BtnIconToggle
+              active={isWishlisted}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 handleWishlist();
               }}
-              iconName="Heart"
               variant="tertiary"
               size="md"
-              aria-pressed={isWishlisted}
-              title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
             />
           </div>
 
           <div className="image w-full">
-            <img
-              src={item.image}
-              alt={item.name}
-              className="w-full h-auto object-cover"
-              onError={(e) => {
-                e.currentTarget.src =
-                  "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
-              }}
-            />
+            <div className="relative group">
+              <img
+                src={item.image}
+                alt={item.name}
+                className="w-full h-auto object-cover"
+                onError={(e) => {
+                  e.currentTarget.src =
+                    "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
+                }}
+              />
+
+              {/* Tooltip */}
+              <div className="pointer-events-none absolute bottom-2 left-1/2 z-20 w-max max-w-[90%] -translate-x-1/2 rounded-md bg-primary-700 px-2 py-1 text-xs text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                {item.name}
+              </div>
+            </div>
           </div>
         </div>
       </Link>
