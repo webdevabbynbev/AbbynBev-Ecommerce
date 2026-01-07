@@ -15,7 +15,7 @@ export default class AuthRegistrationController {
       const { email, phone_number, first_name, last_name, gender } =
         await request.validateUsing(registerValidator)
 
-      const raw = String(request.input('send_via') || 'email').toLowerCase()
+      const raw = String(request.input('send_via') || 'whatsapp').toLowerCase()
       const sendVia: 'email' | 'whatsapp' = raw === 'whatsapp' ? 'whatsapp' : 'email'
 
       const body = await AuthRegisterService.requestRegisterOtp({
@@ -25,6 +25,7 @@ export default class AuthRegistrationController {
         last_name,
         gender,
         send_via: sendVia,
+        
       })
 
       return response.status(200).send(body)
