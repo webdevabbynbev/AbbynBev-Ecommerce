@@ -5,6 +5,10 @@ export default class WhatsAppService {
   private token = env.get('WHATSAPP_ACCESS_TOKEN') as string
   private phoneNumberId = env.get('WHATSAPP_PHONE_NUMBER_ID') as string
   private apiUrl = env.get('WHATSAPP_API_URL') as string
+
+  private templateName = (env.get('WHATSAPP_TEMPLATE_NAME') as string) || 'otp_code'
+  private templateLang = (env.get('WHATSAPP_TEMPLATE_LANG') as string) || 'id'
+
   public async sendOTP(to: string, otp: string) {
     const url = `${this.apiUrl}/${this.phoneNumberId}/messages`
 
@@ -16,17 +20,11 @@ export default class WhatsAppService {
           to,
           type: 'template',
           template: {
-            name: 'otp_code',
-            language: { code: 'en' },
+            name: this.templateName,
+            language: { code: this.templateLang },
             components: [
               {
                 type: 'body',
-                parameters: [{ type: 'text', text: otp }],
-              },
-              {
-                type: 'button',
-                sub_type: 'url',
-                index: '0',
                 parameters: [{ type: 'text', text: otp }],
               },
             ],
@@ -34,7 +32,7 @@ export default class WhatsAppService {
         },
         {
           headers: {
-            'Authorization': `Bearer ${this.token}`,
+            Authorization: `Bearer ${this.token}`,
             'Content-Type': 'application/json',
           },
         }
@@ -42,8 +40,9 @@ export default class WhatsAppService {
 
       return res.data
     } catch (error: any) {
-      console.error('Error sending OTP via WhatsApp:', error.response?.data || error.message)
-      throw new Error('Gagal mengirim OTP via WhatsApp')
+      // IMPORTANT: biar ketahuan error WA yang sebenarnya
+      console.error('WA ERROR DETAIL:', error.response?.data || error.message)
+      throw error
     }
   }
 }
