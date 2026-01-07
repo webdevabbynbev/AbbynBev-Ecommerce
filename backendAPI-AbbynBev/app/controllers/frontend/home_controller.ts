@@ -7,115 +7,121 @@ import FlashSale from '#models/flashsale'
 import { DateTime } from 'luxon'
 
 export default class HomeController {
+  private toISO(v: any): string | null {
+    if (v && typeof v.toISO === 'function') return v.toISO()
+    if (typeof v === 'string') return v
+    return null
+  }
+
   public async getBanner({ response }: HttpContext) {
     try {
-      const banners = await Banner.query()
-        .apply((s) => s.active())
-        .orderBy('order', 'asc')
-
-      return response.status(200).send({
-        message: 'Success',
-        serve: banners,
-      })
-    } catch (e) {
+      const banners = await Banner.query().apply((s) => s.active()).orderBy('order', 'asc')
+      return response.status(200).send({ message: 'Success', serve: banners })
+    } catch (e: any) {
       console.error(e)
-      return response.status(500).send({
-        message: e.message || 'Internal Server Error',
-        serve: null,
-      })
+      return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
     }
   }
 
   public async getTermAndCondition({ response }: HttpContext) {
-    const termAndCondition = await Setting.query()
-      .select('key', 'value', 'createdAt', 'updatedAt')
-      .where('key', SettingType.TERM_AND_CONDITIONS)
-      .first()
+    try {
+      const termAndCondition = await Setting.query()
+        .select('key', 'value', 'createdAt', 'updatedAt')
+        .where('key', SettingType.TERM_AND_CONDITIONS)
+        .first()
 
-    return response.status(200).send({
-      message: 'Success',
-      serve: termAndCondition,
-    })
+      return response.status(200).send({ message: 'Success', serve: termAndCondition })
+    } catch (e: any) {
+      return response.status(500).send({ message: e.message || 'Internal Mont = 500', serve: null })
+    }
   }
 
   public async getReturnPolicy({ response }: HttpContext) {
-    const returnPolicy = await Setting.query()
-      .select('key', 'value', 'createdAt', 'updatedAt')
-      .where('key', SettingType.RETURN_POLICY)
-      .first()
+    try {
+      const returnPolicy = await Setting.query()
+        .select('key', 'value', 'createdAt', 'updatedAt')
+        .where('key', SettingType.RETURN_POLICY)
+        .first()
 
-    return response.status(200).send({
-      message: 'Success',
-      serve: returnPolicy,
-    })
+      return response.status(200).send({ message: 'Success', serve: returnPolicy })
+    } catch (e: any) {
+      return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
+    }
   }
 
   public async getPrivacyPolicy({ response }: HttpContext) {
-    const returnPrivacyPolicy = await Setting.query()
-      .select('key', 'value', 'createdAt', 'updatedAt')
-      .where('key', SettingType.PRIVACY_POLICY)
-      .first()
+    try {
+      const returnPrivacyPolicy = await Setting.query()
+        .select('key', 'value', 'createdAt', 'updatedAt')
+        .where('key', SettingType.PRIVACY_POLICY)
+        .first()
 
-    return response.status(200).send({
-      message: 'Success',
-      serve: returnPrivacyPolicy,
-    })
+      return response.status(200).send({ message: 'Success', serve: returnPrivacyPolicy })
+    } catch (e: any) {
+      return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
+    }
   }
 
   public async getContactSupport({ response }: HttpContext) {
-    const returnContactSupport = await Setting.query()
-      .select('key', 'value', 'createdAt', 'updatedAt')
-      .where('key', SettingType.CONTACT_US)
-      .first()
+    try {
+      const returnContactSupport = await Setting.query()
+        .select('key', 'value', 'createdAt', 'updatedAt')
+        .where('key', SettingType.CONTACT_US)
+        .first()
 
-    return response.status(200).send({
-      message: 'Success',
-      serve: returnContactSupport,
-    })
+      return response.status(200).send({ message: 'Success', serve: returnContactSupport })
+    } catch (e: any) {
+      return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
+    }
   }
 
   public async getFaq({ response }: HttpContext) {
     try {
       const faqs = await Faq.query().select('question', 'answer')
-
       return response.status(200).send({
         message: 'Success',
-        serve: faqs.map((f) => ({
-          question: f.question,
-          answer: f.answer,
-        })),
+        serve: faqs.map((f) => ({ question: f.question, answer: f.answer })),
       })
-    } catch (e) {
-      return response.status(500).send({
-        message: e.message || 'Internal Server Error',
-        serve: null,
-      })
+    } catch (e: any) {
+      return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
     }
   }
 
   public async getAboutUs({ response }: HttpContext) {
-    const returnContactSupport = await Setting.query()
-      .select('key', 'value', 'createdAt', 'updatedAt')
-      .where('key', SettingType.ABOUT_US)
-      .first()
+    try {
+      const aboutUs = await Setting.query()
+        .select('key', 'value', 'createdAt', 'updatedAt')
+        .where('key', SettingType.ABOUT_US)
+        .first()
 
-    return response.status(200).send({
-      message: 'Success',
-      serve: returnContactSupport,
-    })
+      return response.status(200).send({ message: 'Success', serve: aboutUs })
+    } catch (e: any) {
+      return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
+    }
   }
 
   public async getFlashSale({ response }: HttpContext) {
     try {
-      const now = DateTime.now()
+      // ✅ WIB biar match sama waktu yg kamu set di CMS
+      const now = DateTime.now().setZone('Asia/Jakarta')
+      const nowStr = now.toFormat('yyyy-LL-dd HH:mm:ss')
 
       const flashSale = await FlashSale.query()
-        .where('is_publish', true)
-        .where('start_datetime', '<=', now.toSQL())
-        .where('end_datetime', '>=', now.toSQL())
+        // ✅ kalau boolean tinyint, ini paling aman:
+        .where('is_publish', 1 as any)
+        .where('start_datetime', '<=', nowStr)
+        .where('end_datetime', '>=', nowStr)
+        .orderBy('start_datetime', 'desc')
         .preload('products', (q) => {
           q.pivotColumns(['flash_price', 'stock'])
-          q.preload('medias')
+
+          // ✅ FIX: jangan orderBy('order') karena kolomnya gak ada
+          // pilih salah satu:
+          q.preload('medias', (mq) => mq.orderBy('id', 'asc')) // ✅ aman
+          // q.preload('medias') // ✅ ini juga boleh
+
+          q.preload('brand', (bq) => bq.select(['id', 'name', 'slug']))
+          q.preload('categoryType', (cq) => cq.select(['id', 'name']))
         })
         .first()
 
@@ -123,6 +129,7 @@ export default class HomeController {
         return response.status(200).send({
           message: 'No active flash sale',
           serve: null,
+          meta: { nowStr, timezone: 'Asia/Jakarta' }, // optional debug
         })
       }
 
@@ -135,19 +142,34 @@ export default class HomeController {
           hasButton: flashSale.hasButton,
           buttonText: flashSale.buttonText,
           buttonUrl: flashSale.buttonUrl,
-          startDatetime: flashSale.startDatetime,
-          endDatetime: flashSale.endDatetime,
-          products: flashSale.products.map((p) => ({
-            id: p.id,
-            name: p.name,
-            price: p.basePrice,
-            flashPrice: p.$extras.pivot_flash_price,
-            stock: p.$extras.pivot_stock,
-            image: p.medias.length ? p.medias[0].url : null,
-          })),
+          startDatetime: this.toISO(flashSale.startDatetime),
+          endDatetime: this.toISO(flashSale.endDatetime),
+
+          products: flashSale.products.map((p: any) => {
+            const flashPrice = Number(p?.$extras?.pivot_flash_price ?? 0)
+            const stock = Number(p?.$extras?.pivot_stock ?? 0)
+
+            const image =
+              Array.isArray(p?.medias) && p.medias.length > 0 ? p.medias[0].url : null
+
+            return {
+              id: p.id,
+              name: p.name,
+              slug: p.slug ?? null,
+              path: p.path ?? null,
+              price: p.basePrice,
+              flashPrice,
+              stock,
+              image,
+              brand: p.brand ? { id: p.brand.id, name: p.brand.name, slug: p.brand.slug } : null,
+              categoryType: p.categoryType
+                ? { id: p.categoryType.id, name: p.categoryType.name }
+                : null,
+            }
+          }),
         },
       })
-    } catch (e) {
+    } catch (e: any) {
       return response.status(500).send({
         message: e.message || 'Internal Server Error',
         serve: null,

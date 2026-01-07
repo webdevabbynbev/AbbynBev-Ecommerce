@@ -53,66 +53,141 @@ type FormValues = {
   start_datetime: Dayjs;
   end_datetime: Dayjs;
   is_publish?: boolean;
+
+  product_ids: number[];
   products: FlashSaleProductInput[];
 };
 
 const DATE_FMT = "YYYY-MM-DD HH:mm:ss";
 const BASE_URL = "/admin/flashsales";
+
+const PRODUCT_ENDPOINT = "/admin/product";
 const PRODUCT_PAGE_SIZE = 200;
 
-const getProductList = (payload: any): any[] => {
-  if (Array.isArray(payload?.data)) return payload.data;
-  if (Array.isArray(payload)) return payload;
+const getProductList = (serve: any): any[] => {
+  if (Array.isArray(serve?.data)) return serve.data;
+  if (Array.isArray(serve)) return serve;
   return [];
 };
+
+const dedupeOptions = (arr: Array<{ value: number; label: string }>) =>
+  Array.from(new Map(arr.map((x) => [Number(x.value), x])).values());
 
 const FormFlashSale: React.FC<Props> = ({ data, handleClose }) => {
   const [form] = Form.useForm<FormValues>();
   const [loading, setLoading] = React.useState(false);
   const hasButton = Form.useWatch("has_button", form);
+
   const [productOptions, setProductOptions] = React.useState<
     Array<{ value: number; label: string }>
   >([]);
 
-  const loadProducts = React.useCallback(async (q?: string) => {
-    try {
-      const keyword = q ?? "";
-      let page = 1;
-      let lastPage: number | null = null;
-      const collected: Array<{ value: number; label: string }> = [];
-      const isSearching = Boolean(keyword.trim());
+  // keep latest options in ref (biar loadProducts gak pakai state yang basi)
+  const productOptionsRef = React.useRef(productOptions);
+  React.useEffect(() => {
+    productOptionsRef.current = productOptions;
+  }, [productOptions]);
 
-      while (page <= (lastPage ?? 1)) {
-        const resp = await http.get(
-          `/admin/products?q=${encodeURIComponent(keyword)}&page=${page}&per_page=${PRODUCT_PAGE_SIZE}`
-        );
+  // debouncer
+  const searchTimerRef = React.useRef<any>(null);
+
+  // label map (buat row detail)
+  const optionMap = React.useMemo(() => {
+    const m = new Map<number, string>();
+    for (const o of productOptions) m.set(Number(o.value), o.label);
+    return m;
+  }, [productOptions]);
+
+  const getLabel = (id: any) => optionMap.get(Number(id)) || `Product #${id}`;
+
+  /**
+   * ✅ FIX SEARCH:
+   * - kalau keyword ada: options = (selected options) + (search results)
+   * - kalau keyword kosong: options = (selected options) + (default list page 1)
+   */
+  const loadProducts = React.useCallback(
+    async (q?: string) => {
+      try {
+        const keyword = (q ?? "").trim();
+
+        const qs = new URLSearchParams();
+        if (keyword) qs.set("name", keyword); // ✅ backend pakai name
+        qs.set("page", "1");
+        qs.set("per_page", String(PRODUCT_PAGE_SIZE));
+
+        const resp = await http.get(`${PRODUCT_ENDPOINT}?${qs.toString()}`);
         const serve = resp?.data?.serve;
+
         const list = getProductList(serve);
-        collected.push(...list.map((p: any) => ({ value: p.id, label: p.name })));
+        const results = list.map((p: any) => ({ value: Number(p.id), label: String(p.name) }));
 
-        if (typeof serve?.last_page === "number") {
-          lastPage = serve.last_page;
-        } else if (isSearching) {
-          break;
-        } else {
-          break;
-        }
+        // keep selected options (biar yang udah dipilih tetap muncul walau search berubah)
+        const selectedIds = (form.getFieldValue("product_ids") || []) as number[];
+        const currentOptions = productOptionsRef.current;
 
-        if (page >= (lastPage ?? 1)) break;
-        page += 1;
+        const selectedOptions = selectedIds.map((id) => {
+          const found =
+            currentOptions.find((o) => Number(o.value) === Number(id)) ||
+            results.find((o) => Number(o.value) === Number(id));
+          return found || { value: Number(id), label: `Product #${id}` };
+        });
+
+        // ✅ ini kuncinya: SET (bukan merge all lama)
+        setProductOptions(dedupeOptions([...selectedOptions, ...results]));
+      } catch (e: any) {
+        message.error(e?.response?.data?.message || e?.message || "Failed to load products");
       }
+    },
+    [form]
+  );
 
-      const deduped = Array.from(
-        new Map(collected.map((item) => [item.value, item])).values()
+  // handle search with debounce
+  const onSearchProducts = React.useCallback(
+    (v: string) => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+      searchTimerRef.current = setTimeout(() => {
+        loadProducts(v);
+      }, 300);
+    },
+    [loadProducts]
+  );
+
+  // ✅ Sync multi select -> products detail list
+  const syncSelectedProducts = React.useCallback(
+    (idsRaw: any[]) => {
+      const ids = Array.from(
+        new Set(
+          (idsRaw || [])
+            .map((x) => Number(x))
+            .filter((x) => Number.isFinite(x) && x > 0)
+        )
       );
-      setProductOptions(deduped);
-    } catch {
-      message.error("Failed to load products");
-    }
-  }, []);
+
+      const currentList = (form.getFieldValue("products") || []) as FlashSaleProductInput[];
+      const map = new Map<number, FlashSaleProductInput>();
+      for (const row of currentList) map.set(Number(row.product_id), row);
+
+      const nextList: FlashSaleProductInput[] = ids.map((id) => {
+        const existing = map.get(id);
+        return (
+          existing || {
+            product_id: id,
+            flash_price: 1,
+            stock: 0,
+          }
+        );
+      });
+
+      form.setFieldsValue({
+        product_ids: ids,
+        products: nextList,
+      });
+    },
+    [form]
+  );
 
   React.useEffect(() => {
-    loadProducts();
+    loadProducts(""); // load default options
   }, [loadProducts]);
 
   React.useEffect(() => {
@@ -126,10 +201,22 @@ const FormFlashSale: React.FC<Props> = ({ data, handleClose }) => {
         start_datetime: dayjs(),
         end_datetime: dayjs().add(1, "day"),
         is_publish: false,
+        product_ids: [],
         products: [],
       });
       return;
     }
+
+    const initialProducts =
+      data.products?.map((p) => ({
+        product_id: p.id,
+        flash_price: p.pivot?.flash_price ?? 1,
+        stock: p.pivot?.stock ?? 0,
+      })) ?? [];
+
+    const fromDataOptions = data.products?.map((p) => ({ value: p.id, label: p.name })) ?? [];
+    setProductOptions((prev) => dedupeOptions([...prev, ...fromDataOptions]));
+
     form.setFieldsValue({
       title: data.title ?? "",
       description: data.description ?? "",
@@ -139,12 +226,8 @@ const FormFlashSale: React.FC<Props> = ({ data, handleClose }) => {
       start_datetime: dayjs(data.startDatetime),
       end_datetime: dayjs(data.endDatetime),
       is_publish: Boolean(data.isPublish),
-      products:
-        data.products?.map((p) => ({
-          product_id: p.id,
-          flash_price: p.pivot?.flash_price ?? 1,
-          stock: p.pivot?.stock ?? 0,
-        })) ?? [],
+      product_ids: initialProducts.map((x) => x.product_id),
+      products: initialProducts,
     });
   }, [data, form]);
 
@@ -154,6 +237,7 @@ const FormFlashSale: React.FC<Props> = ({ data, handleClose }) => {
       form.validateFields(["button_text", "button_url"]);
     }
   }, [hasButton, form]);
+
   const validateEndAfterStart = (_: RuleObject, value?: Dayjs) => {
     const start = form.getFieldValue("start_datetime");
     if (!value || !start) return Promise.resolve();
@@ -176,7 +260,7 @@ const FormFlashSale: React.FC<Props> = ({ data, handleClose }) => {
         end_datetime: values.end_datetime.format(DATE_FMT),
         is_publish: !!values.is_publish,
         products: (values.products ?? []).map((p) => ({
-          product_id: p.product_id,
+          product_id: Number(p.product_id),
           flash_price: Number(p.flash_price),
           stock: Number(p.stock),
         })),
@@ -186,7 +270,9 @@ const FormFlashSale: React.FC<Props> = ({ data, handleClose }) => {
         await http.put(`${BASE_URL}/${data.id}`, payload);
         message.success("Flash Sale updated");
       } else {
-        await http.post(BASE_URL, payload, { headers: { "Content-Type": "application/json" } });
+        await http.post(BASE_URL, payload, {
+          headers: { "Content-Type": "application/json" },
+        });
         message.success("Flash Sale created");
       }
 
@@ -222,7 +308,6 @@ const FormFlashSale: React.FC<Props> = ({ data, handleClose }) => {
         </Form.Item>
       </Space>
 
-      {}
       {hasButton ? (
         <Space size="middle" style={{ display: "flex" }}>
           <Form.Item
@@ -272,95 +357,105 @@ const FormFlashSale: React.FC<Props> = ({ data, handleClose }) => {
 
       <Divider orientation="left">Products</Divider>
 
-      <Form.List
-        name="products"
-        rules={[
-          {
-            validator: async (_, list) => {
-              if (!list || list.length < 1) {
-                return Promise.reject(new Error("At least 1 product is required"));
-              }
-              return Promise.resolve();
-            },
-          },
-        ]}
+      <Form.Item
+        label="Select Products"
+        name="product_ids"
+        rules={[{ required: true, message: "Select at least 1 product" }]}
       >
-        {(fields, { add, remove }, { errors }) => (
+        <Select
+          mode="multiple"
+          showSearch
+          placeholder="Type to search product (e.g. khaf)"
+          options={productOptions}
+          filterOption={false} // server-side search
+          onSearch={onSearchProducts}
+          onDropdownVisibleChange={(open) => {
+            if (open) loadProducts(""); // load default list setiap buka dropdown
+          }}
+          onChange={(ids) => syncSelectedProducts(ids as any[])}
+        />
+      </Form.Item>
+
+      <Form.List name="products">
+        {(fields) => (
           <Card size="small" bordered>
-            {fields.map((field) => (
-              <Card key={field.key} size="small" style={{ marginBottom: 8 }}>
-                <Space align="start" style={{ display: "flex" }} wrap>
-                  <Form.Item
-                    {...field}
-                    label="Product"
-                    name={[field.name, "product_id"]}
-                    rules={[{ required: true, message: "Product is required" }]}
-                    style={{ minWidth: 260 }}
-                  >
-                    <Select
-                      showSearch
-                      placeholder="Select product"
-                      options={productOptions}
-                      optionFilterProp="label"
-                      onSearch={(v) => loadProducts(v)}
-                    />
-                  </Form.Item>
+            {fields.length === 0 ? (
+              <div style={{ padding: 12, color: "#888" }}>
+                Choose products above to generate fields.
+              </div>
+            ) : null}
 
-                  <Form.Item
-                    {...field}
-                    label="Flash Price"
-                    name={[field.name, "flash_price"]}
-                    rules={[{ required: true, message: "Flash price is required" }]}
-                  >
-                    <InputNumber
-                      min={1}
-                      precision={0}
-                      style={{ width: 180 }}
-                      formatter={(v) => {
-                        if (v === undefined || v === null) return "";
-                        const s = String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-                        return `Rp ${s}`;
-                      }}
-                      parser={(v: string | undefined) => {
-                        const cleaned = (v ?? "").toString().replace(/[^0-9]/g, "");
-                        const n = Number(cleaned);
-                        return Number.isNaN(n) ? 0 : n;
-                      }}
-                      onKeyPress={(e) => {
-                      if (!/[0-9]/.test(e.key)) {
-                        e.preventDefault();
-                      }
-                    }}
-                    onPaste={(e) => {
-                      const text = e.clipboardData.getData("text");
-                      if (!/^\d+$/.test(text)) {
-                        e.preventDefault();
-                      }
-                    }}
-                    />
-                  </Form.Item>
+            {fields.map((field) => {
+              const currentId = form.getFieldValue(["products", field.name, "product_id"]);
+              return (
+                <Card key={field.key} size="small" style={{ marginBottom: 8 }}>
+                  <Space align="start" style={{ display: "flex" }} wrap>
+                    <Form.Item name={[field.name, "product_id"]} hidden>
+                      <Input />
+                    </Form.Item>
 
-                  <Form.Item
-                    {...field}
-                    label="Stock"
-                    name={[field.name, "stock"]}
-                    rules={[{ required: true, message: "Stock is required" }]}
-                  >
-                    <InputNumber min={0} style={{ width: 120 }} />
-                  </Form.Item>
+                    <div style={{ minWidth: 260 }}>
+                      <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>
+                        Product
+                      </div>
+                      <div style={{ fontWeight: 600 }}>{getLabel(currentId)}</div>
 
-                  <Button danger onClick={() => remove(field.name)}>
-                    Remove
-                  </Button>
-                </Space>
-              </Card>
-            ))}
+                      <Button
+                        danger
+                        size="small"
+                        style={{ marginTop: 8 }}
+                        onClick={() => {
+                          const ids = (form.getFieldValue("product_ids") || []) as number[];
+                          const nextIds = ids.filter((x) => Number(x) !== Number(currentId));
+                          syncSelectedProducts(nextIds);
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </div>
 
-            <Form.ErrorList errors={errors} />
+                    <Form.Item
+                      {...field}
+                      label="Flash Price"
+                      name={[field.name, "flash_price"]}
+                      rules={[{ required: true, message: "Flash price is required" }]}
+                    >
+                      <InputNumber
+                        min={1}
+                        precision={0}
+                        style={{ width: 180 }}
+                        formatter={(v) => {
+                          if (v === undefined || v === null) return "";
+                          const s = String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                          return `Rp ${s}`;
+                        }}
+                        parser={(v: string | undefined) => {
+                          const cleaned = (v ?? "").toString().replace(/[^0-9]/g, "");
+                          const n = Number(cleaned);
+                          return Number.isNaN(n) ? 0 : n;
+                        }}
+                        onKeyPress={(e) => {
+                          if (!/[0-9]/.test(e.key)) e.preventDefault();
+                        }}
+                        onPaste={(e) => {
+                          const text = e.clipboardData.getData("text");
+                          if (!/^\d+$/.test(text)) e.preventDefault();
+                        }}
+                      />
+                    </Form.Item>
 
-            <Button type="dashed" onClick={() => add()} block>
-              Add Product
-            </Button>
+                    <Form.Item
+                      {...field}
+                      label="Stock"
+                      name={[field.name, "stock"]}
+                      rules={[{ required: true, message: "Stock is required" }]}
+                    >
+                      <InputNumber min={0} style={{ width: 120 }} />
+                    </Form.Item>
+                  </Space>
+                </Card>
+              );
+            })}
           </Card>
         )}
       </Form.List>
