@@ -9,6 +9,7 @@ import { useWishlist } from "@/context/WishlistContext";
 import { DataReview } from "@/data";
 
 export function RegularCard({ product }) {
+  // const [wishlist, setWishlist] = useState([]); glitch
   const { isWishlisted, addToWishlist } = useWishlist();
 
   if (!product) return null;
