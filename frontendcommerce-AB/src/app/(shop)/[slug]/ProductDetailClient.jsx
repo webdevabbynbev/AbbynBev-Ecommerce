@@ -39,23 +39,52 @@ const RATING_OPTIONS = [
 
 export default function ProductDetailClient({ product }) {
   const router = useRouter();
+
   // ✅ Prevent hydration mismatch for relative time
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const variants = product?.variantItems ?? []; // [{ id, label, price, stock }]
+  // ✅ variants dari backend (variantItems sudah berisi images)
+  const variants = product?.variantItems ?? []; // [{ id, label, price, stock, images }]
   const [selectedVariant, setSelectedVariant] = useState(
     variants.length ? variants[0].label : null
   );
-  const [qty, setQty] = useState(1);
 
-  const selectedVariantObj = variants.find((v) => v.label === selectedVariant);
+  const selectedVariantObj = useMemo(() => {
+    return variants.find((v) => v.label === selectedVariant) || null;
+  }, [variants, selectedVariant]);
 
+  // ✅ kalau selectedVariant kosong tapi variants ada, set default
   useEffect(() => {
     if (!selectedVariant && variants.length > 0) {
       setSelectedVariant(variants[0].label);
     }
   }, [selectedVariant, variants]);
+
+  // ✅ SATU sumber images: ambil dari selectedVariantObj.images
+  // fallback: product.images, lalu product.image
+  const variantImages = useMemo(() => {
+    const imgs =
+      selectedVariantObj?.images?.length
+        ? selectedVariantObj.images
+        : Array.isArray(product?.images) && product.images.length
+        ? product.images
+        : product?.image
+        ? [product.image]
+        : [];
+
+    return imgs.filter(Boolean);
+  }, [selectedVariantObj, product?.images, product?.image]);
+
+  // ✅ activeImage untuk gambar utama + sidebar
+  const [activeImage, setActiveImage] = useState("");
+
+  // ✅ setiap variant berubah, set gambar pertama jadi active
+  useEffect(() => {
+    setActiveImage(variantImages[0] || "");
+  }, [variantImages]);
+
+  const [qty, setQty] = useState(1);
 
   const finalPrice =
     selectedVariantObj?.price ??
@@ -122,12 +151,7 @@ export default function ProductDetailClient({ product }) {
       }
 
       const variantItems = product?.variantItems ?? [];
-      let variant =
-        selectedVariantObj ?? (variantItems.length ? variantItems[0] : null);
-
-      if (!variant && variantItems.length > 0) {
-        variant = variantItems[0];
-      }
+      let variant = selectedVariantObj ?? (variantItems.length ? variantItems[0] : null);
 
       if (!variant) {
         alert("Varian produk tidak ditemukan");
@@ -164,10 +188,19 @@ export default function ProductDetailClient({ product }) {
     }
   };
 
+  // ✅ debug opsional (boleh hapus)
+  useEffect(() => {
+    console.log("[ProductDetail] product:", product);
+    console.log("[ProductDetail] variantItems:", product?.variantItems);
+    console.log("[ProductDetail] selectedVariant:", selectedVariant);
+    console.log("[ProductDetail] selectedVariantObj:", selectedVariantObj);
+    console.log("[ProductDetail] variantImages:", variantImages);
+  }, [product, selectedVariant, selectedVariantObj, variantImages]);
+
   return (
-    <div className="container mx-auto w-full py-6 px-10 flex justify-between xl:max-w-[1280px] lg:max-w-[960px]">
-      <div className="wrapper space-y-10 items-center ">
-        <div className="left-wrapper-content w-full flex-row space-y-10">
+    <div className="container mx-auto py-6 px-10 flex w-full flex-col gap-8 px-4 py-6 lg:max-w-[960px] lg:px-8 xl:max-w-[1280px] xl:flex-row xl:justify-between">
+      <div className="wrapper w-full space-y-8">
+        <div className="left-wrapper-content w-full space-y-8">
           {/* Breadcrumb */}
           <Breadcrumb>
             <BreadcrumbList>
@@ -185,8 +218,8 @@ export default function ProductDetailClient({ product }) {
 
               <BreadcrumbSeparator />
 
-              <BreadcrumbItem>
-                <BreadcrumbPage className="truncate w-[300px]">
+              <BreadcrumbItem className="min-w-0 flex-1">
+                <BreadcrumbPage className="truncate max-w-[700px]">
                   {product?.name}
                 </BreadcrumbPage>
               </BreadcrumbItem>
@@ -194,10 +227,10 @@ export default function ProductDetailClient({ product }) {
           </Breadcrumb>
 
           {/* Left Content */}
-          <div className="left-content w-full flex">
+          <div className="left-content w-full flex flex-col lg:flex-row">
             {/* Product Image */}
             <div className="Image-container">
-              <div className="h-[220px] w-[220px] relative overflow-hidden rounded-lg">
+              <div className="h-auto w-full relative overflow-hidden rounded-lg">
                 {product?.sale && (
                   <img
                     src="/sale-tag.svg"
@@ -208,32 +241,30 @@ export default function ProductDetailClient({ product }) {
 
                 <div>
                   <img
-                    src={product?.image}
+                    src={activeImage || product?.image}
                     alt={product?.name}
-                    className="w-full h-full object-cover border border-neutral-400"
-                    crossOrigin="anonymous"
+                    className="w-full h-auto object-cover border border-neutral-400 lg:w-full"
                   />
                 </div>
               </div>
 
               <div className="flex max-w-[300px] py-2 items-center space-x-4 max-h-64 overflow-x-auto custom-scrollbar">
-                {(product?.images?.length
-                  ? product.images
-                  : [product?.image]
-                ).map((img, i) => (
+                {variantImages.map((img, i) => (
                   <img
                     key={i}
                     src={img}
                     alt={`${product?.name}-${i}`}
-                    className="h-[50px] w-[50px] border p-2 rounded-md"
-                    crossOrigin="anonymous"
+                    onClick={() => setActiveImage(img)}
+                    className={`h-[80px] w-[80px] border p-2 rounded-md cursor-pointer ${
+                      activeImage === img ? "ring-2 ring-primary-700" : ""
+                    }`}
                   />
                 ))}
               </div>
             </div>
 
             {/* Right Content */}
-            <div className="Content-right w-full space-y-4 px-10">
+            <div className="Content-right w-full space-y-4 lg:px-10 ">
               <div className="title-product">
                 <h1 className="text-lg font-bold">{brandName}</h1>
                 <h2 className="text-xl font-normal">{product?.name}</h2>
@@ -251,7 +282,7 @@ export default function ProductDetailClient({ product }) {
 
                     <div className="reapPrice-container flex space-x-2 items-center">
                       <span className="text-base font-medium text-neutral-400 line-through">
-                        {formatToRupiah(finalPrice)}
+                        {formatToRupiah(realPrice)}
                       </span>
 
                       {discount > 0 && (
@@ -315,25 +346,19 @@ export default function ProductDetailClient({ product }) {
                     Shipment
                   </h3>
                   <p className="text-sm">
-                    Regular shipment start from
-                    <span className="font-bold"> Rp.10.000</span>
+                    Regular shipment start from <span className="font-bold"> Rp.10.000</span>
                   </p>
                   <p className="text-sm">
-                    Estimated time arrived
-                    <span className="font-bold"> 3–5 days</span>
+                    Estimated time arrived <span className="font-bold"> 3–5 days</span>
                     <span className="text-neutral-300"> | </span>
-                    <span className="text-primary-700 font-medium">
-                      See our shipping partner
-                    </span>
+                    <span className="text-primary-700 font-medium">See our shipping partner</span>
                   </p>
                 </div>
 
                 {/* Review */}
                 <div className="container-review space-y-6">
-                  <div className="filter-review space-y-2">
-                    <h3 className="text-primary-700 font-bold text-base">
-                      Review
-                    </h3>
+                  <div className="flex flex-col space-y-2">
+                    <h3 className="text-primary-700 font-bold text-base">Review</h3>
                     <span>Filter</span>
                     <div className="flex space-x-4">
                       <TxtField
@@ -341,12 +366,12 @@ export default function ProductDetailClient({ product }) {
                         iconLeftName="MagnifyingGlass"
                         variant="outline"
                         size="md"
-                        className="min-w-[280px]"
+                        className="w-full"
                       />
 
                       <Select>
                         <SelectTrigger className="w-[180px]">
-                          <SelectValue placeholder="Filter by rating" />
+                          <SelectValue placeholder="Filter rating" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectGroup>
@@ -415,9 +440,7 @@ export default function ProductDetailClient({ product }) {
                       );
                     })
                   ) : (
-                    <p className="text-neutral-400">
-                      Belum ada review untuk produk ini.
-                    </p>
+                    <p className="text-neutral-400">Belum ada review untuk produk ini.</p>
                   )}
                 </div>
               </div>
@@ -427,14 +450,14 @@ export default function ProductDetailClient({ product }) {
       </div>
 
       {/* Sticky Sidebar */}
-      <div className="sticky top-[103px] p-6 space-y-4 outline-1 outline-neutral-100 rounded-3xl bottom-32 items-start w-full max-w-[300px] h-fit bg-white">
+      <div className="hidden sticky top-[103px] p-6 space-y-4 outline-1 outline-neutral-100 rounded-3xl bottom-32 items-start w-full max-w-[300px] h-fit bg-white lg:block">
         <div className="text-xl font-medium">Quantity</div>
 
         <div className="flex justify-between">
           <div className="ContainerImage flex items-start">
             <div className="imageOnly">
               <img
-                src={product?.image}
+                src={activeImage || product?.image}
                 alt={product?.name}
                 className="h-[100px] w-[100px]"
               />

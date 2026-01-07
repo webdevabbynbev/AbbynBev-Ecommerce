@@ -58,7 +58,7 @@ export default class AuthRegisterService {
       return {
         message: 'OTP sent via Email.',
         serve: {
-          otp_sent_via: 'email',
+          otp_sent_via: 'Whatsapp',
           email,
           phone_number,
           first_name,

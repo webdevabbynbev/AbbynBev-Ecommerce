@@ -41,7 +41,9 @@ export async function getUser() {
     return { user };
   } catch (err) {
     const msg = err?.response?.data?.message || "Failed to fetch user profile";
-    throw new Error(msg);
+    const error = new Error(msg);
+    error.status = err?.response?.status;
+    throw error;
   }
 }
 
@@ -70,7 +72,7 @@ export async function regis(
   last_name,
   gender,
   password,
-  send_via = "email"
+  send_via = "whatsapp"
 ) {
   try {
     const payload = {
@@ -80,7 +82,7 @@ export async function regis(
       last_name: s(last_name),
       gender: n(gender),
       password: String(password ?? ""),
-      send_via: s(send_via) || "email",
+      send_via: s(send_via) || "whatsapp",
     };
 
     if (!payload.email) throw new Error("Email wajib diisi");
@@ -208,4 +210,15 @@ export async function LoginGoogle(token) {
  *  ========================= */
 export function logoutLocal() {
   clearToken();
+}
+
+export async function logoutUser() {
+  try {
+    await api.post("/auth/logout");
+  } catch (err) {
+    const msg = err?.response?.data?.message || err?.message || "Logout failed";
+    throw new Error(msg);
+  } finally {
+    clearToken();
+  }
 }
