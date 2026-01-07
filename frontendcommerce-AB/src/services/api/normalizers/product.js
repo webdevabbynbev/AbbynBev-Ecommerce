@@ -54,7 +54,7 @@ export function normalizeProduct(raw) {
     image:
       item.image ||
       medias[0]?.url ||
-      "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png",
+      "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png",
     brand: brandName,
     brandSlug,
     category:

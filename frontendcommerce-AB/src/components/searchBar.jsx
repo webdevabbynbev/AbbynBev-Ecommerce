@@ -132,7 +132,7 @@ export function SearchBar({
                       />
                     ) : (
                       <img
-                        src="https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png"
+                        src="https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png"
                         className="w-10 h-10 rounded-md object-cover border"
                       />
                     )}
