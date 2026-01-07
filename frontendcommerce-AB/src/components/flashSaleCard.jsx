@@ -25,7 +25,7 @@ export function FlashSaleCard({ product, item }) {
             <img
               src="/sale-tag.svg"
               alt="Sale"
-              className="absolute top-0 left-0 z-10 w-[40px] h-auto"
+              className="absolute top-0 left-0 z-10 w-10 h-auto"
             />
           )}
 
@@ -36,7 +36,8 @@ export function FlashSaleCard({ product, item }) {
               className="w-full h-auto object-cover"
               crossOrigin="anonymous"
               onError={(e) => {
-                e.currentTarget.src = "/placeholder.png";
+                e.currentTarget.src =
+                  "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
               }}
             />
           </div>

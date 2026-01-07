@@ -94,8 +94,8 @@ const BestSeller = () => {
   }, [currentPage, debounceSearch, itemsPerPage]);
 
   return (
-    <div className="flex w-full mx-auto flex-col justify-between xl:max-w-[1280px] lg:max-w-[1136px] lg:flex-row">
-      <div className="hidden w-[300px] lg:w-[300px] pl-10 pr-2 py-6 lg:block">
+    <div className="flex w-full mx-auto flex-col justify-between xl:max-w-7xl lg:max-w-284 lg:flex-row">
+      <div className="hidden w-75 lg:w-75 pl-10 pr-2 py-6 lg:block">
         <Filter
           brands={brands}
           showBrandFilter={true}
@@ -121,7 +121,7 @@ const BestSeller = () => {
                 Filter
               </Button>
             </DialogTrigger>
-            <DialogContent className="flex max-h-[80vh] w-full flex-col overflow-y-auto overflow-x-hidden custom-scrollbar sm:max-w-[400px]">
+            <DialogContent className="flex max-h-[80vh] w-full flex-col overflow-y-auto overflow-x-hidden custom-scrollbar sm:max-w-100">
               <DialogHeader>
                 <DialogTitle>Filter</DialogTitle>
               </DialogHeader>
