@@ -17,7 +17,7 @@ import {
   SearchBar,
 } from "@/components";
 
-import CartButton from "@/components/cartButton";
+import CartButton from "@/components/button/cartButton";
 
 export function NavbarLoggedIn({
   pathname,

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { FaStar } from "react-icons/fa6";
-import { BtnIconToggle } from ".";
+import { BtnIconToggle } from "..";
 import { formatToRupiah, slugify, getAverageRating } from "@/utils";
 import { useWishlist } from "@/context/WishlistContext";
 import { DataReview } from "@/data";

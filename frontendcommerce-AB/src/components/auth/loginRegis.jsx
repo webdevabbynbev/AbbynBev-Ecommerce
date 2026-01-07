@@ -25,7 +25,7 @@ import {
   TabsList,
   TabsTrigger,
   TabsContent,
-} from ".";
+} from "..";
 
 const pickValue = (e) => e?.target?.value ?? e ?? "";
 

@@ -18,6 +18,22 @@ export function MobileBottomNav({ className = "" }) {
   const [shopOpen, setShopOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const pathnameSafe = mounted ? pathname : "";
+  const singleSegmentRoutes = new Set([
+    "/",
+    "/best-seller",
+    "/sale",
+    "/new-arrival",
+    "/notification",
+    "/search",
+    "/sign-in",
+    "/beauty-and-tips",
+    "/checkout",
+    "/ramadan-checkin",
+  ]);
+  const isSingleSegment =
+    pathnameSafe && pathnameSafe !== "/" && /^\/[^/]+$/.test(pathnameSafe);
+  const isProductDetailRoute =
+    isSingleSegment && !singleSegmentRoutes.has(pathnameSafe);
 
   useEffect(() => setMounted(true), []);
 
@@ -39,6 +55,10 @@ export function MobileBottomNav({ className = "" }) {
   ];
 
   const shopActive = mounted && shopLinks.some((l) => isActive(l.href));
+
+  if (isProductDetailRoute) {
+    return null;
+  }
 
   return (
     <div

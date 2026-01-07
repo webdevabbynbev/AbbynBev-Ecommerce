@@ -13,7 +13,7 @@ import {
   TooltipProvider,
 } from "@/components";
 import { NestedSection } from "./nestedSection";
-import { SubList } from ".";
+import { SubList } from "..";
 import { FaStar } from "react-icons/fa6";
 
 import { formatToRupiah } from "@/utils";
