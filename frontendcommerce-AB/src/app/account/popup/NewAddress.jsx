@@ -191,7 +191,7 @@ export function NewAddress({ onSuccess }) {
           params: {
             input: q,
             countries: "ID",
-            type: "single",
+            type: "multi",
             // ✅ coba beberapa nama param biar kompatibel sama backend/proxy kamu
             limit: 100,
             per_page: 100,
