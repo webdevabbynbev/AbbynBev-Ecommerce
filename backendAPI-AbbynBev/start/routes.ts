@@ -426,6 +426,8 @@ router.get('/user-carts', [CmsDashboardCartsController, 'getUserCart'])
                 router.put('/addresses', [UserAddressesController, 'update'])
                 router.delete('/addresses', [UserAddressesController, 'delete'])
                 router.get('/areas', [UserAddressesController, 'searchAreas'])
+                router.get('/areas/:id', [UserAddressesController, 'getAreasById'])
+                
                 router.post('/get-cost', [UserAddressesController, 'getCost'])
               })
               .use(middleware.auth({ guards: ['api'] }))
