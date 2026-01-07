@@ -5,6 +5,8 @@ import PostalHelper from '../../utils/postal.js'
 
 type UpsertPayload = {
   id?: number
+
+  // biteship (optional)
   area?: any
   area_id?: any
   areaId?: any
@@ -18,6 +20,24 @@ type UpsertPayload = {
 
   postal_code?: any
   postalCode?: any
+
+  // legacy region dropdown (optional)
+  city?: any
+  city_id?: any
+  cityId?: any
+
+  district?: any
+  district_id?: any
+  districtId?: any
+
+  sub_district?: any
+  subDistrict?: any
+  sub_district_id?: any
+  subDistrictId?: any
+
+  province?: any
+  province_id?: any
+  provinceId?: any
 
   address?: any
   pic_name?: any
@@ -34,8 +54,7 @@ type UpsertPayload = {
 
 function parseArea(payload: UpsertPayload) {
   const areaObj = payload.area
-  const areaIdIn =
-    payload.area_id ?? payload.areaId ?? payload.biteship_area_id ?? payload.biteshipAreaId ?? ''
+  const areaIdIn = payload.area_id ?? payload.areaId ?? payload.biteship_area_id ?? payload.biteshipAreaId ?? ''
   const areaNameIn =
     payload.area_name ?? payload.areaName ?? payload.biteship_area_name ?? payload.biteshipAreaName ?? ''
 
@@ -49,6 +68,19 @@ function parseArea(payload: UpsertPayload) {
   return { areaId, areaName, postalCode }
 }
 
+function parseLegacyIds(payload: UpsertPayload) {
+  const province = HttpHelper.toInt(payload.province ?? payload.province_id ?? payload.provinceId ?? 0, 0) || null
+  const city = HttpHelper.toInt(payload.city ?? payload.city_id ?? payload.cityId ?? 0, 0) || null
+  const district = HttpHelper.toInt(payload.district ?? payload.district_id ?? payload.districtId ?? 0, 0) || null
+  const subDistrict =
+    HttpHelper.toInt(
+      payload.sub_district ?? payload.sub_district_id ?? payload.subDistrict ?? payload.subDistrictId ?? 0,
+      0
+    ) || null
+
+  return { province, city, district, subDistrict }
+}
+
 export class UserAddressService {
   async list(userId: number) {
     return UserAddress.query().where('user_id', userId)
@@ -57,9 +89,14 @@ export class UserAddressService {
   async create(userId: number, payload: UpsertPayload) {
     return db.transaction(async (trx) => {
       const { areaId, areaName, postalCode } = parseArea(payload)
+      const legacy = parseLegacyIds(payload)
 
-      if (!areaId) {
-        const err: any = new Error('area_id is required (pilih dari hasil /areas).')
+      // ✅ minimal requirement: harus ada salah satu: area_id ATAU postal_code valid
+      const hasArea = !!areaId
+      const hasPostal = PostalHelper.isPostalCode(postalCode)
+
+      if (!hasArea && !hasPostal) {
+        const err: any = new Error('Harus pilih wilayah (kelurahan) agar postal_code valid, atau pilih area Biteship.')
         err.httpStatus = 400
         throw err
       }
@@ -76,15 +113,15 @@ export class UserAddressService {
       addr.userId = userId
       addr.isActive = isActive
 
-      // legacy dropdown kosong
-      addr.province = null
-      addr.city = null
-      addr.district = null
-      addr.subDistrict = null
+      // ✅ Simpan dropdown wilayah (biar rapi & bisa dipakai lagi)
+      addr.province = legacy.province
+      addr.city = legacy.city
+      addr.district = legacy.district
+      addr.subDistrict = legacy.subDistrict
 
-      // biteship
-      addr.biteshipAreaId = areaId
-      addr.biteshipAreaName = areaName || ''
+      // biteship optional
+      addr.biteshipAreaId = areaId || null
+      addr.biteshipAreaName = areaName || null
       addr.postalCode = postalCode || ''
 
       addr.address = String(payload.address ?? '')
@@ -95,7 +132,6 @@ export class UserAddressService {
 
       await addr.useTransaction(trx).save()
 
-      // kalau jadi default (2), set yang lain jadi non-default (1)
       if (addr.isActive === 2) {
         await UserAddress.query({ client: trx })
           .where('user_id', userId)
@@ -129,11 +165,27 @@ export class UserAddressService {
       }
 
       const { areaId, areaName, postalCode } = parseArea(payload)
+      const legacy = parseLegacyIds(payload)
 
       if (areaId) {
         addr.biteshipAreaId = areaId
-        addr.biteshipAreaName = areaName || addr.biteshipAreaName || ''
+        addr.biteshipAreaName = areaName || addr.biteshipAreaName || null
       }
+
+      if (postalCode) {
+        if (!PostalHelper.isPostalCode(postalCode)) {
+          const err: any = new Error('postal_code must be 5 digit.')
+          err.httpStatus = 400
+          throw err
+        }
+        addr.postalCode = postalCode
+      }
+
+      // update legacy ids kalau dikirim
+      if (legacy.province !== null) addr.province = legacy.province
+      if (legacy.city !== null) addr.city = legacy.city
+      if (legacy.district !== null) addr.district = legacy.district
+      if (legacy.subDistrict !== null) addr.subDistrict = legacy.subDistrict
 
       if (typeof payload.is_active !== 'undefined' || typeof payload.isActive !== 'undefined') {
         addr.isActive = HttpHelper.toInt(payload.is_active ?? payload.isActive, addr.isActive)
@@ -150,16 +202,6 @@ export class UserAddressService {
         addr.picLabel = String(payload.pic_label ?? payload.picLabel)
       }
       if (typeof payload.benchmark !== 'undefined') addr.benchmark = String(payload.benchmark)
-
-      // postal optional tapi kalau dikirim harus valid
-      if (typeof payload.postal_code !== 'undefined' || typeof payload.postalCode !== 'undefined' || postalCode) {
-        if (postalCode && !PostalHelper.isPostalCode(postalCode)) {
-          const err: any = new Error('postal_code must be 5 digit.')
-          err.httpStatus = 400
-          throw err
-        }
-        if (typeof postalCode !== 'undefined') addr.postalCode = postalCode || ''
-      }
 
       await addr.useTransaction(trx).save()
 

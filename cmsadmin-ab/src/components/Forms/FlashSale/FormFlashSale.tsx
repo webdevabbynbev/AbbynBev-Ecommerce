@@ -58,6 +58,13 @@ type FormValues = {
 
 const DATE_FMT = "YYYY-MM-DD HH:mm:ss";
 const BASE_URL = "/admin/flashsales";
+const PRODUCT_PAGE_SIZE = 200;
+
+const getProductList = (payload: any): any[] => {
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload)) return payload;
+  return [];
+};
 
 const FormFlashSale: React.FC<Props> = ({ data, handleClose }) => {
   const [form] = Form.useForm<FormValues>();
@@ -69,11 +76,36 @@ const FormFlashSale: React.FC<Props> = ({ data, handleClose }) => {
 
   const loadProducts = React.useCallback(async (q?: string) => {
     try {
-      const resp = await http.get(
-        `/admin/products?q=${encodeURIComponent(q ?? "")}&page=1&per_page=50`
+      const keyword = q ?? "";
+      let page = 1;
+      let lastPage: number | null = null;
+      const collected: Array<{ value: number; label: string }> = [];
+      const isSearching = Boolean(keyword.trim());
+
+      while (page <= (lastPage ?? 1)) {
+        const resp = await http.get(
+          `/admin/products?q=${encodeURIComponent(keyword)}&page=${page}&per_page=${PRODUCT_PAGE_SIZE}`
+        );
+        const serve = resp?.data?.serve;
+        const list = getProductList(serve);
+        collected.push(...list.map((p: any) => ({ value: p.id, label: p.name })));
+
+        if (typeof serve?.last_page === "number") {
+          lastPage = serve.last_page;
+        } else if (isSearching) {
+          break;
+        } else {
+          break;
+        }
+
+        if (page >= (lastPage ?? 1)) break;
+        page += 1;
+      }
+
+      const deduped = Array.from(
+        new Map(collected.map((item) => [item.value, item])).values()
       );
-      const list = resp?.data?.serve?.data ?? resp?.data?.serve ?? [];
-      setProductOptions(list.map((p: any) => ({ value: p.id, label: p.name })));
+      setProductOptions(deduped);
     } catch {
       message.error("Failed to load products");
     }
