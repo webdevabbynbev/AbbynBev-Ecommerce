@@ -125,22 +125,20 @@ export function RegularCard({ product }) {
             <img
               src="/sale-tag.svg"
               alt="Sale"
-              className="absolute top-0 left-0 z-10 w-[40px] h-auto"
+              className="absolute top-0 left-0 z-10 w-10 h-auto"
             />
           )}
 
           <div className="absolute top-4 right-4 z-10">
             <BtnIconToggle
+              active={isWishlisted}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 handleWishlist();
               }}
-              iconName="Heart"
               variant="tertiary"
               size="md"
-              aria-pressed={isWishlisted}
-              title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
             />
           </div>
 
@@ -163,7 +161,6 @@ export function RegularCard({ product }) {
               {item.name}
             </div>
           </div>
-          
 
           <div className="price flex items-center space-x-2">
             {hasSale ? (
@@ -191,7 +188,7 @@ export function RegularCard({ product }) {
               ) : (
                 <div className="flex items-center space-x-1 font-bold text-primary-700 text-xs">
                   <span>{averageRating}</span>
-                  <FaStar className="h-[12px] w-[12px] text-warning-300" />
+                  <FaStar className="h-3 w-3 text-warning-300" />
                 </div>
               )}
             </div>

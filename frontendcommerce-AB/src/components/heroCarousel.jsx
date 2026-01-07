@@ -39,7 +39,7 @@ export function HeroCarousel() {
   // wrapper responsif: tinggi mengikuti lebar
   const Wrapper = ({ children }) => (
     <div className="w-full">
-      <div className="relative w-full overflow-hidden rounded-lg aspect-[16/6]">
+      <div className="relative w-full overflow-hidden rounded-lg aspect-16/6">
         {children}
       </div>
     </div>
@@ -73,7 +73,11 @@ export function HeroCarousel() {
                   src={src}
                   alt={b.title || "Banner"}
                   className="w-full h-full object-cover"
-                  onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+                  crossOrigin="anonymous"
+                  onError={(e) =>
+                    (e.currentTarget.src =
+                      "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png")
+                  }
                 />
               </CarouselItem>
             );

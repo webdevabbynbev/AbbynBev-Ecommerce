@@ -41,7 +41,9 @@ export async function getUser() {
     return { user };
   } catch (err) {
     const msg = err?.response?.data?.message || "Failed to fetch user profile";
-    throw new Error(msg);
+    const error = new Error(msg);
+    error.status = err?.response?.status;
+    throw error;
   }
 }
 
@@ -208,4 +210,15 @@ export async function LoginGoogle(token) {
  *  ========================= */
 export function logoutLocal() {
   clearToken();
+}
+
+export async function logoutUser() {
+  try {
+    await api.post("/auth/logout");
+  } catch (err) {
+    const msg = err?.response?.data?.message || err?.message || "Logout failed";
+    throw new Error(msg);
+  } finally {
+    clearToken();
+  }
 }

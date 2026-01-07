@@ -28,7 +28,8 @@ export default function CartPage() {
     try {
       setLoadingCart(true);
       const res = await axios.get("/cart");
-      const items = res.data?.data?.items || res.data?.data || res.data?.serve || [];
+      const items =
+        res.data?.data?.items || res.data?.data || res.data?.serve || [];
       const arr = Array.isArray(items) ? items : [];
       setCart(arr);
     } catch (err) {
@@ -67,11 +68,16 @@ export default function CartPage() {
 
   // kalau cart berubah, drop selected yang udah gak ada
   useEffect(() => {
-    const idsInCart = new Set(safeCart.map((x) => Number(x?.id)).filter(Boolean));
-    setSelectedIds((prev) => prev.map(Number).filter((id) => idsInCart.has(id)));
+    const idsInCart = new Set(
+      safeCart.map((x) => Number(x?.id)).filter(Boolean)
+    );
+    setSelectedIds((prev) =>
+      prev.map(Number).filter((id) => idsInCart.has(id))
+    );
   }, [safeCart]);
 
-  const isSelected = (item) => selectedIds.map(Number).includes(Number(item?.id));
+  const isSelected = (item) =>
+    selectedIds.map(Number).includes(Number(item?.id));
 
   const allIds = useMemo(
     () => safeCart.map((x) => Number(x?.id)).filter(Boolean),
@@ -120,7 +126,9 @@ export default function CartPage() {
       setLoadingItemId(item.id);
       await axios.delete(`/cart/${item.id}`);
 
-      setSelectedIds((prev) => prev.filter((id) => Number(id) !== Number(item.id)));
+      setSelectedIds((prev) =>
+        prev.filter((id) => Number(id) !== Number(item.id))
+      );
 
       await loadCart();
     } catch (err) {
@@ -163,14 +171,22 @@ export default function CartPage() {
       setLoadingCheckout(true);
 
       await Promise.all([
-        axios.post("/cart/update-selection", { cart_ids: selected, is_checkout: 2 }),
-        axios.post("/cart/update-selection", { cart_ids: unselected, is_checkout: 1 }),
+        axios.post("/cart/update-selection", {
+          cart_ids: selected,
+          is_checkout: 2,
+        }),
+        axios.post("/cart/update-selection", {
+          cart_ids: unselected,
+          is_checkout: 1,
+        }),
       ]);
 
       router.push("/checkout");
     } catch (err) {
       console.error("Failed update selection:", err?.response?.data || err);
-      alert(err?.response?.data?.message || "Gagal memproses checkout. Coba lagi.");
+      alert(
+        err?.response?.data?.message || "Gagal memproses checkout. Coba lagi."
+      );
     } finally {
       setLoadingCheckout(false);
     }
@@ -218,9 +234,7 @@ export default function CartPage() {
             const id = item?.id;
             const product = item.product || {};
             const image =
-              product.thumbnail ||
-              product.image ||
-              "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png";
+              product.thumbnail || product.image || "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
             const quantity = getQuantity(item);
             const busy = loadingItemId !== null && loadingItemId === id;
 
@@ -279,7 +293,7 @@ export default function CartPage() {
                           -
                         </button>
 
-                        <span className="min-w-[32px] text-center">
+                        <span className="min-w-8 text-center">
                           {quantity}
                         </span>
 

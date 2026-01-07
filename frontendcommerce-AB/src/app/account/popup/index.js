@@ -1,2 +1,2 @@
-export { EditProfile } from "./EditProfile.jsx";
-export { NewAddress } from "./NewAddress.jsx"
+export { EditProfile } from "./EditProfile";
+export { NewAddress } from "./NewAddress";
