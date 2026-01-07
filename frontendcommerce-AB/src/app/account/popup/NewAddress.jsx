@@ -199,11 +199,11 @@ export function NewAddress({ onSuccess }) {
             <form className="flex flex-wrap gap-4 py-2 w-full" onSubmit={handleSave}>
               <div className="flex md:flex-row sm:flex-col gap-4 w-full">
                 <TxtField
-                  label="Full name"
+                  label="Nama Lengkap"
                   variant="outline"
                   size="sm"
                   type="text"
-                  placeholder="Enter your full name"
+                  placeholder="Isi Nama Lengkap Anda"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                 />
@@ -219,11 +219,11 @@ export function NewAddress({ onSuccess }) {
               </div>
 
               <Textarea
-                label="Street name"
+                label="Alamat Lengkap"
                 type="text"
                 variant="outline"
                 size="sm"
-                placeholder="Enter your address"
+                placeholder="Tulis Alamat Lengkap Anda Disini"
                 value={street}
                 onChange={(e) => setStreet(e.target.value)}
               />
@@ -231,22 +231,22 @@ export function NewAddress({ onSuccess }) {
               {/* Search Area */}
               <div className="space-y-2 w-full">
                 <TxtField
-                  label="Search area (Biteship)"
+                  label="Kecamatan"
                   variant="outline"
                   size="sm"
                   type="text"
-                  placeholder='Ketik contoh: "Bandung", "Cimahi", "Sudirman Bandung"...'
+                  placeholder='Masukan Nama Kecamatan,'
                   value={areaQuery}
                   onChange={(e) => setAreaQuery(e.target.value)}
                 />
                 <p className="text-xs text-neutral-500">
-                  Minimal 3 karakter. {loadingAreas ? "Mencari..." : ""}
+                  . {loadingAreas ? "Mencari..." : ""}
                 </p>
               </div>
 
               {/* Select hasil area */}
               <div className="space-y-2 w-full">
-                <p className="text-sm font-medium text-neutral-800">Choose area</p>
+                <p className="text-sm font-medium text-neutral-800">Pilih Area Tujuan</p>
                 <Select
                   value={areaId}
                   onValueChange={(val) => setAreaId(val)}
@@ -258,16 +258,16 @@ export function NewAddress({ onSuccess }) {
                         loadingAreas
                           ? "Searching area..."
                           : !areaQuery.trim()
-                            ? "Ketik di search dulu"
+                            ? "Isi Kecamatan Terlebih Dahulu"
                             : !areas.length
                               ? "Tidak ada hasil"
-                              : "Select area"
+                              : "Pilih Area Tujuan"
                       }
                     />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      <SelectLabel>Area results</SelectLabel>
+                      <SelectLabel>Alamat Tujuan</SelectLabel>
                       {areas.map((a) => (
                         <SelectItem key={a.id} value={String(a.id)}>
                           <div className="flex flex-col">
@@ -286,11 +286,11 @@ export function NewAddress({ onSuccess }) {
               {/* Postal code (auto) */}
               <div className="space-y-2 w-full">
                 <TxtField
-                  label="Postal code"
+                  label="Kode Pos"
                   variant="outline"
                   size="sm"
                   type="text"
-                  placeholder="Auto from selected area"
+                  placeholder=""
                   value={postalCode}
                   readOnly
                 />
