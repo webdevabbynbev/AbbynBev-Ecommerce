@@ -375,7 +375,7 @@ ${cityValue} ${postalValue}`.trim();
               {/* Search */}
               <div className="space-y-2 w-full">
                 <TxtField
-                  label="Cari kota/area (Biteship)"
+                  label="Cari kota/area"
                   variant="outline"
                   size="sm"
                   type="text"
@@ -439,7 +439,7 @@ ${cityValue} ${postalValue}`.trim();
                   {/* ✅ scroll dropdown */}
                   <SelectContent className="max-h-64 overflow-y-auto">
                     <SelectGroup>
-                      <SelectLabel>Kecamatan (dari Biteship)</SelectLabel>
+                      <SelectLabel>Kecamatan </SelectLabel>
                       {districtOptions.map((d) => (
                         <SelectItem key={d.value} value={d.value}>
                           {d.label}
@@ -485,20 +485,6 @@ ${cityValue} ${postalValue}`.trim();
                 <p className="text-[11px] text-neutral-500">
                   Pilih kode pos sesuai wilayah kelurahan kamu, lalu isi kelurahan manual.
                 </p>
-              </div>
-
-              {/* Kelurahan manual */}
-              <div className="space-y-2 w-full">
-                <TxtField
-                  label="Kelurahan (isi manual)"
-                  variant="outline"
-                  size="sm"
-                  type="text"
-                  placeholder="Contoh: Setiamanah, Cibabat, Melong..."
-                  value={kelurahan}
-                  onChange={(e) => setKelurahan(e.target.value)}
-                  disabled={!postalValue}
-                />
               </div>
 
               <div className="w-full flex gap-3">
