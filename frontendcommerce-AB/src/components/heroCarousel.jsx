@@ -74,7 +74,10 @@ export function HeroCarousel() {
                   alt={b.title || "Banner"}
                   className="w-full h-full object-cover"
                   crossOrigin="anonymous"
-                  onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+                  onError={(e) =>
+                    (e.currentTarget.src =
+                      "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png")
+                  }
                 />
               </CarouselItem>
             );

@@ -18,7 +18,8 @@ import { useShippingOptions } from "@/app/hooks/useShippingOptions";
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { checkoutItems, subtotal, loadingCart, reloadCart } = useCheckoutCartServer();
+  const { checkoutItems, subtotal, loadingCart, reloadCart } =
+    useCheckoutCartServer();
   const { loadingItemId, handleUpdateQty, handleDelete } = useCartMutations({
     reloadCart,
   });
@@ -33,7 +34,10 @@ export default function CheckoutPage() {
   } = useAddresses();
 
   const { provinceMap, cityMap } = useLocationNames(addresses);
-  const weightRounded = useMemo(() => calcWeightRounded(checkoutItems), [checkoutItems]);
+  const weightRounded = useMemo(
+    () => calcWeightRounded(checkoutItems),
+    [checkoutItems]
+  );
   const {
     shippingAll,
     selectedShipping, // <- anggap "recommended" oleh sistem
@@ -55,7 +59,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     setConfirmedShipping(null);
   }, [selectedAddressId, weightRounded, checkoutItems.length]);
-  
+
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [loadingPay, setLoadingPay] = useState(false);
   const total = subtotal + n(confirmedShipping?.price, 0);
@@ -69,14 +73,14 @@ export default function CheckoutPage() {
         a?.city_name ||
         (typeof cityVal === "string" && !isNumericLike(cityVal)
           ? cityVal
-          : cityMap[String(cityVal)] || (isNumericLike(cityVal) ? String(cityVal) : ""));
+          : cityMap[String(cityVal)] ||
+            (isNumericLike(cityVal) ? String(cityVal) : ""));
 
       const provinceName =
         a?.provinceName ||
         a?.province_name ||
         provinceMap[String(provVal)] ||
         (isNumericLike(provVal) ? String(provVal) : "");
-
 
       return { ...a, _cityName: cityName, _provinceName: provinceName };
     });
@@ -142,7 +146,6 @@ export default function CheckoutPage() {
 
       alert(`Transaksi dibuat (${orderId || "-"}) tapi Snap belum ready.`);
     } catch (err) {
-
       console.error("create transaction error:", err?.response?.data || err);
       alert(err?.response?.data?.message || "Gagal membuat transaksi");
     } finally {
@@ -166,8 +169,9 @@ export default function CheckoutPage() {
           <div className="bg-white border rounded-xl p-6 shadow-sm">
             <h2 className="text-xl font-semibold mb-5">Your order</h2>
 
-
-            {loadingCart && <p className="text-gray-400 italic">Loading cart...</p>}
+            {loadingCart && (
+              <p className="text-gray-400 italic">Loading cart...</p>
+            )}
 
             {!loadingCart && checkoutItems.length === 0 && (
               <p className="text-gray-400 italic">No selected products</p>
@@ -176,9 +180,16 @@ export default function CheckoutPage() {
             {checkoutItems.map((item, idx) => {
               const product = item.product || {};
 
-              const image = product.thumbnail || product.image || "/placeholder.png";
-              const quantity = n(item?.qtyCheckout ?? item?.qty ?? item?.quantity ?? 1, 1);
-              const isBusy = loadingItemId !== null && loadingItemId === item.id;
+              const image =
+                product.thumbnail ||
+                product.image ||
+                "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
+              const quantity = n(
+                item?.qtyCheckout ?? item?.qty ?? item?.quantity ?? 1,
+                1
+              );
+              const isBusy =
+                loadingItemId !== null && loadingItemId === item.id;
 
               const productName =
                 product.name ||
@@ -250,7 +261,10 @@ export default function CheckoutPage() {
 
                   <p className="font-semibold text-pink-600 text-right">
                     Rp{" "}
-                    {n(item.amount ?? item.price ?? product.price ?? 0, 0).toLocaleString("id-ID")}
+                    {n(
+                      item.amount ?? item.price ?? product.price ?? 0,
+                      0
+                    ).toLocaleString("id-ID")}
                   </p>
                 </div>
               );
@@ -264,7 +278,9 @@ export default function CheckoutPage() {
               <NewAddress onSuccess={() => reloadAddresses()} />
             </div>
 
-            {loadingAddr && <p className="text-gray-400 italic">Loading address...</p>}
+            {loadingAddr && (
+              <p className="text-gray-400 italic">Loading address...</p>
+            )}
 
             {!loadingAddr && !displayAddresses.length && (
               <p className="text-gray-400 italic">No address found</p>
@@ -283,7 +299,13 @@ export default function CheckoutPage() {
                     province={a._provinceName || ""}
                     postalCode={a.postalCode || a.postal_code || ""}
                     name={a.picName || a.pic_name || "receiver"}
-                    phone={a.phone || a.picPhone || a.pic_phone || (a.pic && a.pic.phone) || ""}
+                    phone={
+                      a.phone ||
+                      a.picPhone ||
+                      a.pic_phone ||
+                      (a.pic && a.pic.phone) ||
+                      ""
+                    }
                     selected={a.id === selectedAddressId}
                     disabled={loadingAddr || loadingPay}
                     onSelect={selectAsMain}
@@ -298,11 +320,15 @@ export default function CheckoutPage() {
             <h2 className="text-xl font-semibold mb-4">Shipping method</h2>
 
             {!selectedAddress && (
-              <p className="text-gray-400 italic">Pilih alamat dulu untuk lihat ongkir.</p>
+              <p className="text-gray-400 italic">
+                Pilih alamat dulu untuk lihat ongkir.
+              </p>
             )}
 
             {selectedAddress && loadingShip && (
-              <p className="text-gray-400 italic">Loading shipping options...</p>
+              <p className="text-gray-400 italic">
+                Loading shipping options...
+              </p>
             )}
 
             {selectedAddress && !!shippingError && (
@@ -312,24 +338,32 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            {selectedAddress && !loadingShip && courierKeys.length === 0 && !shippingError && (
-              <p className="text-gray-400 italic">
-                Tidak ada opsi pengiriman. (cek district di alamat + KOMERCE_ORIGIN di backend)
-              </p>
-            )}
+            {selectedAddress &&
+              !loadingShip &&
+              courierKeys.length === 0 &&
+              !shippingError && (
+                <p className="text-gray-400 italic">
+                  Tidak ada opsi pengiriman. (cek district di alamat +
+                  KOMERCE_ORIGIN di backend)
+                </p>
+              )}
 
             {/* ✅ reminder: harus pilih shipping */}
-            {selectedAddress && !loadingShip && courierKeys.length > 0 && !confirmedShipping && (
-              <div className="mb-3 text-sm text-gray-600">
-                Pilih salah satu service pengiriman.
-                {selectedShipping ? (
-                  <span className="ml-1 text-gray-500">
-                     <b>{selectedShipping.courier?.toUpperCase()}</b> {selectedShipping.service} 
-                    {n(selectedShipping.price, 0).toLocaleString("id-ID")}
-                  </span>
-                ) : null}
-              </div>
-            )}
+            {selectedAddress &&
+              !loadingShip &&
+              courierKeys.length > 0 &&
+              !confirmedShipping && (
+                <div className="mb-3 text-sm text-gray-600">
+                  Pilih salah satu service pengiriman.
+                  {selectedShipping ? (
+                    <span className="ml-1 text-gray-500">
+                      <b>{selectedShipping.courier?.toUpperCase()}</b>{" "}
+                      {selectedShipping.service}
+                      {n(selectedShipping.price, 0).toLocaleString("id-ID")}
+                    </span>
+                  ) : null}
+                </div>
+              )}
 
             <div className="space-y-3">
               {courierKeys.map((courier) => {
@@ -347,7 +381,9 @@ export default function CheckoutPage() {
                       }))
                     }
                     className={`rounded-xl border p-4 cursor-pointer transition ${
-                      expanded ? "border-pink-600 bg-pink-50" : "hover:border-gray-400"
+                      expanded
+                        ? "border-pink-600 bg-pink-50"
+                        : "hover:border-gray-400"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-4">
@@ -355,11 +391,15 @@ export default function CheckoutPage() {
                         <p className="font-semibold uppercase">{courier}</p>
                         {best ? (
                           <p className="text-sm text-gray-600 mt-1">
-                            Best: <span className="font-medium">{best.service}</span> • Rp{" "}
-                            {n(best.price, 0).toLocaleString("id-ID")} • {best.estimate}
+                            Best:{" "}
+                            <span className="font-medium">{best.service}</span>{" "}
+                            • Rp {n(best.price, 0).toLocaleString("id-ID")} •{" "}
+                            {best.estimate}
                           </p>
                         ) : (
-                          <p className="text-sm text-gray-500 mt-1">Tidak ada service.</p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Tidak ada service.
+                          </p>
                         )}
                       </div>
 
@@ -389,13 +429,18 @@ export default function CheckoutPage() {
                               <div className="flex justify-between items-start gap-4">
                                 <div>
                                   <p className="font-medium">
-                                    {opt.service} (Rp {n(opt.price, 0).toLocaleString("id-ID")})
+                                    {opt.service} (Rp{" "}
+                                    {n(opt.price, 0).toLocaleString("id-ID")})
                                   </p>
                                   {!!opt.description && (
-                                    <p className="text-xs text-gray-500 mt-1">{opt.description}</p>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      {opt.description}
+                                    </p>
                                   )}
                                 </div>
-                                <p className="text-sm text-gray-500 whitespace-nowrap">{opt.estimate}</p>
+                                <p className="text-sm text-gray-500 whitespace-nowrap">
+                                  {opt.estimate}
+                                </p>
                               </div>
                             </div>
                           );
@@ -408,7 +453,8 @@ export default function CheckoutPage() {
             </div>
 
             <p className="text-xs text-gray-400 mt-3">
-              *Berat: {weightRounded} gram (rounded) | {shippingAll.length} service (setelah filter cargo)
+              *Berat: {weightRounded} gram (rounded) | {shippingAll.length}{" "}
+              service (setelah filter cargo)
             </p>
           </div>
         </div>
@@ -419,7 +465,10 @@ export default function CheckoutPage() {
 
           <div className="space-y-5">
             {PAYMENT_METHODS.map((method) => (
-              <label key={method.id} className="flex items-center justify-between cursor-pointer">
+              <label
+                key={method.id}
+                className="flex items-center justify-between cursor-pointer"
+              >
                 <div className="flex items-center gap-3">
                   <Image
                     src={method.icon}
@@ -453,10 +502,10 @@ export default function CheckoutPage() {
             <div className="flex justify-between">
               <span>Shipment:</span>
               <span>
-
                 {confirmedShipping
-                  ? `Rp ${n(confirmedShipping.price, 0).toLocaleString("id-ID")}`
-
+                  ? `Rp ${n(confirmedShipping.price, 0).toLocaleString(
+                      "id-ID"
+                    )}`
                   : "-"}
               </span>
             </div>

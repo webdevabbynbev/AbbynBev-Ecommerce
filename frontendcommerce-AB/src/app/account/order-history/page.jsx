@@ -103,7 +103,7 @@ const normalizeOrders = (rows) => {
         medias?.[0]?.url ||
         p?.thumbnail ||
         p?.image ||
-        "/placeholder.png";
+        "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
 
       const variantName =
         d?.variant?.sku ||
@@ -112,7 +112,11 @@ const normalizeOrders = (rows) => {
         "-";
 
       return {
-        id: d?.id ?? `${trx?.transactionNumber || trx?.id || "trx"}-${d?.productId || "item"}`,
+        id:
+          d?.id ??
+          `${trx?.transactionNumber || trx?.id || "trx"}-${
+            d?.productId || "item"
+          }`,
         product: {
           name: p?.name || p?.title || "-",
           thumbnail: thumb,
@@ -126,13 +130,17 @@ const normalizeOrders = (rows) => {
     const total =
       n(trx?.grandTotal, 0) ||
       n(trx?.amount, 0) ||
-      items.reduce((sum, it) => sum + n(it?.product?.price, 0) * n(it?.quantity, 0), 0);
+      items.reduce(
+        (sum, it) => sum + n(it?.product?.price, 0) * n(it?.quantity, 0),
+        0
+      );
 
     return {
       id: row?.id ?? trx?.id ?? trx?.transactionNumber,
       transaction_number: trx?.transactionNumber || "-",
       status: mapTransactionStatus(trx?.transactionStatus),
-      created_at: trx?.createdAt || trx?.created_at || row?.createdAt || row?.created_at,
+      created_at:
+        trx?.createdAt || trx?.created_at || row?.createdAt || row?.created_at,
       total_price: total,
       items,
     };
@@ -176,7 +184,13 @@ export default function OrderHistoryPage() {
     return list.filter((o) => {
       const st = o?.status || "unknown";
       if (filter === "all") return true;
-      if (filter === "ongoing") return ["pending", "waiting_admin", "processing", "on_delivery"].includes(st);
+      if (filter === "ongoing")
+        return [
+          "pending",
+          "waiting_admin",
+          "processing",
+          "on_delivery",
+        ].includes(st);
       if (filter === "success") return ["finished"].includes(st);
       if (filter === "cancelled") return ["cancelled"].includes(st);
       return true;
@@ -211,7 +225,9 @@ export default function OrderHistoryPage() {
 
         {/* Main Content */}
         <div className="flex-1">
-          <h2 className="text-2xl font-bold mb-6 text-gray-900">Order history</h2>
+          <h2 className="text-2xl font-bold mb-6 text-gray-900">
+            Order history
+          </h2>
 
           {/* Filter Tabs */}
           <div className="flex gap-3 mb-6">
@@ -257,17 +273,25 @@ export default function OrderHistoryPage() {
               {filterOrders.map((order) => {
                 const statusInfo = getStatusInfo(order.status);
                 const items = Array.isArray(order.items) ? order.items : [];
-                const totalQty = items.reduce((sum, item) => sum + n(item?.quantity, 0), 0);
+                const totalQty = items.reduce(
+                  (sum, item) => sum + n(item?.quantity, 0),
+                  0
+                );
 
                 return (
-                  <div key={order.id} className="bg-white border border-gray-200 rounded-lg p-5">
+                  <div
+                    key={order.id}
+                    className="bg-white border border-gray-200 rounded-lg p-5"
+                  >
                     {/* Status Message */}
                     <div
                       className={`${statusInfo.bgColor} ${statusInfo.textColor} px-4 py-2.5 rounded-md flex items-center justify-between mb-4`}
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-lg">{statusInfo.icon}</span>
-                        <span className="text-sm font-medium">{statusInfo.message}</span>
+                        <span className="text-sm font-medium">
+                          {statusInfo.message}
+                        </span>
                       </div>
                       <div className="text-xs">
                         Order created: {safeDateString(order.created_at)}
@@ -304,18 +328,23 @@ export default function OrderHistoryPage() {
 
                     {/* Footer */}
                     <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                      <p className="text-xs text-gray-500">{order.transaction_number}</p>
+                      <p className="text-xs text-gray-500">
+                        {order.transaction_number}
+                      </p>
 
                       <div className="flex items-center gap-4">
                         <div className="text-right">
                           <p className="text-xs text-gray-500 mb-1">Total</p>
                           <p className="text-base font-bold text-gray-900">
-                            {totalQty} item: Rp{n(order.total_price, 0).toLocaleString("id-ID")}
+                            {totalQty} item: Rp
+                            {n(order.total_price, 0).toLocaleString("id-ID")}
                           </p>
                         </div>
 
                         <Link
-                          href={`/account/order-history/${encodeURIComponent(order.transaction_number)}`}
+                          href={`/account/order-history/${encodeURIComponent(
+                            order.transaction_number
+                          )}`}
                           className="px-5 py-2 text-xs font-medium text-white bg-pink-600 rounded-full hover:bg-pink-700 transition-colors"
                         >
                           See Transactions detail
