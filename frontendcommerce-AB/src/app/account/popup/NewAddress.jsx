@@ -20,73 +20,143 @@ import {
   TxtField,
 } from "@/components";
 
+function uniqBy(arr, keyFn) {
+  const seen = new Set();
+  const out = [];
+  for (const x of arr) {
+    const k = keyFn(x);
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    out.push(x);
+  }
+  return out;
+}
+
+function cleanStr(s) {
+  return String(s || "").trim();
+}
+
+/**
+ * Parse format umum Biteship:
+ * "Cimahi Tengah, Cimahi, Jawa Barat. 40525"
+ * district/kecamatan = parts[0]
+ * city/kota = parts[1]
+ * province = parts[2]
+ * postal = field postal_code / suffix ". 40525"
+ */
+function parseBiteshipName(name, fallbackPostal) {
+  const raw = String(name || "").trim();
+
+  const m = raw.match(/\.\s*(\d{4,6})\s*$/);
+  const postalFromSuffix = m?.[1] || "";
+
+  const noZip = raw.replace(/\.\s*\d{4,6}\s*$/i, "").trim();
+
+  const parts = noZip
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  const district = parts[0] || "";
+  const city = parts[1] || "";
+  const province = parts[2] || "";
+
+  const postal = cleanStr(fallbackPostal) || cleanStr(postalFromSuffix) || "";
+
+  return { district, city, province, postal, label: noZip };
+}
+
 export function NewAddress({ onSuccess }) {
   const [open, setOpen] = useState(false);
 
-  // form
+  // ===== Form =====
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [street, setStreet] = useState("");
-  const [saving, setSaving] = useState(false);
 
-  // ===== Kota/Kab =====
-  const [cityQuery, setCityQuery] = useState("Cimahi");
-  const [cities, setCities] = useState([]);
-  const [loadingCities, setLoadingCities] = useState(false);
-  const [cityId, setCityId] = useState("");
-  const selectedCity = useMemo(
-    () => cities.find((c) => String(c.id) === String(cityId)) || null,
-    [cities, cityId]
-  );
+  // ===== Biteship search =====
+  const [searchQuery, setSearchQuery] = useState("");
+  const [loadingAreas, setLoadingAreas] = useState(false);
+  const [areasRaw, setAreasRaw] = useState([]);
 
-  // ===== Kecamatan =====
-  const [districtQuery, setDistrictQuery] = useState("");
-  const [districts, setDistricts] = useState([]);
-  const [loadingDistricts, setLoadingDistricts] = useState(false);
-  const [districtId, setDistrictId] = useState("");
-  const selectedDistrict = useMemo(
-    () => districts.find((d) => String(d.id) === String(districtId)) || null,
-    [districts, districtId]
-  );
+  // ===== Dropdown step-by-step =====
+  const [cityValue, setCityValue] = useState("");
+  const [districtValue, setDistrictValue] = useState("");
+  const [postalValue, setPostalValue] = useState("");
 
-  // ===== Kelurahan =====
-  const [subQuery, setSubQuery] = useState("");
-  const [subs, setSubs] = useState([]);
-  const [loadingSubs, setLoadingSubs] = useState(false);
-  const [subId, setSubId] = useState("");
-  const selectedSub = useMemo(
-    () => subs.find((s) => String(s.id) === String(subId)) || null,
-    [subs, subId]
-  );
+  // Kelurahan manual
+  const [kelurahan, setKelurahan] = useState("");
 
-  // ===== Kode Pos =====
-  const [postalCodes, setPostalCodes] = useState([]);
+  // Biteship data to save
+  const [areaId, setAreaId] = useState("");
+  const [areaName, setAreaName] = useState("");
   const [postalCode, setPostalCode] = useState("");
 
-  const cityTimer = useRef(null);
-  const districtTimer = useRef(null);
-  const subTimer = useRef(null);
+  const [saving, setSaving] = useState(false);
+
+  const timerRef = useRef(null);
+  const reqIdRef = useRef(0);
+
+  // parsed
+  const parsedAreas = useMemo(() => {
+    const arr = Array.isArray(areasRaw) ? areasRaw : [];
+    return arr
+      .map((a) => {
+        const postal = a?.postal_code ?? a?.postalCode ?? "";
+        const parsed = parseBiteshipName(a?.name, postal);
+        return {
+          raw: a,
+          id: a?.id,
+          name: a?.name || "",
+          ...parsed,
+        };
+      })
+      .filter((x) => x.id && (x.city || x.district || x.postal));
+  }, [areasRaw]);
+
+  const cityOptions = useMemo(() => {
+    const base = parsedAreas
+      .filter((x) => x.city)
+      .map((x) => ({ value: x.city, label: x.city }));
+    return uniqBy(base, (x) => x.value);
+  }, [parsedAreas]);
+
+  const districtOptions = useMemo(() => {
+    if (!cityValue) return [];
+    const base = parsedAreas
+      .filter((x) => x.city === cityValue && x.district)
+      .map((x) => ({ value: x.district, label: x.district }));
+    return uniqBy(base, (x) => x.value);
+  }, [parsedAreas, cityValue]);
+
+  const postalOptions = useMemo(() => {
+    if (!cityValue || !districtValue) return [];
+    const base = parsedAreas
+      .filter((x) => x.city === cityValue && x.district === districtValue && x.postal)
+      .map((x) => ({ value: x.postal, label: x.postal }));
+    return uniqBy(base, (x) => x.value);
+  }, [parsedAreas, cityValue, districtValue]);
 
   const resetAll = () => {
     setFullName("");
     setPhone("");
     setStreet("");
-    setSaving(false);
 
-    setCityQuery("Cimahi");
-    setCities([]);
-    setCityId("");
+    setSearchQuery("");
+    setAreasRaw([]);
+    setLoadingAreas(false);
 
-    setDistrictQuery("");
-    setDistricts([]);
-    setDistrictId("");
+    setCityValue("");
+    setDistrictValue("");
+    setPostalValue("");
 
-    setSubQuery("");
-    setSubs([]);
-    setSubId("");
+    setKelurahan("");
 
-    setPostalCodes([]);
+    setAreaId("");
+    setAreaName("");
     setPostalCode("");
+
+    setSaving(false);
   };
 
   useEffect(() => {
@@ -94,154 +164,106 @@ export function NewAddress({ onSuccess }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // ===== fetch cities debounce =====
+  // Fetch areas (naikin limit)
   useEffect(() => {
     if (!open) return;
 
-    const q = String(cityQuery || "").trim();
-    if (cityTimer.current) clearTimeout(cityTimer.current);
+    const q = String(searchQuery || "").trim();
+    if (timerRef.current) clearTimeout(timerRef.current);
 
-    if (!q || q.length < 2) {
-      setCities([]);
-      setCityId("");
+    if (!q || q.length < 3) {
+      setAreasRaw([]);
+      setCityValue("");
+      setDistrictValue("");
+      setPostalValue("");
+      setAreaId("");
+      setAreaName("");
+      setPostalCode("");
       return;
     }
 
-    cityTimer.current = setTimeout(async () => {
-      setLoadingCities(true);
+    timerRef.current = setTimeout(async () => {
+      const reqId = ++reqIdRef.current;
+      setLoadingAreas(true);
+
       try {
-        const res = await axios.get("/regions/cities", { params: { q, limit: 20 } });
-        const arr = Array.isArray(res.data?.serve) ? res.data.serve : [];
-        setCities(arr);
-
-        // kalau cityId lama gak ada, reset
-        setCityId((prev) => {
-          if (!prev) return "";
-          const exists = arr.some((x) => String(x.id) === String(prev));
-          return exists ? prev : "";
+        const res = await axios.get("/areas", {
+          params: {
+            input: q,
+            countries: "ID",
+            type: "single",
+            // ✅ coba beberapa nama param biar kompatibel sama backend/proxy kamu
+            limit: 100,
+            per_page: 100,
+            page: 1,
+          },
         });
-      } catch (e) {
-        console.error(e);
-        setCities([]);
-      } finally {
-        setLoadingCities(false);
-      }
-    }, 300);
 
-    return () => cityTimer.current && clearTimeout(cityTimer.current);
-  }, [cityQuery, open]);
+        if (reqId !== reqIdRef.current) return;
 
-  // reset chain saat city berubah
-  useEffect(() => {
-    setDistricts([]);
-    setDistrictId("");
-    setDistrictQuery("");
+        const list = res.data?.serve || [];
+        const arr = Array.isArray(list) ? list : [];
+        setAreasRaw(arr);
 
-    setSubs([]);
-    setSubId("");
-    setSubQuery("");
-
-    setPostalCodes([]);
-    setPostalCode("");
-  }, [cityId]);
-
-  // ===== fetch districts =====
-  useEffect(() => {
-    if (!open) return;
-    if (!cityId) return;
-
-    const q = String(districtQuery || "").trim();
-    if (districtTimer.current) clearTimeout(districtTimer.current);
-
-    districtTimer.current = setTimeout(async () => {
-      setLoadingDistricts(true);
-      try {
-        const res = await axios.get("/regions/districts", {
-          params: { city_id: cityId, q, limit: 100 },
-        });
-        const arr = Array.isArray(res.data?.serve) ? res.data.serve : [];
-        setDistricts(arr);
-
-        setDistrictId((prev) => {
-          if (!prev) return "";
-          const exists = arr.some((x) => String(x.id) === String(prev));
-          return exists ? prev : "";
-        });
-      } catch (e) {
-        console.error(e);
-        setDistricts([]);
-      } finally {
-        setLoadingDistricts(false);
-      }
-    }, 250);
-
-    return () => districtTimer.current && clearTimeout(districtTimer.current);
-  }, [cityId, districtQuery, open]);
-
-  // reset chain saat district berubah
-  useEffect(() => {
-    setSubs([]);
-    setSubId("");
-    setSubQuery("");
-
-    setPostalCodes([]);
-    setPostalCode("");
-  }, [districtId]);
-
-  // ===== fetch sub districts (kelurahan) =====
-  useEffect(() => {
-    if (!open) return;
-    if (!districtId) return;
-
-    const q = String(subQuery || "").trim();
-    if (subTimer.current) clearTimeout(subTimer.current);
-
-    subTimer.current = setTimeout(async () => {
-      setLoadingSubs(true);
-      try {
-        const res = await axios.get("/regions/sub-districts", {
-          params: { district_id: districtId, q, limit: 200 },
-        });
-        const arr = Array.isArray(res.data?.serve) ? res.data.serve : [];
-        setSubs(arr);
-
-        setSubId((prev) => {
-          if (!prev) return "";
-          const exists = arr.some((x) => String(x.id) === String(prev));
-          return exists ? prev : "";
-        });
-      } catch (e) {
-        console.error(e);
-        setSubs([]);
-      } finally {
-        setLoadingSubs(false);
-      }
-    }, 250);
-
-    return () => subTimer.current && clearTimeout(subTimer.current);
-  }, [districtId, subQuery, open]);
-
-  // ===== fetch postal codes =====
-  useEffect(() => {
-    if (!open) return;
-    if (!subId) return;
-
-    (async () => {
-      try {
-        const res = await axios.get("/regions/postal-codes", { params: { sub_district_id: subId } });
-        const arr = Array.isArray(res.data?.serve) ? res.data.serve : [];
-        setPostalCodes(arr);
-
-        // kalau cuma 1, auto pilih; kalau >1 user pilih (walau di DB kamu umumnya 1)
-        if (arr.length === 1) setPostalCode(String(arr[0]));
-        else setPostalCode("");
-      } catch (e) {
-        console.error(e);
-        setPostalCodes([]);
+        // reset chain setiap data baru masuk
+        setCityValue("");
+        setDistrictValue("");
+        setPostalValue("");
+        setAreaId("");
+        setAreaName("");
         setPostalCode("");
+      } catch (e) {
+        console.error(e);
+        if (reqId !== reqIdRef.current) return;
+        setAreasRaw([]);
+      } finally {
+        if (reqId === reqIdRef.current) setLoadingAreas(false);
       }
-    })();
-  }, [subId, open]);
+    }, 450);
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [searchQuery, open]);
+
+  useEffect(() => {
+    setDistrictValue("");
+    setPostalValue("");
+    setAreaId("");
+    setAreaName("");
+    setPostalCode("");
+  }, [cityValue]);
+
+  useEffect(() => {
+    setPostalValue("");
+    setAreaId("");
+    setAreaName("");
+    setPostalCode("");
+  }, [districtValue]);
+
+  useEffect(() => {
+    if (!postalValue || !cityValue || !districtValue) {
+      setAreaId("");
+      setAreaName("");
+      setPostalCode("");
+      return;
+    }
+
+    const match = parsedAreas.find(
+      (x) => x.city === cityValue && x.district === districtValue && x.postal === postalValue
+    );
+
+    if (!match) {
+      setAreaId("");
+      setAreaName("");
+      setPostalCode("");
+      return;
+    }
+
+    setAreaId(String(match.id));
+    setAreaName(match.name || match.label || "");
+    setPostalCode(String(match.postal || ""));
+  }, [postalValue, cityValue, districtValue, parsedAreas]);
 
   const handleSave = async (e) => {
     e?.preventDefault?.();
@@ -249,24 +271,21 @@ export function NewAddress({ onSuccess }) {
 
     if (!fullName.trim()) return alert("Full name wajib diisi");
     if (!phone.trim()) return alert("Phone number wajib diisi");
-    if (!street.trim()) return alert("Street wajib diisi");
+    if (!street.trim()) return alert("Street name wajib diisi");
 
-    if (!cityId) return alert("Pilih Kota/Kab dulu");
-    if (!districtId) return alert("Pilih Kecamatan dulu");
-    if (!subId) return alert("Pilih Kelurahan dulu");
-    if (!postalCode) return alert("Pilih Kode Pos dulu");
+    if (!cityValue) return alert("Pilih Kota/Kab dulu");
+    if (!districtValue) return alert("Pilih Kecamatan dulu");
+    if (!postalValue) return alert("Pilih Kode Pos dulu");
+    if (!kelurahan.trim()) return alert("Kelurahan wajib diisi (manual).");
+    if (!areaId) return alert("Area Biteship belum kebentuk. Pilih ulang kode pos.");
 
     try {
       setSaving(true);
 
-      const cityName = selectedCity?.name || "";
-      const districtName = selectedDistrict?.name || "";
-      const subName = selectedSub?.name || "";
-
       const fullAddress = `${street}
-Kel. ${subName}
-Kec. ${districtName}
-${cityName} ${postalCode}`.trim();
+Kel. ${kelurahan}
+Kec. ${districtValue}
+${cityValue} ${postalValue}`.trim();
 
       await axios.post("/addresses", {
         address: fullAddress,
@@ -277,13 +296,13 @@ ${cityName} ${postalCode}`.trim();
         benchmark: "",
         is_active: 2,
 
-        // simpan dropdown wilayah (biar tidak bisa mismatch)
-        city: Number(cityId),
-        district: Number(districtId),
-        sub_district: Number(subId),
-
-        // untuk ongkir biteship (tanpa area_id pun bisa)
+        area_id: areaId,
+        area_name: areaName,
         postal_code: postalCode,
+
+        kota_kab: cityValue,
+        kecamatan: districtValue,
+        kelurahan,
       });
 
       onSuccess?.();
@@ -299,17 +318,28 @@ ${cityName} ${postalCode}`.trim();
 
   return (
     <div>
-      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetAll(); }}>
+      <Dialog
+        open={open}
+        onOpenChange={(v) => {
+          setOpen(v);
+          if (!v) resetAll();
+        }}
+      >
         <DialogTrigger asChild>
           <Button variant="primary" size="sm" iconName="Plus">
             Add new address
           </Button>
         </DialogTrigger>
 
-        <DialogContent className="flex flex-col sm:max-w-[300px] md:max-w-[425px] h-[80%] overflow-y-auto overflow-x-hidden custom-scrollbar justify-start items-start">
+        {/* ✅ PENTING: DialogContent jangan overflow-y-auto (biar dropdown nggak ke-clip).
+            Kita bikin bagian formnya yang scroll, bukan container modalnya. */}
+        <DialogContent className="sm:max-w-[300px] md:max-w-[425px] overflow-visible">
           <DialogHeader>
             <DialogTitle>Add new address</DialogTitle>
+          </DialogHeader>
 
+          {/* ✅ area scroll */}
+          <div className="w-full max-h-[70vh] overflow-y-auto overflow-x-hidden custom-scrollbar pr-1">
             <form className="flex flex-wrap gap-4 py-2 w-full" onSubmit={handleSave}>
               <div className="flex md:flex-row sm:flex-col gap-4 w-full">
                 <TxtField
@@ -342,29 +372,51 @@ ${cityName} ${postalCode}`.trim();
                 onChange={(e) => setStreet(e.target.value)}
               />
 
-              {/* ===== Kota/Kab ===== */}
+              {/* Search */}
               <div className="space-y-2 w-full">
                 <TxtField
-                  label="Kota/Kab (cari dulu)"
+                  label="Cari kota/area (Biteship)"
                   variant="outline"
                   size="sm"
                   type="text"
-                  placeholder='Ketik: "Cimahi", "Bandung"...'
-                  value={cityQuery}
-                  onChange={(e) => setCityQuery(e.target.value)}
+                  placeholder='Ketik contoh: "Cimahi", "Bandung"...'
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                <p className="text-xs text-neutral-500">{loadingCities ? "Mencari kota..." : ""}</p>
+                <p className="text-xs text-neutral-500">
+                  Minimal 3 karakter. {loadingAreas ? "Mencari..." : ""}
+                </p>
+              </div>
 
-                <Select value={cityId} onValueChange={setCityId} disabled={!cities.length || loadingCities}>
+              {/* Kota */}
+              <div className="space-y-2 w-full">
+                <p className="text-sm font-medium text-neutral-800">Kota/Kab</p>
+                <Select
+                  value={cityValue}
+                  onValueChange={(v) => setCityValue(v)}
+                  disabled={!cityOptions.length || loadingAreas}
+                >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder={!cities.length ? "Tidak ada hasil" : "Pilih Kota/Kab"} />
+                    <SelectValue
+                      placeholder={
+                        loadingAreas
+                          ? "Loading..."
+                          : !searchQuery.trim()
+                            ? "Ketik dulu di search"
+                            : !cityOptions.length
+                              ? "Tidak ada kota ditemukan"
+                              : "Pilih Kota/Kab"
+                      }
+                    />
                   </SelectTrigger>
-                  <SelectContent>
+
+                  {/* ✅ bikin list scrollable */}
+                  <SelectContent className="max-h-64 overflow-y-auto">
                     <SelectGroup>
                       <SelectLabel>Hasil Kota/Kab</SelectLabel>
-                      {cities.map((c) => (
-                        <SelectItem key={c.id} value={String(c.id)}>
-                          {c.name}
+                      {cityOptions.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>
+                          {c.label}
                         </SelectItem>
                       ))}
                     </SelectGroup>
@@ -372,80 +424,58 @@ ${cityName} ${postalCode}`.trim();
                 </Select>
               </div>
 
-              {/* ===== Kecamatan ===== */}
+              {/* Kecamatan */}
               <div className="space-y-2 w-full">
-                <TxtField
-                  label="Cari kecamatan (optional)"
-                  variant="outline"
-                  size="sm"
-                  type="text"
-                  placeholder="Ketik untuk filter kecamatan"
-                  value={districtQuery}
-                  onChange={(e) => setDistrictQuery(e.target.value)}
-                  disabled={!cityId}
-                />
-                <p className="text-xs text-neutral-500">{loadingDistricts ? "Load kecamatan..." : ""}</p>
-
-                <Select value={districtId} onValueChange={setDistrictId} disabled={!cityId || !districts.length}>
+                <p className="text-sm font-medium text-neutral-800">Kecamatan</p>
+                <Select
+                  value={districtValue}
+                  onValueChange={(v) => setDistrictValue(v)}
+                  disabled={!cityValue || !districtOptions.length}
+                >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder={!cityId ? "Pilih kota dulu" : "Pilih Kecamatan"} />
+                    <SelectValue placeholder={!cityValue ? "Pilih kota dulu" : "Pilih Kecamatan"} />
                   </SelectTrigger>
-                  <SelectContent>
+
+                  {/* ✅ scroll dropdown */}
+                  <SelectContent className="max-h-64 overflow-y-auto">
                     <SelectGroup>
-                      <SelectLabel>Kecamatan</SelectLabel>
-                      {districts.map((d) => (
-                        <SelectItem key={d.id} value={String(d.id)}>
-                          {d.name}
+                      <SelectLabel>Kecamatan (dari Biteship)</SelectLabel>
+                      {districtOptions.map((d) => (
+                        <SelectItem key={d.value} value={d.value}>
+                          {d.label}
                         </SelectItem>
                       ))}
                     </SelectGroup>
                   </SelectContent>
                 </Select>
+
+                {/* Info kalau kecamatan sedikit */}
+                {cityValue && !loadingAreas && districtOptions.length > 0 && districtOptions.length < 3 ? (
+                  <p className="text-[11px] text-neutral-500">
+                    Kalau kecamatan masih sedikit, coba ketik pencarian lebih spesifik:
+                    <span className="font-medium"> “cimahi selatan”</span> / <span className="font-medium">“cimahi utara”</span>.
+                  </p>
+                ) : null}
               </div>
 
-              {/* ===== Kelurahan ===== */}
+              {/* Kode pos */}
               <div className="space-y-2 w-full">
-                <TxtField
-                  label="Cari kelurahan (optional)"
-                  variant="outline"
-                  size="sm"
-                  type="text"
-                  placeholder="Ketik untuk filter kelurahan"
-                  value={subQuery}
-                  onChange={(e) => setSubQuery(e.target.value)}
-                  disabled={!districtId}
-                />
-                <p className="text-xs text-neutral-500">{loadingSubs ? "Load kelurahan..." : ""}</p>
-
-                <Select value={subId} onValueChange={setSubId} disabled={!districtId || !subs.length}>
+                <p className="text-sm font-medium text-neutral-800">Kode Pos</p>
+                <Select
+                  value={postalValue}
+                  onValueChange={(v) => setPostalValue(v)}
+                  disabled={!districtValue || !postalOptions.length}
+                >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder={!districtId ? "Pilih kecamatan dulu" : "Pilih Kelurahan"} />
+                    <SelectValue placeholder={!districtValue ? "Pilih kecamatan dulu" : "Pilih Kode Pos"} />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectLabel>Kelurahan</SelectLabel>
-                      {subs.map((s) => (
-                        <SelectItem key={s.id} value={String(s.id)}>
-                          {s.name}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
 
-              {/* ===== Kode Pos ===== */}
-              <div className="space-y-2 w-full">
-                <Select value={postalCode} onValueChange={setPostalCode} disabled={!subId || !postalCodes.length}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder={!subId ? "Pilih kelurahan dulu" : "Pilih Kode Pos"} />
-                  </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-64 overflow-y-auto">
                     <SelectGroup>
-                      <SelectLabel>Kode Pos</SelectLabel>
-                      {postalCodes.map((z) => (
-                        <SelectItem key={z} value={String(z)}>
-                          {z}
+                      <SelectLabel>Kode pos (wilayah kelurahan)</SelectLabel>
+                      {postalOptions.map((p) => (
+                        <SelectItem key={p.value} value={p.value}>
+                          {p.label}
                         </SelectItem>
                       ))}
                     </SelectGroup>
@@ -453,9 +483,22 @@ ${cityName} ${postalCode}`.trim();
                 </Select>
 
                 <p className="text-[11px] text-neutral-500">
-                  Kode pos di DB kamu saat ini 1 kelurahan = 1 kode pos. Kalau mau 1 kelurahan bisa banyak kode pos,
-                  nanti kita tambah tabel mapping.
+                  Pilih kode pos sesuai wilayah kelurahan kamu, lalu isi kelurahan manual.
                 </p>
+              </div>
+
+              {/* Kelurahan manual */}
+              <div className="space-y-2 w-full">
+                <TxtField
+                  label="Kelurahan (isi manual)"
+                  variant="outline"
+                  size="sm"
+                  type="text"
+                  placeholder="Contoh: Setiamanah, Cibabat, Melong..."
+                  value={kelurahan}
+                  onChange={(e) => setKelurahan(e.target.value)}
+                  disabled={!postalValue}
+                />
               </div>
 
               <div className="w-full flex gap-3">
@@ -467,7 +510,7 @@ ${cityName} ${postalCode}`.trim();
                 </Button>
               </div>
             </form>
-          </DialogHeader>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
