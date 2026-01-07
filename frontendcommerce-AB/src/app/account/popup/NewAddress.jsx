@@ -35,6 +35,11 @@ export function NewAddress({ onSuccess }) {
   const [areaId, setAreaId] = useState("");
   const [postalCode, setPostalCode] = useState("");
 
+   const [kecamatan, setKecamatan] = useState("");
+  const [kelurahan, setKelurahan] = useState("");
+
+  
+
   const [saving, setSaving] = useState(false);
 
   const timerRef = useRef(null);
@@ -43,6 +48,29 @@ export function NewAddress({ onSuccess }) {
   const selectedArea = useMemo(() => {
     return areas.find((a) => String(a.id) === String(areaId)) || null;
   }, [areas, areaId]);
+  
+
+
+  const pickAreaField = (area, keys) => {
+    if (!area) return "";
+    for (const key of keys) {
+      const val = area?.[key];
+      if (val) return String(val);
+    }
+    return "";
+  };
+
+  const parseAreaNameParts = (areaName) => {
+    if (!areaName) return { kelurahan: "", kecamatan: "" };
+    const parts = String(areaName)
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    return {
+      kelurahan: parts[0] || "",
+      kecamatan: parts[1] || "",
+    };
+  };
 
   const resetAll = () => {
     setFullName("");
@@ -56,6 +84,9 @@ export function NewAddress({ onSuccess }) {
 
     setSaving(false);
     setLoadingAreas(false);
+
+    setKecamatan("");
+    setKelurahan("");
   };
 
   // reset ketika dialog ditutup
@@ -130,10 +161,31 @@ export function NewAddress({ onSuccess }) {
   useEffect(() => {
     if (!selectedArea) {
       setPostalCode("");
+      setKecamatan("");
+      setKelurahan("");
       return;
     }
     const zip = selectedArea.postal_code || selectedArea.postalCode || "";
+      const parsed = parseAreaNameParts(selectedArea.name);
     setPostalCode(String(zip || ""));
+    setKecamatan(
+      pickAreaField(selectedArea, [
+        "administrative_area_level_3",
+        "administrative_area_level3",
+        "district",
+        "kecamatan",
+      ]) || parsed.kecamatan
+    );
+    setKelurahan(
+      pickAreaField(selectedArea, [
+        "administrative_area_level_4",
+        "administrative_area_level4",
+        "subdistrict",
+        "sub_district",
+        "subDistrict",
+        "kelurahan",
+      ]) || parsed.kelurahan
+    );
   }, [selectedArea]);
 
   const handleSave = async (e) => {
@@ -268,30 +320,62 @@ export function NewAddress({ onSuccess }) {
                   <SelectContent>
                     <SelectGroup>
                       <SelectLabel>Area results</SelectLabel>
-                      {areas.map((a) => (
-                        <SelectItem key={a.id} value={String(a.id)}>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{a.name}</span>
-                            <span className="text-xs text-neutral-500">
-                              {a.postal_code ? `Postal: ${a.postal_code}` : ""}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
+                       {areas.map((a) => {
+                        const parsed = parseAreaNameParts(a?.name);
+                        const areaKecamatan = pickAreaField(a, [
+                          "administrative_area_level_3",
+                          "administrative_area_level3",
+                          "district",
+                          "kecamatan",
+                        ]) || parsed.kecamatan;
+                        const areaKelurahan = pickAreaField(a, [
+                          "administrative_area_level_4",
+                          "administrative_area_level4",
+                          "subdistrict",
+                          "sub_district",
+                          "subDistrict",
+                          "kelurahan",
+                        ]) || parsed.kelurahan;
+
+                        return (
+                          <SelectItem key={a.id} value={String(a.id)}>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{a.name}</span>
+                              <span className="text-xs text-neutral-500">
+                                {areaKecamatan ? `Kecamatan: ${areaKecamatan}` : ""}
+                              </span>
+                              <span className="text-xs text-neutral-500">
+                                {areaKelurahan ? `Kelurahan: ${areaKelurahan}` : ""}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectGroup>
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Postal code (auto) */}
+               {/* Kecamatan & Kelurahan (auto) */}
               <div className="space-y-2 w-full">
                 <TxtField
-                  label="Postal code"
+                  label="Kecamatan"
                   variant="outline"
                   size="sm"
                   type="text"
                   placeholder="Auto from selected area"
-                  value={postalCode}
+                  value={kecamatan}
+                  readOnly
+                />
+              </div>
+              <div className="space-y-2 w-full">
+                <TxtField
+                  label="Kelurahan"
+                  variant="outline"
+                  size="sm"
+                  type="text"
+                  placeholder="Auto from selected area"
+                  value={kelurahan}
                   readOnly
                 />
               </div>
