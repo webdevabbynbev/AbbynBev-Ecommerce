@@ -43,11 +43,11 @@ const BannerOrdersController = () => import('#controllers/cms/banners/banner_ord
         const CmsPersonaController = () => import('#controllers/cms/personas_controller')
         const CmsConcernController = () => import('#controllers/cms/concerns_controller')
         const CmsFlashSaleController = () => import('#controllers/cms/flashsales_controller')
+        const CmsSaleController = () => import('#controllers/cms/sales_controller')
+
         const CmsTransactionsController = () => import('#controllers/cms/transactions_controller')
-        const CmsProfileCategoriesController = () =>
-          import('#controllers/cms/profile_categories_controller')
-        const CmsProfileCategoryOptionsController = () =>
-          import('#controllers/cms/profile_category_options_controller')
+        const CmsProfileCategoriesController = () => import('#controllers/cms/profile_categories_controller')
+        const CmsProfileCategoryOptionsController = () => import('#controllers/cms/profile_category_options_controller')
         const CmsConcernOptionController = () => import('#controllers/cms/concern_options_controller')
         const CmsStockMovementsController = () => import('#controllers/cms/stock_movements_controller')
         const CmsProductOnlinesController = () => import('#controllers/cms/product_onlines_controller')
@@ -325,6 +325,17 @@ router.post('/:id/unpublish', [ProductPublicationsController, 'unpublish'])
                   .use(middleware.roleAdmin())
                   .prefix('/flashsales')
 
+                  router
+                  .group(() => {
+                    router.get('', [CmsSaleController, 'get'])
+                    router.get('/:id', [CmsSaleController, 'show'])
+                    router.post('', [CmsSaleController, 'create'])
+                    router.put('/:id', [CmsSaleController, 'update'])
+                    router.delete('/:id', [CmsSaleController, 'delete'])
+                  })
+                  .use(middleware.roleAdmin())
+                  .prefix('/sales')
+
                 router
                   .group(() => {
                     router.get('', [CmsProfileCategoriesController, 'get'])
@@ -476,6 +487,7 @@ router.get('/user-carts', [CmsDashboardCartsController, 'getUserCart'])
             router.get('/faq', [FeHomeController, 'getFaq'])
             router.get('/about-us', [FeHomeController, 'getAboutUs'])
             router.get('/flashsale', [FeHomeController, 'getFlashSale'])
+            router.get('/sale', [FeHomeController, 'getSale'])
 
             // =========================
             // CART ROUTES (AUTH REQUIRED)

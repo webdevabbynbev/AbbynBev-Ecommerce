@@ -82,6 +82,11 @@ const MenuAdmin = (level: RoleEnumType): MenuProps["items"] => {
           label: "Flash Sale",
         },
         helper.hasAnyPermission(level, [helper.RoleEnum.GUDANG]) && {
+          key: "/sale-products",
+          icon: <TagOutlined />,
+          label: "Sale Products",
+        },
+        helper.hasAnyPermission(level, [helper.RoleEnum.GUDANG]) && {
           key: "/brand-product",
           icon: <SortAscendingOutlined />,
           label: "Brand",

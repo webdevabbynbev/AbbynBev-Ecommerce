@@ -4,6 +4,7 @@ import Setting from '#models/setting'
 import { SettingType } from '../../enums/setting_types.js'
 import Faq from '#models/faq'
 import FlashSale from '#models/flashsale'
+import Sale from '#models/sale'
 import { DateTime } from 'luxon'
 
 export default class HomeController {
@@ -159,6 +160,76 @@ export default class HomeController {
               path: p.path ?? null,
               price: p.basePrice,
               flashPrice,
+              stock,
+              image,
+              brand: p.brand ? { id: p.brand.id, name: p.brand.name, slug: p.brand.slug } : null,
+              categoryType: p.categoryType
+                ? { id: p.categoryType.id, name: p.categoryType.name }
+                : null,
+            }
+          }),
+        },
+      })
+    } catch (e: any) {
+      return response.status(500).send({
+        message: e.message || 'Internal Server Error',
+        serve: null,
+      })
+    }
+  }
+  public async getSale({ response }: HttpContext) {
+    try {
+      const now = DateTime.now().setZone('Asia/Jakarta')
+      const nowStr = now.toFormat('yyyy-LL-dd HH:mm:ss')
+
+      const sale = await Sale.query()
+        .where('is_publish', 1 as any)
+        .where('start_datetime', '<=', nowStr)
+        .where('end_datetime', '>=', nowStr)
+        .orderBy('start_datetime', 'desc')
+        .preload('products', (q) => {
+          q.pivotColumns(['sale_price', 'stock'])
+
+          q.preload('medias', (mq) => mq.orderBy('id', 'asc'))
+          q.preload('brand', (bq) => bq.select(['id', 'name', 'slug']))
+          q.preload('categoryType', (cq) => cq.select(['id', 'name']))
+        })
+        .first()
+
+      if (!sale) {
+        return response.status(200).send({
+          message: 'No active sale',
+          serve: null,
+          meta: { nowStr, timezone: 'Asia/Jakarta' },
+        })
+      }
+
+      return response.status(200).send({
+        message: 'Success',
+        serve: {
+          id: sale.id,
+          title: sale.title,
+          description: sale.description,
+          hasButton: sale.hasButton,
+          buttonText: sale.buttonText,
+          buttonUrl: sale.buttonUrl,
+          startDatetime: this.toISO(sale.startDatetime),
+          endDatetime: this.toISO(sale.endDatetime),
+
+          products: sale.products.map((p: any) => {
+            const salePrice = Number(p?.$extras?.pivot_sale_price ?? 0)
+            const stock = Number(p?.$extras?.pivot_stock ?? 0)
+
+            const image =
+              Array.isArray(p?.medias) && p.medias.length > 0 ? p.medias[0].url : null
+
+            return {
+              id: p.id,
+              name: p.name,
+              slug: p.slug ?? null,
+              path: p.path ?? null,
+              price: p.basePrice,
+              salePrice,
               stock,
               image,
               brand: p.brand ? { id: p.brand.id, name: p.brand.name, slug: p.brand.slug } : null,
