@@ -29,13 +29,14 @@ import { getBrands } from "@/services/api/brands.services";
 const BestSeller = () => {
   const [products, setProducts] = useState([]);
   const [brands, setBrands] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [meta, setMeta] = useState({});
   const debounceSearch = useDebounce(search, 500);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 24;
+  const itemsPerPage = 20;
   const totalPages = meta?.lastPage || 1;
   const skeleton_card = itemsPerPage;
   const currentItems = products;
@@ -70,7 +71,8 @@ const BestSeller = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        setLoading(true);
+        isInitialLoading ? setIsInitialLoading(true) : setIsFetching(true);
+
         const [resProducts, resBrands] = await Promise.all([
           getProducts({
             page: currentPage,
@@ -86,7 +88,8 @@ const BestSeller = () => {
       } catch (error) {
         console.error("Gagal mengambil data:", error);
       } finally {
-        setLoading(false);
+        setIsInitialLoading(false);
+        setIsFetching(false);
       }
     };
 
@@ -127,14 +130,15 @@ const BestSeller = () => {
               </DialogHeader>
               <Filter
                 brands={brands}
-                showBrandFilter={true}
-                className="w-full pb-10"
+                showBrandFilter
+                disabled={isInitialLoading || isFetching}
+                className="w-full py-24"
               />
             </DialogContent>
           </Dialog>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {loading ? (
+          {isInitialLoading || isFetching ? (
             [...Array(skeleton_card)].map((_, i) => (
               <RegularCardSkeleton key={i} />
             ))
@@ -149,7 +153,7 @@ const BestSeller = () => {
           )}
         </div>
 
-        {!loading && totalPages > 1 && (
+        {!isInitialLoading && totalPages > 1 && (
           <Pagination className="mt-12">
             <PaginationContent>
               <PaginationItem>

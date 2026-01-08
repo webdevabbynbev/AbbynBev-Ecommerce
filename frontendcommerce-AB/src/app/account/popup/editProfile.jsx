@@ -169,7 +169,7 @@ export function EditProfile({ onProfileUpdated }) {
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="flex flex-col sm:max-w-[300px] md:max-w-[425px] h-[80%] overflow-y-auto overflow-x-hidden custom-scrollbar justify-start items-start">
+      <DialogContent className="flex flex-col sm:max-w-75 md:max-w-106.25 h-[80%] overflow-y-auto overflow-x-hidden custom-scrollbar justify-start items-start">
         <DialogHeader className="w-full">
           <DialogTitle className="flex gap-2">
             Edit profile
@@ -178,7 +178,7 @@ export function EditProfile({ onProfileUpdated }) {
 
         <form
           onSubmit={handleSubmit}
-          className="flex flex-col w-[100%] space-y-2  h-full p-2"
+          className="flex flex-col w-full space-y-2  h-full p-2"
         >
           <div className="space-y-2">
           <div className="w-full flex flex-col sm:flex-row gap-4">

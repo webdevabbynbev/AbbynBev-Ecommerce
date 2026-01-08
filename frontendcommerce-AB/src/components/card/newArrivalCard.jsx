@@ -48,7 +48,9 @@ export function NewArrivaleCard({ product }) {
       "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
 
     const slugSource = raw.slug || raw.path || "";
-    const safeSlug = slugSource ? String(slugSource) : slugify(String(name || ""));
+    const safeSlug = slugSource
+      ? String(slugSource)
+      : slugify(String(name || ""));
 
     return {
       id: String(id),

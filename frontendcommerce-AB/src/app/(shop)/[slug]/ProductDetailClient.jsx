@@ -217,7 +217,7 @@ export default function ProductDetailClient({ product }) {
               <BreadcrumbSeparator />
 
               <BreadcrumbItem className="min-w-0 flex-1">
-                <BreadcrumbPage className="truncate max-w-75">
+                <BreadcrumbPage className="truncate max-w-90">
                   {product?.name}
                 </BreadcrumbPage>
               </BreadcrumbItem>
@@ -241,7 +241,7 @@ export default function ProductDetailClient({ product }) {
                   <img
                     src={activeImage || product?.image}
                     alt={product?.name}
-                    className="w-full h-auto object-cover border border-neutral-400 lg:max-w-[300px] lg:max-h-[300px]"
+                    className="w-full h-auto object-cover border border-neutral-400 lg:max-w-75 lg:max-h-75"
                   />
                 </div>
               </div>
@@ -253,7 +253,7 @@ export default function ProductDetailClient({ product }) {
                     src={img}
                     alt={`${product?.name}-${i}`}
                     onClick={() => setActiveImage(img)}
-                    className={`h-[80px] w-[80px] border p-2 rounded-md cursor-pointer ${
+                    className={`h-20 w-20 border p-2 rounded-md cursor-pointer ${
                       activeImage === img ? "ring-2 ring-primary-700" : ""
                     }`}
                   />
@@ -388,7 +388,7 @@ export default function ProductDetailClient({ product }) {
                       />
 
                       <Select>
-                        <SelectTrigger className="w-[180px]">
+                        <SelectTrigger className="w-45">
                           <SelectValue placeholder="Filter rating" />
                         </SelectTrigger>
                         <SelectContent>
@@ -469,7 +469,7 @@ export default function ProductDetailClient({ product }) {
         </div>
       </div>
       {/* Sticky Sidebar */}
-      <div className="hidden sticky top-[103px] p-6 space-y-4 outline-1 outline-neutral-100 rounded-3xl bottom-32 items-start w-full max-w-[300px] h-fit bg-white lg:block">
+      <div className="hidden sticky top-25.75 p-6 space-y-4 outline-1 outline-neutral-100 rounded-3xl bottom-32 items-start w-full max-w-75 h-fit bg-white lg:block">
         <div className="text-xl font-medium">Quantity</div>
 
         <div className="flex flex-row gap-4">
