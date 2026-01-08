@@ -217,7 +217,7 @@ export default function ProductDetailClient({ product }) {
               <BreadcrumbSeparator />
 
               <BreadcrumbItem className="min-w-0 flex-1">
-                <BreadcrumbPage className="truncate max-w-[360px]">
+                <BreadcrumbPage className="truncate max-w-75">
                   {product?.name}
                 </BreadcrumbPage>
               </BreadcrumbItem>
@@ -246,7 +246,7 @@ export default function ProductDetailClient({ product }) {
                 </div>
               </div>
 
-              <div className="flex max-w-[300px] py-2 items-center space-x-4 max-h-64 overflow-x-auto custom-scrollbar">
+              <div className="flex w-full py-2 items-center space-x-4 max-h-64 overflow-x-auto custom-scrollbar">
                 {variantImages.map((img, i) => (
                   <img
                     key={i}

@@ -1,3 +1,4 @@
+export { MobileCartActionBar } from "./mobile/mobileCartActionBar.jsx";
 export { NewArrivaleCard } from "./card/newArrivalCard.jsx";
 export { FlashSaleCarousel } from "./carousel/flashSaleCarousel.jsx";
 export { Chip } from "./chip/chip.jsx";
@@ -29,7 +30,6 @@ export { LoadingSpinner } from "./loadingSpinner.jsx";
 export { SubList } from "./filter/subList.jsx";
 export { NestedSection } from "./filter/nestedSection.jsx";
 export { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/Tabs.jsx";
-
 export {
   Tooltip,
   TooltipContent,

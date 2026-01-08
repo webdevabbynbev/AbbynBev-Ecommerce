@@ -1,10 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { FaStar } from "react-icons/fa6";
 import { BtnIconToggle } from "..";
-import { formatToRupiah, slugify, getAverageRating } from "@/utils";
-import { DataReview } from "@/data";
+import { slugify } from "@/utils";
 
 export function NewArrivaleCard({ product }) {
   const [wishlist, setWishlist] = useState([]);
@@ -58,26 +57,13 @@ export function NewArrivaleCard({ product }) {
       compareAt,
       image,
       rating: Number(raw.rating ?? raw.stars ?? 0),
-      brand:
-        raw.brand?.name ??
-        raw.brand?.brandname ??
-        raw.brand ??
-        raw.brandName ??
-        "",
-      category:
-        raw.categoryType?.name ??
-        raw.category_type?.name ??
-        raw.category?.name ??
-        raw.category?.categoryname ??
-        raw.category ??
-        raw.categoryName ??
-        "",
       slug: safeSlug,
       sale: Boolean(raw.sale),
     };
   }, [product]);
 
-  const hasSale = Number.isFinite(item.compareAt) && item.compareAt > item.price;
+  const hasSale =
+    Number.isFinite(item.compareAt) && item.compareAt > item.price;
 
   useEffect(() => {
     try {
@@ -104,108 +90,48 @@ export function NewArrivaleCard({ product }) {
   };
 
   const isWishlisted = wishlist.some((p) => p.id === item.id);
+  const href = item.slug ? `/${encodeURIComponent(item.slug)}` : "#";
 
-  const reviewsForProduct = Array.isArray(DataReview)
-    ? DataReview.filter((r) => String(r.productID) === String(item.id))
-    : [];
-
-  const averageRating = getAverageRating(reviewsForProduct);
-
-  // IMPORTANT:
-  // Jangan render <Link> di sini.
-  // Card ini diasumsikan sudah dibungkus <Link> dari parent (page/list).
   return (
-    <div className="group relative flex h-full w-full flex-col rounded-lg bg-white space-y-4 transition-all overflow-hidden">
-      <div className="image flex w-full items-center justify-center relative">
-        {(item.sale || hasSale) && (
-          <img
-            src="/sale-tag.svg"
-            alt="Sale"
-            className="absolute top-0 left-0 z-10 w-10 h-auto"
-          />
-        )}
-
+    <Link href={href} className="group relative flex h-full w-full flex-col rounded-lg bg-white transition-all overflow-hidden">
+      <div className="relative">
+        {/* Wishlist button */}
         <div className="absolute top-4 right-4 z-10">
           <BtnIconToggle
+            active={isWishlisted}
             onClick={(e) => {
-              // Kalau parent dibungkus Link, ini mencegah navigasi saat klik wishlist
               e.preventDefault();
               e.stopPropagation();
               handleWishlist();
             }}
-            iconName="Heart"
             variant="tertiary"
             size="md"
-            aria-pressed={isWishlisted}
-            title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
           />
         </div>
 
-        <div className="image w-full">
-          <img
-            src={item.image}
-            alt={item.name}
-            className="w-full h-auto object-cover"
-            onError={(e) => {
-              e.currentTarget.src =
-                "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
-            }}
-          />
+        {/* Image */}
+        <img
+          src={item.image}
+          alt={item.name}
+          className="w-full h-auto object-cover"
+          onError={(e) => {
+            e.currentTarget.src =
+              "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
+          }}
+        />
+
+        {/* Tooltip */}
+        <div className="pointer-events-none absolute bottom-2 left-1/2 z-20 w-max max-w-[90%] -translate-x-1/2 rounded-md bg-black/80 px-2 py-1 text-xs text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+          {item.name}
         </div>
+
+        {/* Sale badge (optional) */}
+        {(item.sale || hasSale) && (
+          <div className="absolute left-3 top-3 rounded-md bg-black/80 px-2 py-1 text-xs text-white">
+            Sale
+          </div>
+        )}
       </div>
-
-      <div className="content-wrapper w-full space-y-2 p-4">
-        <div className="category-and-name space-y-1">
-          <div className="text-sm font-bold text-neutral-950 line-clamp-2">
-            {item.name}
-          </div>
-        </div>
-
-        <div className="price flex items-center space-x-2">
-          {hasSale ? (
-            <>
-              <div className="text-sm font-bold text-primary-700">
-                {formatToRupiah(item.price)}
-              </div>
-              <div className="text-xs font-medium text-neutral-400 line-through">
-                {formatToRupiah(item.compareAt)}
-              </div>
-            </>
-          ) : (
-            <div className="text-base font-bold text-primary-700">
-              {formatToRupiah(item.price)}
-            </div>
-          )}
-        </div>
-
-        <div className="rating flex space-x-2 items-center">
-          <div className="flex space-x-1 items-center">
-            {averageRating === 0 ? (
-              <span className="text-xs text-primary-700 font-light">
-                No rating
-              </span>
-            ) : (
-              <div className="flex items-center space-x-1 font-bold text-primary-700 text-xs">
-                <span>{averageRating}</span>
-                <FaStar className="h-3 w-3 text-warning-300" />
-              </div>
-            )}
-          </div>
-          <div className="w-1 h-1 rounded-full bg-neutral-400" />
-          <div className="text-xs font-light text-neutral-300">
-            ({reviewsForProduct.length} reviews)
-          </div>
-        </div>
-
-        <div className="text-xs category-brand flex flex-row relative items-center space-x-1.5 overflow-hidden h-6">
-          <p className="text-neutral-400 transition-transform duration-300 group-hover:-translate-y-6">
-            {item.brand || "—"}
-          </p>
-          <p className="text-neutral-400 absolute top-0 left-0 translate-y-6 transition-transform duration-300 group-hover:translate-y-0">
-            {item.category || "—"}
-          </p>
-        </div>
-      </div>
-    </div>
+    </Link>
   );
 }

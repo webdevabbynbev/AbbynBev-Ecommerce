@@ -29,7 +29,6 @@ export function BtnIconToggle({
     lg: "p-4 text-lg",
   };
 
-  // ICON YANG BENAR
   const OutlineIcon = FaIcons.FaRegHeart;
   const SolidIcon = FaIcons.FaHeart;
 

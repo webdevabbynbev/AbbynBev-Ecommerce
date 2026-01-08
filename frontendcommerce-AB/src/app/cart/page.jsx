@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Toaster } from "sonner";
+import { MobileCartActionBar } from "@/components";
 import axios from "@/lib/axios";
 import Image from "next/image";
 
@@ -12,7 +12,7 @@ export default function CartPage() {
   const router = useRouter();
 
   const [cart, setCart] = useState([]);
-  const [selectedIds, setSelectedIds] = useState([]); // selection local utk UI
+  const [selectedIds, setSelectedIds] = useState([]);
   const [loadingCart, setLoadingCart] = useState(true);
   const [loadingItemId, setLoadingItemId] = useState(null);
   const [loadingCheckout, setLoadingCheckout] = useState(false);
@@ -194,8 +194,8 @@ export default function CartPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-10">
-      <div className="flex items-center justify-between mb-6">
+    <div className="mx-auto px-4 w-auto py-10">
+      <div className="flex items-center justify-between mb-6 ">
         <h1 className="text-2xl font-semibold">Cart</h1>
 
         <button
@@ -234,8 +234,18 @@ export default function CartPage() {
           {safeCart.map((item, idx) => {
             const id = item?.id;
             const product = item.product || {};
+            const variantImages = Array.isArray(item?.variant?.images)
+              ? item.variant.images
+              : Array.isArray(item?.variant?.medias)
+              ? item.variant.medias.map((media) => media?.url).filter(Boolean)
+              : [];
+            const variantImage =
+              variantImages[0] || item?.variant?.media?.url || "";
             const image =
-              product.thumbnail || product.image || "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
+              variantImage ||
+              product.thumbnail ||
+              product.image ||
+              "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
             const quantity = getQuantity(item);
             const busy = loadingItemId !== null && loadingItemId === id;
 
@@ -259,9 +269,9 @@ export default function CartPage() {
             return (
               <div
                 key={rowKey}
-                className="flex justify-between items-center border-b pb-4 mb-4"
+                className="flex justify-between mx-auto items-center border-b pb-4 mb-4 lg:max-w-6xl xl:max-w-7xl"
               >
-                <div className="flex gap-3 items-start">
+                <div className="flex gap-3 items-start lg:max-w-6xl xl:max-w-7xl justify-between">
                   <input
                     type="checkbox"
                     className="mt-2 w-5 h-5 accent-pink-600 cursor-pointer"
@@ -275,11 +285,11 @@ export default function CartPage() {
                     width={60}
                     height={60}
                     alt={productName}
-                    className="rounded-md"
+                    className="rounded-sm"
                   />
 
-                  <div>
-                    <p className="font-medium">{productName}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate w-full">{productName}</p>
                     <p className="text-sm text-gray-500">
                       Variant: {variantName}
                     </p>
@@ -294,9 +304,7 @@ export default function CartPage() {
                           -
                         </button>
 
-                        <span className="min-w-8 text-center">
-                          {quantity}
-                        </span>
+                        <span className="min-w-8 text-center">{quantity}</span>
 
                         <button
                           disabled={busy || loadingCheckout}
@@ -331,7 +339,7 @@ export default function CartPage() {
         </div>
 
         {/* RIGHT */}
-        <div className="w-full bg-white border rounded-2xl shadow-md p-6 h-fit">
+        <div className="hidden w-full bg-white border rounded-2xl shadow-md p-6 h-fit lg:block">
           <h2 className="text-xl font-semibold mb-6">Summary</h2>
 
           <div className="space-y-3 text-sm">
@@ -359,6 +367,14 @@ export default function CartPage() {
           </p>
         </div>
       </div>
+      <MobileCartActionBar
+        allSelected={allSelected}
+        selectedCount={selectedCount}
+        subtotal={selectedSubtotal}
+        loadingCheckout={loadingCheckout}
+        onToggleSelectAll={toggleSelectAll}
+        onCheckout={handleCheckout}
+      />
     </div>
   );
 }

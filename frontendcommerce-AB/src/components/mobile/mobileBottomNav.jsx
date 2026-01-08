@@ -34,6 +34,8 @@ export function MobileBottomNav({ className = "" }) {
     pathnameSafe && pathnameSafe !== "/" && /^\/[^/]+$/.test(pathnameSafe);
   const isProductDetailRoute =
     isSingleSegment && !singleSegmentRoutes.has(pathnameSafe);
+  const hiddenRoutes = new Set(["/cart"]);
+  const shouldHideNav = isProductDetailRoute || hiddenRoutes.has(pathnameSafe);
 
   useEffect(() => setMounted(true), []);
 
@@ -56,7 +58,7 @@ export function MobileBottomNav({ className = "" }) {
 
   const shopActive = mounted && shopLinks.some((l) => isActive(l.href));
 
-  if (isProductDetailRoute) {
+  if (shouldHideNav) {
     return null;
   }
 
@@ -165,7 +167,7 @@ export function MobileBottomNav({ className = "" }) {
                 </button>
               </SheetTrigger>
 
-              <SheetContent side="bottom" className="rounded-t-2xl">
+              <SheetContent side="bottom" className="rounded-full">
                 <SheetHeader>
                   <SheetTitle className="text-primary-700">Shop</SheetTitle>
                 </SheetHeader>
