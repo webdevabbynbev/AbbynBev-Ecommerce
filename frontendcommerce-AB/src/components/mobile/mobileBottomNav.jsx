@@ -68,7 +68,7 @@ export function MobileBottomNav({ className = "" }) {
         className
       )}
     >
-      <div className="mx-auto w-full  max-w-[520px] px-4 pb-4">
+      <div className="mx-auto w-full  max-w-130 px-4 pb-4">
         <div className="rounded-2xl border border-primary-500 bg-white">
           <nav className="grid grid-cols-4 items-center px-2 py-2">
             {/* PROFILE */}

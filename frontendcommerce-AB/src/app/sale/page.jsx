@@ -152,7 +152,7 @@ export default function SalePage() {
     <div className="Container items-center justify-center mx-auto overflow-visible">
       {/* Banner / Header */}
       <div className="w-full flex-col bg-primary-100 items-center justify-center bg-[url('/Logo_SVG_AB.svg')] bg-no-repeat bg-center">
-        <div className="p-6 flex flex-col xl:max-w-[1280px] lg:max-w-[960px] mx-auto gap-4">
+        <div className="p-6 flex flex-col xl:max-w-7xl lg:max-w-240 mx-auto gap-4">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1">
               <h1 className="font-damion text-4xl text-primary-700">
@@ -201,7 +201,7 @@ export default function SalePage() {
           </div>
 
           {/* Search */}
-          <div className="w-full max-w-[620px]">
+          <div className="w-full max-w-155">
             <TxtField
               placeholder="Search product on flash sale..."
               iconLeftName="MagnifyingGlass"
@@ -241,7 +241,7 @@ export default function SalePage() {
       </div>
 
       {/* Content */}
-      <div className="p-6 xl:max-w-[1280px] lg:max-w-[960px] mx-auto space-y-4">
+      <div className="p-6 xl:max-w-7xl lg:max-w-240 mx-auto space-y-4">
         {loading ? (
           <>
             <div className="text-xs text-neutral-500">Loading flash sale...</div>

@@ -185,7 +185,7 @@ export function NewAddress({ onSuccess }) {
           </Button>
         </DialogTrigger>
 
-        <DialogContent className="flex flex-col sm:max-w-[300px] md:max-w-[425px] h-[80%] overflow-y-auto overflow-x-hidden custom-scrollbar justify-start items-start">
+        <DialogContent className="flex flex-col sm:max-w-75 md:max-w-106.25 h-[80%] overflow-y-auto overflow-x-hidden custom-scrollbar justify-start items-start">
           <DialogHeader>
             <DialogTitle>Add new address</DialogTitle>
 
