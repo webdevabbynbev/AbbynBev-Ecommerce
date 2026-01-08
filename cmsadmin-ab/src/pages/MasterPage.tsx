@@ -26,6 +26,7 @@ import TableFlashSale from "../components/Tables/FlashSale/TableFlashSale";
 import TableProduct from "../components/Tables/Product/TableProduct";
 import TableTransaction from "../components/Transaction/TableTransaction";
 import TableRamadanEvent from "../components/Tables/Ramadan/TableRamadanEvent";
+import TableRamadanRecommendation from "../components/Tables/Ramadan/TableRamadanRecommendation";
 
 export default function MasterPage(): React.ReactElement {
   return (
@@ -63,6 +64,10 @@ export default function MasterPage(): React.ReactElement {
         <Route path="/inventory-product" element={<TableProduct />} />
         <Route path="/transactions" element={<TableTransaction />} />
         <Route path="/ramadan-event" element={<TableRamadanEvent />} />
+        <Route
+          path="/ramadan-recommendation"
+          element={<TableRamadanRecommendation />}
+        />
         {/* Redirect default */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

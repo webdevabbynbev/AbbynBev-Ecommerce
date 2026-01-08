@@ -92,7 +92,8 @@ const AuthSessionsController = () => import('#controllers/auth/auth_sessions_con
 const AuthRegistrationController = () => import('#controllers/auth/auth_registration_controller')
 const AuthPasswordResetController = () => import('#controllers/auth/auth_password_reset_controller')
 const AuthAccountController = () => import('#controllers/auth/auth_account_controller')
-
+const CmsRamadanRecommendationsController = () =>
+  import('#controllers/cms/ramadan/ramadan_recommendations_controller')
 router
   .group(() => {
     // =========================
@@ -421,6 +422,13 @@ router
         router.get('/user-carts', [CmsDashboardCartsController, 'getUserCart'])
 
         router.get('/activity-logs', [CmsActivityLogsController, 'get']).use(middleware.roleAdmin())
+        router
+          .group(() => {
+            router.get('/', [CmsRamadanRecommendationsController, 'index'])
+            router.post('/', [CmsRamadanRecommendationsController, 'store'])
+            router.delete('/:id', [CmsRamadanRecommendationsController, 'destroy'])
+          })
+          .prefix('/ramadan-recommendations')
       })
       .prefix('/admin')
 

@@ -9,7 +9,7 @@ export default class RamadanParticipantsController {
 
     try {
       const query = User.query()
-        .whereHas('ramadanCheckins')
+        .whereHas('ramadanCheckins', () => {})
         .preload('ramadanExemptions')
         .withCount('ramadanCheckins', (q) => {
           q.as('totalFasting')
