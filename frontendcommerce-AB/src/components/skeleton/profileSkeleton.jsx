@@ -1,6 +1,6 @@
 "use client";
 
-export default function ProfileSkeleton() {
+export function ProfileSkeleton() {
   return (
     <div className="bg-transparent w-full justify-center h-auto space-y-4 animate-pulse">
       {/* Title */}
