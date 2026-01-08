@@ -1,15 +1,17 @@
 /*
-        |--------------------------------------------------------------------------
-        | Routes file
-        |--------------------------------------------------------------------------
-        |
-        | The routes file is used for defining the HTTP routes.
-        |
-        */
+          |--------------------------------------------------------------------------
+          | Routes file
+          |--------------------------------------------------------------------------
+          |
+          | The routes file is used for defining the HTTP routes.
+          |
+          */
 
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
-import { Role } from '../app/enums/role.js'
+import { Role } from '../app/enums/role.js' // ... import lainnya
+const CmsRamadanParticipantsController = () =>
+  import('#controllers/cms/ramadan/ramadan_participants_controller')
 
 const UsersController = () => import('#controllers/cms/users/admin_users_controller')
 const CustomersController = () => import('#controllers/cms/users/customers_controller')
@@ -103,6 +105,7 @@ router
     router.post('/auth/verify-login', [AuthSessionsController, 'verifyLoginOtp'])
     router.post('/auth/login-admin', [AuthSessionsController, 'loginAdmin'])
     router.post('/auth/login-cashier', [AuthSessionsController, 'loginCashier'])
+    // Di dalam router.group (Admin)
 
     router.post('/auth/forgot', [AuthPasswordResetController, 'requestForgotPassword'])
     router
@@ -120,6 +123,7 @@ router
     // =========================
     router
       .group(() => {
+        router.get('/ramadan-participants', [CmsRamadanParticipantsController, 'index'])
         router
           .group(() => {
             router.get('', [UsersController, 'getAdmin'])
