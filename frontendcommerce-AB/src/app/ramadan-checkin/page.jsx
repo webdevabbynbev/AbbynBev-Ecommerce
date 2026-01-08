@@ -13,6 +13,8 @@ import {
 } from "date-fns";
 import axios from "@/lib/axios";
 import { Wheel } from "react-custom-roulette";
+// Import Icon untuk Popup
+import { X, ShoppingBag, ChevronRight } from "lucide-react";
 
 // ... (Kode Data Produk & Spin Modal Tetap Sama) ...
 const RECOMMENDED_PRODUCTS = [
@@ -51,6 +53,87 @@ const CHECKIN_QUOTES = [
   "Setiap langkah kecil hari ini membawa berkah besar esok hari.",
   "Kebaikan yang konsisten akan membentuk kebiasaan baik.",
 ];
+
+// --- KOMPONEN POPUP PROMO BARU ---
+const PromoPopup = ({ isOpen, onClose }) => {
+  if (!isOpen) return null;
+
+  const promoProducts = [
+    {
+      id: 1,
+      name: "Ramadan Glow Bundle",
+      price: "Rp 150.000",
+      discount: "20%",
+    },
+    {
+      id: 2,
+      name: "Hydrating Set",
+      price: "Rp 120.000",
+      discount: "15%",
+    },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+        {/* Header Popup */}
+        <div className="relative h-32 bg-gradient-to-r from-pink-600 to-purple-500 flex flex-col items-center justify-center text-white">
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 p-1 bg-white/20 hover:bg-white/40 rounded-full transition-colors"
+          >
+            <X size={20} />
+          </button>
+          <h3 className="text-2xl font-bold mb-1"> ✨ Penawaran Spesial ✨</h3>
+          <p className="text-pink-50 text-sm">
+            Khusus untuk menemani Ramadanmu
+          </p>
+        </div>
+
+        {/* Body Popup (List Produk) */}
+        <div className="p-5 space-y-4">
+          {promoProducts.map((product) => (
+            <div
+              key={product.id}
+              className="flex items-center gap-4 p-3 border border-gray-100 rounded-xl hover:shadow-md transition-shadow bg-gray-50"
+            >
+              <div className="h-14 w-14 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-xs font-bold">
+                IMG
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-gray-800 text-sm">
+                  {product.name}
+                </h4>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-pink-600 font-bold text-sm">
+                    {product.price}
+                  </span>
+                  <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">
+                    {product.discount} OFF
+                  </span>
+                </div>
+              </div>
+              <button className="p-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors">
+                <ShoppingBag size={18} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer Popup */}
+        <div className="p-5 pt-0">
+          <button
+            onClick={onClose}
+            className="w-full py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+          >
+            Lanjut Check-in
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // ... (Komponen RecommendationList, SpinWheelModal, OfferModal SAMA SEPERTI SEBELUMNYA) ...
 const RecommendationList = () => (
@@ -248,6 +331,9 @@ export default function RamadanCheckinPage() {
   const [showSpin, setShowSpin] = useState(false);
   const [showOffer, setShowOffer] = useState(false);
 
+  // [BARU] State untuk Promo Popup yang muncul otomatis
+  const [showPromo, setShowPromo] = useState(false);
+
   // Helper Logic
   const checkinDetail = status.checkedData.find((d) => d.date === selectedDate);
   const isSelectedChecked = status.checkedDates.includes(selectedDate);
@@ -401,7 +487,13 @@ export default function RamadanCheckinPage() {
 
   useEffect(() => {
     loadStatus();
+    // [BARU] Munculkan popup promo setelah 1 detik halaman dimuat
+    const timer = setTimeout(() => {
+      setShowPromo(true);
+    }, 1000);
+    return () => clearTimeout(timer);
   }, []);
+
   useEffect(() => {
     setShowExemptOptions(false);
   }, [selectedDate]);
@@ -409,6 +501,9 @@ export default function RamadanCheckinPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 relative">
       {/* --- MODALS --- */}
+      {/* [BARU] Tambahkan PromoPopup */}
+      <PromoPopup isOpen={showPromo} onClose={() => setShowPromo(false)} />
+
       <SpinWheelModal open={showSpin} onClose={() => setShowSpin(false)} />
       <OfferModal open={showOffer} onClose={() => setShowOffer(false)} />
 
@@ -669,12 +764,12 @@ export default function RamadanCheckinPage() {
                             onClick={handleCheckin}
                             disabled={!isToday || submitting}
                             className={`flex-1 py-4 rounded-xl font-bold text-sm transition shadow-sm border-2 flex items-center justify-center gap-2
-                                        ${
-                                          !isToday
-                                            ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-                                            : "bg-green-600 text-white border-green-600 hover:bg-green-700 hover:shadow-md active:scale-95"
-                                        }
-                                    `}
+                                    ${
+                                      !isToday
+                                        ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                        : "bg-green-600 text-white border-green-600 hover:bg-green-700 hover:shadow-md active:scale-95"
+                                    }
+                                  `}
                           >
                             {submitting ? (
                               "Memproses..."
@@ -689,12 +784,12 @@ export default function RamadanCheckinPage() {
                             }
                             disabled={!isToday}
                             className={`flex-1 py-4 rounded-xl font-bold text-sm transition shadow-sm border-2 flex items-center justify-center gap-2
-                                        ${
-                                          !isToday
-                                            ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-                                            : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-900 active:scale-95"
-                                        }
-                                    `}
+                                    ${
+                                      !isToday
+                                        ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                        : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-900 active:scale-95"
+                                    }
+                                  `}
                           >
                             🚫 Tidak Puasa
                           </button>

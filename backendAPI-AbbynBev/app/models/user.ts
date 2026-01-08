@@ -17,8 +17,9 @@ import Transaction from './transaction.js'
 import TransactionPos from './transaction_pos.js'
 import TransactionEcommerce from './transaction_ecommerce.js'
 import UserAddress from './user_address.js'
-import RamadanCheckin from './ramadan_checkin.js'
-import RamadanCheckinExemption from './ramadan_checkin_exemption.js'
+// Import Model checkin & exemption
+import RamadanCheckin from '#models/ramadan_checkin'
+import RamadanCheckinExemption from '#models/ramadan_checkin_exemption'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['email'],
