@@ -1,83 +1,53 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { parse } from 'csv-parse'
-import fs from 'node:fs'
+import csv from 'csv-parser'
+import fs from 'fs'
 import Product from '#models/product'
 
 export default class ProductCsvImportController {
-  public async import({ request, response,}: HttpContext) {
+  async import({ request, response }: HttpContext) {
     const file = request.file('file', {
       extnames: ['csv'],
-      size: '5mb',
     })
 
-    if (!file || !file.tmpPath) {
-      return response.badRequest({
-        message: 'File CSV wajib diupload',
-      })
+    if (!file) {
+      return response.badRequest({ message: 'File CSV tidak ditemukan' })
     }
 
-    const records: any[] = []
+    const filePath = file.tmpPath!
+    const products: any[] = []
 
-    try {
-      await new Promise<void>((resolve, reject) => {
-        fs.createReadStream(file.tmpPath!)
-          .pipe(
-            parse({
-              columns: true,
-              skip_empty_lines: true,
-              trim: true,
-            })
-          )
-          .on('data', (row) => records.push(row))
-          .on('end', resolve)
-          .on('error', reject)
-      })
-
-      let success = 0
-      let failed = 0
-
-      for (const row of records) {
-        try {
-          await Product.create({
-            masterSku: row.master_sku,
+    return new Promise((resolve, reject) => {
+      fs.createReadStream(filePath)
+        .pipe(csv())
+        .on('data', (row: any) => {
+          products.push({
             name: row.name,
-            slug: row.slug,
-            description: row.description,
-            basePrice: Number(row.base_price),
-            weight: Number(row.weight),
-            isFlashsale: Boolean(Number(row.is_flash_sale)),
-            status: row.status ?? 'draft',
-            categoryTypeId: Number(row.category_type_id),
-            brandId: Number(row.brand_id),
-            personaId: Number(row.persona_id),
-            metaTitle: row.meta_title,
-            metaDescription: row.meta_description,
-            metaKeywords: row.meta_keywords,
-            popularity: Number(row.popularity ?? 0),
-            position: Number(row.position ?? 0),
+            price: Number(row.price),
+            stock: Number(row.stock),
+            sku: row.sku,
           })
+        })
+        .on('end', async () => {
+          try {
+            await Product.createMany(products)
+            fs.unlinkSync(filePath)
 
-          success++
-        } catch {
-          failed++
-        }
-      }
-
-      return response.ok({
-        message: 'Import CSV selesai',
-        result: {
-          total: records.length,
-          success,
-          failed,
-        },
-      })
-    } catch (error: any) {
-      return response.internalServerError({
-        message: 'Gagal memproses CSV',
-        error: error.message,
-      })
-    } finally {
-      fs.unlink(file.tmpPath!, () => {})
-    }
+            resolve(
+              response.ok({
+                message: 'Import CSV berhasil',
+                total: products.length,
+              })
+            )
+          } catch (err: any) {
+            reject(
+              response.internalServerError({
+                message: 'Gagal menyimpan data',
+                error: err.message,
+              })
+            )
+          }
+        })
+        .on('error', (err: any) => reject(err))
+    })
   }
 }

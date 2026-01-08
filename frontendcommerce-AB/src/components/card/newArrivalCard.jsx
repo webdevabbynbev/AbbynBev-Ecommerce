@@ -1,9 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { BtnIconToggle } from "..";
 import { slugify } from "@/utils";
-import Link from "next/link";
 
 export function NewArrivaleCard({ product }) {
   const [wishlist, setWishlist] = useState([]);
@@ -59,20 +59,6 @@ export function NewArrivaleCard({ product }) {
       compareAt,
       image,
       rating: Number(raw.rating ?? raw.stars ?? 0),
-      brand:
-        raw.brand?.name ??
-        raw.brand?.brandname ??
-        raw.brand ??
-        raw.brandName ??
-        "",
-      category:
-        raw.categoryType?.name ??
-        raw.category_type?.name ??
-        raw.category?.name ??
-        raw.category?.categoryname ??
-        raw.category ??
-        raw.categoryName ??
-        "",
       slug: safeSlug,
       sale: Boolean(raw.sale),
     };
@@ -106,60 +92,48 @@ export function NewArrivaleCard({ product }) {
   };
 
   const isWishlisted = wishlist.some((p) => p.id === item.id);
-
   const href = item.slug ? `/${encodeURIComponent(item.slug)}` : "#";
 
   return (
-    <div className="group relative flex h-full w-full flex-col rounded-lg bg-white space-y-4 transition-all overflow-hidden">
-      <Link href={href}>
-        <div className="image flex w-full items-center justify-center relative">
-          {(item.sale || hasSale) && (
-            <img
-              src="/sale-tag.svg"
-              alt="Sale"
-              className="absolute top-0 left-0 z-10 w-10 h-auto"
-            />
-          )}
-
-          <div className="absolute top-4 right-4 z-10">
-            <BtnIconToggle
-              active={isWishlisted}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleWishlist();
-              }}
-              variant="tertiary"
-              size="md"
-            />
-          </div>
-
-          <div className="relative w-full group">
-            {(item.sale || hasSale) && (
-              <img
-                src="/sale-tag.svg"
-                alt="Sale"
-                className="absolute top-0 left-0 z-10 w-10 h-auto"
-              />
-            )}
-
-            <img
-              src={item.image}
-              alt={item.name}
-              className="w-full h-auto object-cover"
-              onError={(e) => {
-                e.currentTarget.src =
-                  "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
-              }}
-            />
-
-            {/* TOOLTIP */}
-            <div className="pointer-events-none absolute bottom-2 left-1/2 z-20 w-max max-w-[90%] -translate-x-1/2 rounded-md bg-primary-700 px-2 py-1 text-xs text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-              {item.name}
-            </div>
-          </div>
+    <Link href={href} className="group relative flex h-full w-full flex-col rounded-lg bg-white transition-all overflow-hidden">
+      <div className="relative">
+        {/* Wishlist button */}
+        <div className="absolute top-4 right-4 z-10">
+          <BtnIconToggle
+            active={isWishlisted}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleWishlist();
+            }}
+            variant="tertiary"
+            size="md"
+          />
         </div>
-      </Link>
-    </div>
+
+        {/* Image */}
+        <img
+          src={item.image}
+          alt={item.name}
+          className="w-full h-auto object-cover"
+          onError={(e) => {
+            e.currentTarget.src =
+              "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
+          }}
+        />
+
+        {/* Tooltip */}
+        <div className="pointer-events-none absolute bottom-2 left-1/2 z-20 w-max max-w-[90%] -translate-x-1/2 rounded-md bg-black/80 px-2 py-1 text-xs text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+          {item.name}
+        </div>
+
+        {/* Sale badge (optional) */}
+        {(item.sale || hasSale) && (
+          <div className="absolute left-3 top-3 rounded-md bg-black/80 px-2 py-1 text-xs text-white">
+            Sale
+          </div>
+        )}
+      </div>
+    </Link>
   );
 }

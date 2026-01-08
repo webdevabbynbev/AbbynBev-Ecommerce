@@ -9,15 +9,16 @@ export default function NewArrivalPage() {
   const sections = [];
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [, setBrands] = useState([]);
-  const [, setMeta] = useState({});
+  const [Brands, setBrands] = useState([]);
+  const [Meta, setMeta] = useState({});
   const page = 1;
-  const itemsPerPage = 16;
+  const itemsPerPage = 16; // <- sesuaikan kebutuhan
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
+
         const [resProducts, resBrands] = await Promise.all([
           getProducts({ page, per_page: itemsPerPage }),
           getBrands(),
@@ -36,14 +37,12 @@ export default function NewArrivalPage() {
     fetchData();
   }, [page, itemsPerPage]);
 
-  // grouping bento
   for (let i = 0; i < products.length; i += 5) {
     sections.push(products.slice(i, i + 5));
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-10 py-8">
-      {/* Title */}
+    <div className="max-w-7xl mx-auto px-8 py-8">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-neutral-900 mb-1">
           New arrivals
@@ -53,7 +52,6 @@ export default function NewArrivalPage() {
         </p>
       </div>
 
-      {/* LOADING */}
       {loading ? (
         <LoadingSpinner />
       ) : (

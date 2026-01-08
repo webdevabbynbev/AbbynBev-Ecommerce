@@ -4,10 +4,12 @@ export function normalizeProduct(raw) {
   const item = raw.product || raw;
 
   const medias = Array.isArray(item.medias) ? item.medias : [];
-    const variants = Array.isArray(item.variants) ? item.variants : [];
+  const variants = Array.isArray(item.variants) ? item.variants : [];
   const variantMediaList = variants
     .flatMap((variant) => {
-      const mediasForVariant = Array.isArray(variant?.medias) ? variant.medias : [];
+      const mediasForVariant = Array.isArray(variant?.medias)
+        ? variant.medias
+        : [];
       return mediasForVariant.map((media) => ({
         url: media?.url,
         slot: media?.slot,
@@ -20,7 +22,8 @@ export function normalizeProduct(raw) {
     .map((media) => ({
       url: media?.url,
       slot: media?.slot,
-      variantId: media?.variantId ?? media?.variant_id ?? media?.variant?.id ?? null,
+      variantId:
+        media?.variantId ?? media?.variant_id ?? media?.variant?.id ?? null,
       updatedAt: media?.updatedAt ?? media?.updated_at,
     }))
     .filter((media) => Boolean(media.url));
@@ -91,7 +94,11 @@ export function normalizeProduct(raw) {
         item.realprice ??
         0
     ),
-    image: item.image || medias[0]?.url || "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png",
+    image:
+      item.image ||
+      medias[0]?.url ||
+      "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png",
+    images: productImages,
     brand: brandName,
     brandSlug,
     category:
@@ -108,36 +115,3 @@ export function normalizeProduct(raw) {
     variantItems,
   };
 }
-// return glicth
-// return {
-//     ...item,
-//     id: raw.id || item.id,
-//     name: item.name || "Unnamed Product",
-//     price: Number(
-//       item.base_price ??
-//         item.basePrice ??
-//         item.price ??
-//         item.salePrice ??
-//         item.realprice ??
-//         0
-//     ),
-//     image:
-//       item.image ||
-//       medias[0]?.url ||
-//       "https://res.cloudinary.com/dlrpvteyx/image/upload/v1766202017/placeholder.png",
-//     brand: brandName,
-//     brandSlug,
-//     category:
-//       item.categoryType?.name ??
-//       item.category_type?.name ??
-//       item.category?.name ??
-//       item.category?.categoryname ??
-//       item.category_name ??
-//       item.categoryName ??
-//       item.category ??
-//       item.categoryname ??
-//       "",
-//     slug: item.slug || item.path || "",
-//     variantItems,
-//   };
-// }
