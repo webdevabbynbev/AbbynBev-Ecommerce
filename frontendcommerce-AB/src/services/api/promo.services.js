@@ -7,7 +7,7 @@ export async function getFlashSale() {
 
 export async function getSale() {
   const json = await getApi(`/sale`);
-  return json?.serve ?? null;
+  return json ?? null;
   
 }
 export async function getSales() {
