@@ -79,7 +79,7 @@ const BannerOrdersController = () => import('#controllers/cms/banners/banner_ord
 
         const PosProductsController = () => import('#controllers/pos/products_controller')
         const PosTransactionPosController = () => import('#controllers/pos/transaction_pos_controller')
-
+        const ProductCsvImportController = () => import('#controllers/cms/products/product_csv_import_controller')
         const OrdersController = () => import('#controllers/frontend/orders_controller')
 
         const AuthSessionsController = () => import('#controllers/auth/auth_sessions_controller')
@@ -89,7 +89,7 @@ const BannerOrdersController = () => import('#controllers/cms/banners/banner_ord
       
 
 
-        router
+        router  
           .group(() => {
             // =========================
             // AUTH & UPLOAD
@@ -181,20 +181,23 @@ router.post('/contact-us', [SettingsPagesController, 'createContactUs'])
                   .prefix('/attribute')
 
                 router
-                  .group(() => {
-                    router.get('', [ProductController, 'get'])
-                    router.get('/:id', [ProductController, 'show'])
-                    router.post('', [ProductController, 'create'])
-                    router.put('/:id', [ProductController, 'update'])
-                    router.delete('/:id', [ProductController, 'delete'])
-                    router.get('/is-flashsale/list', [ProductFlashsaleController, 'getIsFlashsale'])
-router.post('/update-order', [ProductPositionsController, 'updateProductIndex'])
-router.post('/:id/publish', [ProductPublicationsController, 'publish'])
-router.post('/:id/unpublish', [ProductPublicationsController, 'unpublish'])
+  .group(() => {
+    router.get('', [ProductController, 'get'])
+    router.get('/:id', [ProductController, 'show'])
+    router.post('', [ProductController, 'create'])
+    router.put('/:id', [ProductController, 'update'])
+    router.delete('/:id', [ProductController, 'delete'])
 
-                  })
-                  .use(middleware.roleAdmin())
-                  .prefix('/product')
+    // ✅ CSV IMPORT (INI TAMBAHANNYA)
+    router.post('/import-csv', [ProductCsvImportController, 'import'])
+
+    router.get('/is-flashsale/list', [ProductFlashsaleController, 'getIsFlashsale'])
+    router.post('/update-order', [ProductPositionsController, 'updateProductIndex'])
+    router.post('/:id/publish', [ProductPublicationsController, 'publish'])
+    router.post('/:id/unpublish', [ProductPublicationsController, 'unpublish'])
+  })
+  .use(middleware.roleAdmin())
+  .prefix('/product')
 
                 router
                   .group(() => {
