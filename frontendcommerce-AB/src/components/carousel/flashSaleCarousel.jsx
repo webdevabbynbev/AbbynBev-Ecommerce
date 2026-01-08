@@ -16,6 +16,7 @@ export function FlashSaleCarousel() {
   const SKELETON_COUNT = 10;
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  
 
   useEffect(() => {
     const fetchFlashSale = async () => {
