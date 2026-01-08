@@ -183,12 +183,12 @@ export default class User extends compose(CustomBaseModel, AuthFinder) {
   declare addresses: HasMany<typeof UserAddress>
 
   @hasMany(() => RamadanCheckin, {
-    foreignKey: 'user_id',
+    foreignKey: 'userId',
   })
   declare ramadanCheckins: HasMany<typeof RamadanCheckin>
 
   @hasMany(() => RamadanCheckinExemption, {
-    foreignKey: 'user_id',
+    foreignKey: 'userId',
   })
   declare ramadanExemptions: HasMany<typeof RamadanCheckinExemption>
 }
