@@ -1,22 +1,26 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import dayjs from "dayjs";
 
 import {
   Button,
-  Chip,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
   RegularCard,
-  RegularCardSkeleton,
   TxtField,
+  Filter,
+  RegularCardSkeleton,
 } from "@/components";
 
 import { getSale } from "@/services/api/promo.services";
 import { normalizeProduct } from "@/services/api/normalizers/product";
+import { getBrands } from "@/services/api/brands.services";
 
 function normalizeSaleProduct(raw) {
   const base = normalizeProduct(raw);
-
   if (!base) return null;
 
   const salePrice = Number(raw?.salePrice ?? raw?.sale_price ?? 0);
@@ -29,47 +33,16 @@ function normalizeSaleProduct(raw) {
     price: salePrice > 0 ? salePrice : normalPrice,
     realprice: salePrice > 0 ? normalPrice : NaN,
     sale: true,
-
     salePrice,
     stock: Number(raw?.stock ?? 0),
   };
 }
 
-function discountPercent(price, compareAt) {
-  const p = Number(price || 0);
-  const c = Number(compareAt || 0);
-  if (!c || c <= p) return 0;
-  return Math.round(((c - p) / c) * 100);
-}
-
-function formatCountdown(ms) {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  const hh = String(Math.floor(s / 3600)).padStart(2, "0");
-  const mm = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
-  const ss = String(s % 60).padStart(2, "0");
-  return `${hh}:${mm}:${ss}`;
-}
-
-const SORTS = [
-  { key: "recommended", label: "Recommended" },
-  { key: "lowest", label: "Lowest price" },
-  { key: "highest", label: "Highest price" },
-  { key: "discount", label: "Biggest discount" },
-];
-
 export default function SalePage() {
   const [loading, setLoading] = useState(true);
   const [flashSale, setFlashSale] = useState(null);
-
-  const [activeCategory, setActiveCategory] = useState("All");
-  const [sortBy, setSortBy] = useState("recommended");
+  const [brands, setBrands] = useState([]);
   const [search, setSearch] = useState("");
-
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -77,13 +50,16 @@ export default function SalePage() {
     (async () => {
       try {
         setLoading(true);
-        const data = await getSale(); // ✅ GET /flashsale
+        const [saleRes, brandRes] = await Promise.all([getSale(), getBrands()]);
         if (!alive) return;
-        setFlashSale(data);
+
+        setFlashSale(saleRes ?? null);
+        setBrands(brandRes?.data ?? []);
       } catch (e) {
         console.error("Failed to load sale:", e);
         if (!alive) return;
         setFlashSale(null);
+        setBrands([]);
       } finally {
         if (alive) setLoading(false);
       }
@@ -94,39 +70,43 @@ export default function SalePage() {
     };
   }, []);
 
-  
-const saleItems = useMemo(() => {
-    if (Array.isArray(saleData?.list) && saleData.list.length) {
-      return saleData.list;
+  const saleItems = useMemo(() => {
+    if (Array.isArray(flashSale?.list) && flashSale.list.length) {
+      return flashSale.list;
     }
-    return saleData?.serve ? [saleData.serve] : [];
-  }, [saleData]);
-
-  const activeSale = saleData?.serve ?? saleItems[0] ?? null;
+    return flashSale?.serve ? [flashSale.serve] : [];
+  }, [flashSale]);
 
   const products = useMemo(() => {
     const rows = saleItems.flatMap((sale) =>
       Array.isArray(sale?.products) ? sale.products : []
     );
-    return rows.map(normalizeSaleProduct).filter(Boolean);
-  }, [saleItems]);
 
-  const categories = useMemo(() => {
-    const set = new Set();
-    for (const p of products) {
-      const c = String(p?.category || "").trim();
-      if (c) set.add(c);
-    }
-    return ["All", ...Array.from(set)];
-  }, [products]);
+    return rows
+      .map(normalizeSaleProduct)
+      .filter(Boolean)
+      .filter((product, index, list) => {
+        const key =
+          product.id ??
+          product.slug ??
+          product.sku ??
+          `${product.name ?? "product"}-${product.brand ?? "brand"}`;
+
+        return (
+          list.findIndex((candidate) => {
+            const candidateKey =
+              candidate.id ??
+              candidate.slug ??
+              candidate.sku ??
+              `${candidate.name ?? "product"}-${candidate.brand ?? "brand"}`;
+            return candidateKey === key;
+          }) === index
+        );
+      });
+  }, [saleItems]);
 
   const filtered = useMemo(() => {
     let rows = [...products];
-
-    if (activeCategory !== "All") {
-      const cat = activeCategory.toLowerCase();
-      rows = rows.filter((p) => String(p.category || "").toLowerCase() === cat);
-    }
 
     const q = search.trim().toLowerCase();
     if (q) {
@@ -137,153 +117,80 @@ const saleItems = useMemo(() => {
       });
     }
 
-    if (sortBy === "lowest") {
-      rows.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
-    } else if (sortBy === "highest") {
-      rows.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
-    } else if (sortBy === "discount") {
-      rows.sort((a, b) => {
-        const da = discountPercent(a.price, a.compareAt);
-        const db = discountPercent(b.price, b.compareAt);
-        return db - da;
-      });
-    }
-
     return rows;
-  }, [products, activeCategory, search, sortBy]);
+  }, [products, search]);
 
-  const endMs = activeSale?.endDatetime ? dayjs(activeSale.endDatetime).valueOf() : 0;
-  const startMs = activeSale?.startDatetime ? dayjs(activeSale.startDatetime).valueOf() : 0;
-  const countdown = endMs ? formatCountdown(endMs - now) : null;
-  const hasCta = Boolean(activeSale?.hasButton && activeSale?.buttonUrl);
-  const ctaText = activeSale?.buttonText || "Shop Now";
-  const ctaUrl = activeSale?.buttonUrl || "#";
-  const ctaIsExternal = /^https?:\/\//i.test(ctaUrl);
+  const skeleton_card = 24;
 
   return (
-    <div className="Container items-center justify-center mx-auto overflow-visible">
-      {/* Banner / Header */}
-      <div className="w-full flex-col bg-primary-100 items-center justify-center bg-[url('/Logo_SVG_AB.svg')] bg-no-repeat bg-center">
-        <div className="p-6 flex flex-col xl:max-w-[1280px] lg:max-w-[960px] mx-auto gap-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-1">
-              <h1 className="font-damion text-4xl text-primary-700">
-                {flashSale?.title || "Sale"}
-              </h1>
-              {flashSale?.description ? (
-                <p className="text-sm text-neutral-600 max-w-2xl">
-                  {flashSale.description}
-                </p>
-              ) : null}
-
-              {startMs && endMs ? (
-                <p className="text-xs text-neutral-500">
-                  {dayjs(startMs).format("DD MMM YYYY")} —{" "}
-                  {dayjs(endMs).format("DD MMM YYYY")}
-                </p>
-              ) : null}
-            </div>
-
-            <div className="flex flex-col items-end gap-2">
-              {countdown ? (
-                <div className="text-right">
-                  <div className="text-[11px] text-neutral-500">Ends in</div>
-                  <div className="text-lg font-bold text-primary-700">
-                    {countdown}
-                  </div>
-                </div>
-              ) : null}
-
-              {hasCta ? (
-                ctaIsExternal ? (
-                  <a href={ctaUrl} target="_blank" rel="noreferrer">
-                    <Button variant="primary" size="sm">
-                      {ctaText}
-                    </Button>
-                  </a>
-                ) : (
-                  <a href={ctaUrl}>
-                    <Button variant="primary" size="sm">
-                      {ctaText}
-                    </Button>
-                  </a>
-                )
-              ) : null}
-            </div>
-          </div>
-
-          {/* Search */}
-          <div className="w-full max-w-[620px]">
-            <TxtField
-              placeholder="Search product on sale..."
-              iconLeftName="MagnifyingGlass"
-              variant="outline"
-              size="md"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-
-          {/* Sort */}
-          <div className="flex flex-wrap gap-2">
-            {SORTS.map((s) => (
-              <Chip
-                key={s.key}
-                isActive={sortBy === s.key}
-                onClick={() => setSortBy(s.key)}
-              >
-                {s.label}
-              </Chip>
-            ))}
-          </div>
-
-          {/* Category chips (dynamic) */}
-          <div className="flex flex-wrap gap-2">
-            {categories.map((cat) => (
-              <Chip
-                key={cat}
-                isActive={activeCategory === cat}
-                onClick={() => setActiveCategory(cat)}
-              >
-                {cat}
-              </Chip>
-            ))}
-          </div>
-        </div>
+    <div className="flex w-full mx-auto flex-col justify-between xl:max-w-7xl lg:max-w-284 lg:flex-row">
+      {/* Sidebar (SAMA PERSIS kayak Best Seller) */}
+      <div className="hidden w-75 lg:w-75 pl-10 pr-2 py-6 lg:block">
+        <Filter
+          brands={brands}
+          showBrandFilter={true}
+          className="w-full py-24"
+        />
       </div>
 
-      {/* Content */}
-      <div className="p-6 xl:max-w-[1280px] lg:max-w-[960px] mx-auto space-y-4">
-        {loading ? (
-          <>
-            <div className="text-xs text-neutral-500">Loading sale...</div>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <RegularCardSkeleton key={`sale-skel-${i}`} />
-              ))}
-            </div>
-          </>
-        ) : !flashSale ? (
-          <div className="rounded-xl bg-white p-10 text-center text-sm text-neutral-500">
-            Belum ada sale yang aktif.
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="rounded-xl bg-white p-10 text-center text-sm text-neutral-500">
-            Tidak ada produk yang cocok.
-          </div>
-        ) : (
-          <>
-            <p className="text-xs text-neutral-500">
-              Showing {filtered.length} products on sale
-            </p>
+      {/* Konten kanan (SAMA PERSIS kayak Best Seller) */}
+      <div className="flex-1 p-6">
+        {/* Search + tombol filter mobile */}
+        <div className="mb-6 flex flex-row gap-3 sm:flex-row sm:items-center">
+          <TxtField
+            placeholder="Search products..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            iconLeftName="MagnifyingGlass"
+            className="w-full"
+          />
 
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {filtered.map((p) => (
-                <RegularCard key={p.id} product={p} />
-              ))}
-            </div>
-          </>
-        )}
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button
+                variant="tertiary"
+                className="w-fit px-6 sm:w-auto lg:hidden"
+              >
+                Filter
+              </Button>
+            </DialogTrigger>
+
+            <DialogContent className="flex max-h-[80vh] w-full flex-col overflow-y-auto overflow-x-hidden custom-scrollbar sm:max-w-100">
+              <DialogHeader>
+                <DialogTitle>Filter</DialogTitle>
+              </DialogHeader>
+              <Filter
+                brands={brands}
+                showBrandFilter={true}
+                className="w-full pb-10"
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {/* Grid produk */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {loading ? (
+            [...Array(skeleton_card)].map((_, i) => (
+              <RegularCardSkeleton key={`sale-skel-${i}`} />
+            ))
+          ) : !flashSale ? (
+            <p className="col-span-full text-center py-20 text-neutral-400">
+              Belum ada sale yang aktif.
+            </p>
+          ) : filtered.length > 0 ? (
+            filtered.map((product, idx) => (
+              <RegularCard
+                key={`${product.id ?? "product"}-${product.slug ?? product.sku ?? idx}`}
+                product={product}
+              />
+            ))
+          ) : (
+            <p className="col-span-full text-center py-20 text-neutral-400">
+              No products found.
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
