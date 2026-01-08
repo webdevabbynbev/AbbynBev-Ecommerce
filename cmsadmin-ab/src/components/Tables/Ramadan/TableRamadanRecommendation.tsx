@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Table,
   Button,
@@ -7,12 +7,11 @@ import {
   Modal,
   Select,
   message,
-  Tag,
-  Space,
   Image,
+  Spin, // Import Spin untuk indikator loading
 } from "antd";
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
-import http from "../../../api/http";
+import http from "../../../api/http"; // Pastikan path ini benar
 import dayjs from "dayjs";
 
 const TableRamadanRecommendation: React.FC = () => {
@@ -23,10 +22,15 @@ const TableRamadanRecommendation: React.FC = () => {
   // State untuk Form Tambah
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedProduct, setSelectedProduct] = useState<number | null>(null);
-  const [productList, setProductList] = useState([]); // List produk untuk dropdown
-  const [productSearch, setProductSearch] = useState("");
 
-  // Fetch Data Table
+  // State untuk Product Dropdown
+  const [productList, setProductList] = useState([]);
+  const [productLoading, setProductLoading] = useState(false); // State loading khusus dropdown
+
+  // Gunakan useRef untuk menyimpan timer debounce agar tidak memicu re-render
+  const searchTimer = useRef<any>(null);
+
+  // Fetch Data Table Utama
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -39,36 +43,58 @@ const TableRamadanRecommendation: React.FC = () => {
     }
   };
 
-  // Fetch Product untuk Dropdown (Searchable)
-  // Fetch Product untuk Dropdown (Searchable)
   const fetchProducts = async (search = "") => {
+    setProductLoading(true);
     try {
-      // ✅ FIX: Ganti endpoint dari '/admin/product/list' menjadi '/admin/product'
-      // ✅ FIX: Sesuaikan parameter search (biasanya 'q' atau 'search') dan pagination ('per_page')
-      const res: any = await http.get(
-        `/admin/product?page=1&per_page=20&q=${search}`
-      );
+      // 1. Buat Base URL
+      // PASTIKAN ENDPOINT INI BENAR (Cek di Postman/Dokumentasi API Anda)
+      // Apakah '/admin/product' atau '/admin/products' atau '/admin/product/list'?
+      let url = "/admin/product?page=1&per_page=20";
 
-      // Ambil data dari response (sesuaikan dengan struktur response API Product Anda)
-      // Biasanya ada di res.data.data (jika paginasi standar) atau res.data.serve.data
+      // 2. Hanya tambahkan parameter search jika user mengetik sesuatu
+      if (search) {
+        // Coba ganti 'q' dengan 'search' atau 'keyword' sesuai backend Anda
+        url += `&q=${encodeURIComponent(search)}`;
+      }
+
+      const res: any = await http.get(url);
+
+      // Log untuk memastikan data yang diterima benar
+      console.log("Response Product:", res.data);
+
       const products = res.data.data || res.data.serve?.data || [];
 
       const options = products.map((p: any) => ({
         label: p.name,
         value: p.id,
-        // Pastikan akses media aman (optional chaining)
         image: p.media?.[0]?.url,
       }));
       setProductList(options);
     } catch (error) {
       console.error("Failed to load products", error);
+    } finally {
+      setProductLoading(false);
     }
   };
 
+  // Initial Load
   useEffect(() => {
     fetchData();
-    fetchProducts();
+    fetchProducts(); // Load default list (tanpa search)
   }, []);
+
+  // Handler Search dengan Debounce menggunakan useRef
+  const handleSearchProduct = (val: string) => {
+    // 1. Clear timer sebelumnya jika user masih mengetik
+    if (searchTimer.current) {
+      clearTimeout(searchTimer.current);
+    }
+
+    // 2. Set timer baru
+    searchTimer.current = setTimeout(() => {
+      fetchProducts(val);
+    }, 600); // Tunggu 600ms
+  };
 
   const handleSubmit = async () => {
     if (!selectedDate || !selectedProduct) {
@@ -82,7 +108,10 @@ const TableRamadanRecommendation: React.FC = () => {
       });
       message.success("Recommendation Added");
       setIsModalOpen(false);
-      fetchData(); // Refresh table
+      fetchData();
+      // Reset form selection
+      setSelectedProduct(null);
+      setSelectedDate("");
     } catch (error: any) {
       message.error(error.response?.data?.message || "Failed to add");
     }
@@ -178,16 +207,29 @@ const TableRamadanRecommendation: React.FC = () => {
             <label>Select Product:</label>
             <Select
               showSearch
-              style={{ width: "100%" }}
+              value={selectedProduct} // Bind value agar bisa direset
               placeholder="Search product..."
-              optionFilterProp="children"
-              onSearch={(val) => {
-                // Implement debounce search here ideally
-                fetchProducts(val);
-              }}
+              style={{ width: "100%" }}
+              defaultActiveFirstOption={false}
+              filterOption={false} // PENTING: Matikan filter client-side
+              onSearch={handleSearchProduct} // Panggil fungsi debounce
               onChange={(val) => setSelectedProduct(val)}
+              notFoundContent={productLoading ? <Spin size="small" /> : null} // Tampilkan spinner saat loading
+              loading={productLoading}
               options={productList}
-              filterOption={false} // Handle filtering on server side or manual
+              // Opsional: Custom render option di dropdown
+              optionRender={(option: any) => (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {option.data.image && (
+                    <img
+                      src={option.data.image}
+                      alt=""
+                      style={{ width: 20, height: 20, objectFit: "cover" }}
+                    />
+                  )}
+                  <span>{option.label}</span>
+                </div>
+              )}
             />
           </div>
         </div>
