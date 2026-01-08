@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import ProfileSkeleton from "@/components/skeleton/ProfileSkeleton";
-import {AddressList} from "."
+import ProfileSkeleton from "@/components/skeleton/profileSkeleton";
+import { AddressList } from ".";
 import { EditProfile, NewAddress } from "./popup";
 import { getUser } from "@/services/auth";
 import { Button, DialogCard } from "@/components";
@@ -15,14 +15,14 @@ import {
 } from "react-icons/fa6";
 
 export function Profilepage() {
-  const [profile, setProfile] = useState(null); 
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const { user: fetchedUser } = await getUser(); 
+        const { user: fetchedUser } = await getUser();
         setProfile({ user: fetchedUser || null });
       } catch (e) {
         setError(e.message);
@@ -141,7 +141,7 @@ export function Profilepage() {
         <div className="p-4 font-medium text-base bg-muted border-1 border-neutral-100 w-full rounded-2xl space-y-6">
           <div className="flex w-full items-center justify-between">
             <h3 className="font-bold">Address list</h3>
-            <NewAddress/>
+            <NewAddress />
           </div>
           <div className="AddressCard">
             <AddressList />
@@ -156,7 +156,7 @@ export function Profilepage() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
-          <DialogCard>
+          <div className="flex flex-col items-start gap-4 border-neutral-200 bg-white p-6 rounded-xl">
             <div className="flex items-center space-x-2">
               <span>
                 <FaRightFromBracket />
@@ -170,9 +170,9 @@ export function Profilepage() {
             <Button variant="primary" size="sm">
               Sign out
             </Button>
-          </DialogCard>
+          </div>
 
-          <DialogCard>
+          <div className="flex flex-col items-start gap-4 border-neutral-200 bg-white p-6 rounded-xl">
             <div className="flex items-center space-x-2">
               <span>
                 <FaUserXmark />
@@ -186,7 +186,7 @@ export function Profilepage() {
             <Button variant="error" size="sm">
               Deactivate account
             </Button>
-          </DialogCard>
+          </div>
         </div>
       </div>
     </div>

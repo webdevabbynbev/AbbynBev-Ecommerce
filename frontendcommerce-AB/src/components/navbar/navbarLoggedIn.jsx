@@ -17,7 +17,7 @@ import {
   SearchBar,
 } from "@/components";
 
-import CartButton from "@/components/cartButton";
+import CartButton from "@/components/button/cartButton";
 
 export function NavbarLoggedIn({
   pathname,
@@ -46,7 +46,7 @@ export function NavbarLoggedIn({
         </div>
 
         <div className="shrink-0 flex items-center gap-2">
-          <CartButton/>
+          <CartButton />
           <BtnIcon
             iconName="Bell"
             variant="tertiary"
@@ -68,7 +68,7 @@ export function NavbarLoggedIn({
               height={80}
             />
             <SearchBar
-              className="max-w-[300px]"
+              className="max-w-75"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onSearch={onSearch}
@@ -124,7 +124,7 @@ export function NavbarLoggedIn({
                   <img
                     src="/Logoabby-text.svg"
                     alt="abbynbev"
-                    className="w-[150px] h-auto"
+                    className="w-37.5 h-auto"
                   />
                 </SheetTitle>
                 <SheetDescription className="py-1">

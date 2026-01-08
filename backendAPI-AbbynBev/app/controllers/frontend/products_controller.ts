@@ -26,11 +26,8 @@ export default class ProductsController {
         .if(name, (q) => q.where('products.name', 'like', `%${name}%`))
         .if(categoryType, (q) => q.whereIn('products.category_type_id', categoryType))
         .if(isFlashSale, (q) => {
-          // Jika isFlashSale bernilai 'true' atau '1', filter produknya
           q.where('products.is_flash_sale', isFlashSale === 'true' ? 1 : isFlashSale)
         })
-        // ----------------------------------
-
         .preload('product', (q) => {
           q.apply((scopes) => scopes.active())
             .withCount('reviews', (reviewQuery) => reviewQuery.as('review_count'))
@@ -46,6 +43,8 @@ export default class ProductsController {
             .preload('discounts', (query) =>
               query.where('start_date', '<=', dateString).where('end_date', '>=', dateString)
             )
+            // NOTE: untuk listing, biarkan ini dulu.
+            // kalau kamu mau listing pakai image dari variant, baru preload variants.medias (lebih berat)
             .preload('medias')
             .preload('categoryType')
             .preload('brand')
@@ -63,7 +62,7 @@ export default class ProductsController {
         message: 'success',
         serve: { data, ...meta },
       })
-    } catch (error) {
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
         serve: [],
@@ -87,13 +86,11 @@ export default class ProductsController {
       const productOnline = await ProductOnline.query()
         .where('product_onlines.is_active', true)
         .join('products', 'products.id', '=', 'product_onlines.product_id')
-        // 🔥 support akses via /products/:path maupun /products/:slug
         .where((q) => {
           q.where('products.path', path).orWhere('products.slug', path)
         })
         .preload('product', (q) => {
           q.apply((scopes) => scopes.active())
-            // redundant tapi aman: pastikan cocok by path/slug
             .where((q2) => {
               q2.where('products.path', path).orWhere('products.slug', path)
             })
@@ -108,16 +105,26 @@ export default class ProductsController {
                 )
             })
             .preload('variants', (variantLoader) => {
-              variantLoader.preload('attributes', (attributeLoader) => {
-                attributeLoader
-                  .whereNull('attribute_values.deleted_at')
-                  .preload('attribute', (query) => query.whereNull('attributes.deleted_at'))
-              })
+              variantLoader
+                .preload('medias', (mq) => {
+                  mq.apply((scopes) => scopes.active())
+                  mq.orderBy('slot', 'asc')
+                })
+                .preload('attributes', (attributeLoader) => {
+                  attributeLoader
+                    .whereNull('attribute_values.deleted_at')
+                    .whereRaw('variant_attributes.deleted_at is null')
+                    .preload('attribute', (q) => q.whereNull('attributes.deleted_at'))
+                })
             })
             .preload('discounts', (query) =>
               query.where('start_date', '<=', dateString).where('end_date', '>=', dateString)
             )
+
+            // ❗️INI BOLEH kamu hapus kalau product.medias memang selalu kosong (product_id NULL)
+            // tapi biarin juga gak masalah, cuma tidak kepakai di FE variant image
             .preload('medias')
+
             .preload('categoryType')
             .preload('brand')
             .preload('persona')
@@ -134,11 +141,32 @@ export default class ProductsController {
         })
       }
 
+      // ✅ FIX 2: bikin field variantItems supaya FE kamu gampang ambil images per variant
+      const p = productOnline.product.toJSON()
+      const variants = Array.isArray(p?.variants) ? p.variants : []
+
+      const variantItems = variants.map((v: any) => {
+        const medias = Array.isArray(v?.medias) ? v.medias : []
+        const images = medias.map((m: any) => m.url).filter(Boolean)
+
+        return {
+          id: v.id,
+          label: v.sku || `VAR-${v.id}`,
+          price: Number(v.price || 0),
+          stock: Number(v.stock || 0),
+          images,
+          image: images[0] || p.image, // thumbnail utama variant
+        }
+      })
+
       return response.status(200).send({
         message: 'success',
-        serve: productOnline.product,
+        serve: {
+          ...p,
+          variantItems, // ✅ FE kamu pakai ini untuk gambar
+        },
       })
-    } catch (error) {
+    } catch (error: any) {
       return response.status(500).send({
         message: error.message || 'Internal Server Error.',
         serve: [],

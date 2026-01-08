@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Card, Row, Col, Button, Empty, Select, Statistic, Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import MainLayout from "../layout/MainLayout";
@@ -27,12 +27,22 @@ interface TotalResponse {
   total: number;
 }
 
+type ProductOption = {
+  value: number;
+  label: string;
+};
+
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [topProducts, setTopProducts] = useState<ProductTable[]>([]);
   const [leastProducts, setLeastProducts] = useState<ProductTable[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [productsLoading, setProductsLoading] = useState<boolean>(false);
+  const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(
+    null
+  );
   const [totalUsers, setTotalUsers] = useState<TotalResponse | null>(null);
   const [totalTransactionMonth, setTotalTransactionMonth] =
     useState<TotalResponse | null>(null);
@@ -47,6 +57,31 @@ const DashboardPage: React.FC = () => {
     fetchTotalTransactionMonth();
     fetchTotalTransaction();
   }, []);
+
+  const loadProducts = useCallback(async (q?: string) => {
+    setProductsLoading(true);
+    try {
+      const resp = await http.get(
+        `/admin/products?q=${encodeURIComponent(q ?? "")}&page=1&per_page=50`
+      );
+      const list = resp?.data?.serve?.data ?? resp?.data?.serve ?? [];
+      setProductOptions(
+        list.map((p: Product) => ({
+          value: Number(p.id),
+          label: p.name ?? "-",
+        }))
+      );
+    } catch (error) {
+      console.error("Error fetching product options:", error);
+      setProductOptions([]);
+    } finally {
+      setProductsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
 
   const fetchTopProducts = async () => {
     setLoading(true);
@@ -214,6 +249,38 @@ const DashboardPage: React.FC = () => {
               />
             </div>
             <Statistic value={totalTransactionMonth?.total || 0} />
+          </Card>
+        </Col>
+
+        <Col xs={24}>
+          <Card title="Manage Product Media">
+            <Row gutter={[12, 12]} align="middle">
+              <Col xs={24} md={16}>
+                <Select
+                  showSearch
+                  placeholder="Pilih produk untuk kelola media"
+                  value={selectedProductId ?? undefined}
+                  onChange={(value) => setSelectedProductId(value)}
+                  onSearch={(value) => loadProducts(value)}
+                  filterOption={false}
+                  loading={productsLoading}
+                  options={productOptions}
+                  style={{ width: "100%" }}
+                />
+              </Col>
+              <Col xs={24} md={8}>
+                <Button
+                  type="primary"
+                  style={{ width: "100%" }}
+                  disabled={!selectedProductId}
+                  onClick={() =>
+                    navigate(`/products/${selectedProductId}/medias`)
+                  }
+                >
+                  Buka Media Produk
+                </Button>
+              </Col>
+            </Row>
           </Card>
         </Col>
 

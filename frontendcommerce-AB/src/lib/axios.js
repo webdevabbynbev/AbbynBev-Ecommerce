@@ -16,7 +16,7 @@ api.interceptors.request.use((config) => {
   config.headers = config.headers || {};
   config.headers.Accept = "application/json";
 
-  const token = getToken(); // ✅ auto null kalau expired
+  const token = getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -42,11 +42,15 @@ api.interceptors.response.use(
       if (typeof window !== "undefined") {
         const path = window.location.pathname;
         const isAuthPage =
-          path === "/login" || path === "/register" || path.startsWith("/auth");
+          path === "/login" ||
+          path === "/register" ||
+          path.startsWith("/auth") ||
+          path === "/sign-in";
 
         if (!isAuthPage) {
-          // gunakan replace supaya tidak nambah history dan tidak "bounce"
-          window.location.replace("/login");
+          alert("Sesi Anda telah berakhir, silahkan login kembali.");
+          window.location.href = "/?session_expired=true";
+          return new Promise(() => {});
         }
       }
     }
