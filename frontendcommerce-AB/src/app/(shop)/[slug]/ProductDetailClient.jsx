@@ -246,7 +246,7 @@ export default function ProductDetailClient({ product }) {
                 </div>
               </div>
 
-              <div className="flex max-w-[300px] py-2 items-center space-x-4 max-h-64 overflow-x-auto custom-scrollbar">
+              <div className="flex w-full py-2 items-center space-x-4 max-h-64 overflow-x-auto custom-scrollbar">
                 {variantImages.map((img, i) => (
                   <img
                     key={i}
