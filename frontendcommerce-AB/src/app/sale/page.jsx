@@ -18,6 +18,8 @@ import {
 import { getSale } from "@/services/api/promo.services";
 import { normalizeProduct } from "@/services/api/normalizers/product";
 import { getBrands } from "@/services/api/brands.services";
+import Link from "next/link";
+import FlashSaleCarousel from "@/components/carousel/flashSaleCarousel";
 
 function normalizeSaleProduct(raw) {
   const base = normalizeProduct(raw);
@@ -194,4 +196,4 @@ export default function SalePage() {
       </div>
     </div>
   );
-}
+} 
