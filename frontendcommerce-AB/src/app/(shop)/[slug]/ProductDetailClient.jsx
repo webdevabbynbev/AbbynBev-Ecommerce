@@ -217,7 +217,7 @@ export default function ProductDetailClient({ product }) {
               <BreadcrumbSeparator />
 
               <BreadcrumbItem className="min-w-0 flex-1">
-                <BreadcrumbPage className="truncate max-w-[360px]">
+                <BreadcrumbPage className="truncate max-w-75">
                   {product?.name}
                 </BreadcrumbPage>
               </BreadcrumbItem>

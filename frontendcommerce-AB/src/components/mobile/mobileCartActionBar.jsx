@@ -27,26 +27,28 @@ export function MobileCartActionBar({
           </div>
 
           <div className="mt-3 flex items-center gap-3">
-            <label className="flex items-center gap-2 text-sm text-neutral-700">
-              <input
-                type="checkbox"
-                className="w-5 h-5 accent-pink-600 cursor-pointer"
-                checked={allSelected}
-                disabled={loadingCheckout}
-                onChange={(e) => onToggleSelectAll?.(e.target.checked)}
-              />
-              Semua
-            </label>
-            <div className="ml-auto text-right">
-              <div className="text-xs text-neutral-500">Subtotal</div>
-              <div className="text-lg font-semibold text-primary-700">
-                Rp {subtotal.toLocaleString("id-ID")}
+            <div className="flex flex-col gap-1">
+              <label className="flex items-center gap-2 text-sm text-neutral-700">
+                <input
+                  type="checkbox"
+                  className="w-5 h-5 accent-pink-600 cursor-pointer"
+                  checked={allSelected}
+                  disabled={loadingCheckout}
+                  onChange={(e) => onToggleSelectAll?.(e.target.checked)}
+                />
+                Semua
+              </label>
+              <div className="pl-7 text-xs text-neutral-500">
+                Subtotal
+                <span className="ml-2 text-base font-semibold text-primary-700">
+                  Rp {subtotal.toLocaleString("id-ID")}
+                </span>
               </div>
             </div>
             <Button
               variant="primary"
               size="md"
-              className="rounded-full px-6"
+              className="ml-auto rounded-full px-6"
               disabled={loadingCheckout || selectedCount === 0}
               onClick={onCheckout}
             >
