@@ -6,7 +6,7 @@ const PLACEHOLDER_PUBLIC_ID = "/v1767525417/placeholder-category.png";
 function normalizePublicId(value) {
   return String(value ?? "")
     .trim()
-    .replace(/^\/+/, "")                 
+    .replace(/^\/+/, "")
     .replace(/\.(png|jpg|jpeg|webp)$/i, "");
 }
 
@@ -33,13 +33,11 @@ export function CategoryCard({
   });
 
   return (
-    <div className="group w-full min-w-[80px] flex flex-col items-center justify-center rounded-xl p-2 space-y-2 cursor-pointer">
+    <div className="group w-full min-w-20 flex flex-col items-center justify-center rounded-xl p-2 space-y-2 cursor-pointer">
       <img
         src={src}
         alt={label}
-        className="mx-auto h-[32px] w-[32px] lg:h-[50px] w-[50px] object-contain
-                   transition-transform duration-200
-                   lg:group-hover:-translate-y-1 lg:group-hover:scale-105"
+        className="mx-auto h-8 w-8 lg:h-12.5 object-contain transition-transform duration-200 lg:group-hover:-translate-y-1 lg:group-hover:scale-105"
         crossOrigin="anonymous"
         onError={(e) => {
           // anti-loop: fallback cuma sekali

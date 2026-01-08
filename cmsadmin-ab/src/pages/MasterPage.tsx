@@ -65,6 +65,10 @@ export default function MasterPage(): React.ReactElement {
          <Route path="/sale-products" element={<TableSale />} />
         <Route path="/transactions" element={<TableTransaction />} />
         <Route path="/ramadan-event" element={<TableRamadanEvent />} />
+        <Route
+          path="/ramadan-recommendation"
+          element={<TableRamadanRecommendation />}
+        />
         {/* Redirect default */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
