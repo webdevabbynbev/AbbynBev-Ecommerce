@@ -1,5 +1,3 @@
-// cmsadmin-ab/src/layout/Menu/Admin.tsx
-
 import {
   PieChartOutlined,
   TagsOutlined,
@@ -27,7 +25,9 @@ import {
   WarningOutlined,
   ExclamationCircleOutlined,
   TagOutlined,
-  MoonOutlined, // Pastikan ini ter-import
+  MoonOutlined,
+  StarOutlined, // ✅ Tambahan Icon
+  PercentageOutlined, // ✅ Tambahan Icon
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import helper from "../../utils/helper";
@@ -80,6 +80,11 @@ const MenuAdmin = (level: RoleEnumType): MenuProps["items"] => {
           key: "/flash-sale",
           icon: <ThunderboltOutlined />,
           label: "Flash Sale",
+        },
+        helper.hasAnyPermission(level, [helper.RoleEnum.GUDANG]) && {
+          key: "/sale-products",
+          icon: <TagOutlined />,
+          label: "Sale Products",
         },
         helper.hasAnyPermission(level, [helper.RoleEnum.GUDANG]) && {
           key: "/brand-product",
@@ -148,16 +153,43 @@ const MenuAdmin = (level: RoleEnumType): MenuProps["items"] => {
       label: "Voucher",
     },
 
-    // --- [BARU] MENU RAMADAN EVENT ---
-    // Saya taruh di sini karena masih terkait promo/event, dekat dengan Voucher
-    // Saya asumsikan Admin & Gudang boleh akses, sesuaikan permission jika perlu
+    // --- [UPDATE] MENU RAMADAN EVENT DROPDOWN ---
     helper.hasAnyPermission(level, [
       helper.RoleEnum.ADMINISTRATOR,
       helper.RoleEnum.GUDANG,
     ]) && {
-      key: "/ramadan-event", // Pastikan route ini didaftarkan di App.tsx
+      key: "#ramadan-event", // Gunakan # agar tidak redirect saat diklik parent-nya
       icon: <MoonOutlined />,
       label: "Ramadan Event",
+      children: [
+        // 1. Peserta Event (Yang sudah ada)
+        helper.hasAnyPermission(level, [
+          helper.RoleEnum.ADMINISTRATOR,
+          helper.RoleEnum.GUDANG,
+        ]) && {
+          key: "/ramadan-event",
+          icon: <UsergroupAddOutlined />,
+          label: "Peserta Event",
+        },
+        // 2. Rekomendasi Product
+        helper.hasAnyPermission(level, [
+          helper.RoleEnum.ADMINISTRATOR,
+          helper.RoleEnum.GUDANG,
+        ]) && {
+          key: "/ramadan-recommendation",
+          icon: <StarOutlined />,
+          label: "Rekomendasi Product",
+        },
+        // 3. Potongan Harga
+        helper.hasAnyPermission(level, [
+          helper.RoleEnum.ADMINISTRATOR,
+          helper.RoleEnum.GUDANG,
+        ]) && {
+          key: "/ramadan-discount",
+          icon: <PercentageOutlined />,
+          label: "Potongan Harga",
+        },
+      ].filter(Boolean) as MenuProps["items"],
     },
     // ---------------------------------
 

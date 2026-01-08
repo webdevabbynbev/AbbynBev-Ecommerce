@@ -8,12 +8,8 @@ export default class RamadanParticipantsController {
     const search = request.input('q', '')
 
     try {
-      // ✅ FIX: Query users yang punya checkin ramadan (minimal 1 checkin)
       const query = User.query()
-        .whereHas('ramadanCheckins', (q) => {
-          // Filter hanya user yang punya minimal 1 checkin
-          q.whereNotNull('user_id')
-        })
+        .whereHas('ramadanCheckins', () => {})
         .preload('ramadanExemptions')
         .withCount('ramadanCheckins', (q) => {
           q.as('totalFasting')
@@ -22,21 +18,21 @@ export default class RamadanParticipantsController {
           q.as('totalNotFasting')
         })
 
-      // Filter Pencarian Nama
       if (search) {
         query.where((q) => {
           q.where('first_name', 'like', `%${search}%`).orWhere('last_name', 'like', `%${search}%`)
         })
       }
 
-      // Urutkan data
       query.orderBy('created_at', 'desc')
 
       const users = await query.paginate(page, perPage)
 
-      // Format Data
-      const formattedData = users.serialize().data.map((user: any) => {
-        // Ambil alasan unik
+      // ✅ FIX UTAMA: Gunakan .all() untuk mendapatkan Native Array
+      // Ini mencegah data berubah menjadi Object saat dikirim ke frontend
+      const userModels = users.all()
+
+      const formattedData = userModels.map((user: any) => {
         const reasons = user.ramadanExemptions
           ? [...new Set(user.ramadanExemptions.map((r: any) => r.reason))]
           : []
@@ -53,16 +49,15 @@ export default class RamadanParticipantsController {
       })
 
       return response.json({
-        data: {
-          serve: {
-            data: formattedData,
-            total: users.total,
-            perPage: users.perPage,
-            currentPage: users.currentPage,
-          },
+        serve: {
+          data: formattedData, // Sekarang pasti Array [...]
+          total: users.total,
+          perPage: users.perPage,
+          currentPage: users.currentPage,
+          lastPage: users.lastPage,
         },
       })
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching ramadan participants:', error)
       return response.status(500).json({
         message: 'Failed to fetch ramadan participants',

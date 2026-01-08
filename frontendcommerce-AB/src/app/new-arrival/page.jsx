@@ -92,4 +92,3 @@ export default function NewArrivalPage() {
     </div>
   );
 }
-7;

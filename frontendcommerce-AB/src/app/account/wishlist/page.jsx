@@ -126,7 +126,7 @@ export default function WishlistPage() {
     <div className="max-w-7xl mx-auto py-8 px-4">
       <div className="flex gap-8">
         {/* Sidebar */}
-        <div className="w-64 flex-shrink-0">
+        <div className="w-64 shrink-0">
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="space-y-1">
               <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
@@ -157,7 +157,7 @@ export default function WishlistPage() {
               >
                 {/* Image + badges */}
                 <div className="relative mb-3">
-                  <div className="relative w-full aspect-[3/4] rounded-lg overflow-hidden bg-gray-50">
+                  <div className="relative w-full aspect-3/4 rounded-lg overflow-hidden bg-gray-50">
                     <Image
                       src={item.image}
                       alt={item.name}

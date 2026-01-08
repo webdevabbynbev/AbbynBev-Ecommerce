@@ -17,13 +17,25 @@ export default class ProductsController {
 
   public async get({ response, request }: HttpContext) {
     try {
-      const { name = '', isFlashsale, status, page: p, per_page: pp } = request.qs()
+      // ✅ UPDATE: Tambahkan 'q' untuk menangkap parameter pencarian
+      const { name = '', isFlashsale, status, page: p, per_page: pp, q = '' } = request.qs()
       const page = Number(p) > 0 ? Number(p) : 1
       const per_page = Number(pp) > 0 ? Number(pp) : 10
 
       const dataProduct = await this.productService
         .query()
         .apply((scopes) => scopes.active())
+        // ✅ UPDATE: Logika pencarian gabungan (Nama OR SKU) jika ada parameter 'q'
+        .if(q, (query) => {
+          query.where((subQuery) => {
+            subQuery
+              .where('products.name', 'like', `%${q}%`)
+              .orWhere('products.slug', 'like', `%${q}%`)
+              // Tambahkan kondisi lain jika perlu, misal SKU di tabel variants
+              .orWhere('products.master_sku', 'like', `%${q}%`)
+          })
+        })
+        // -----------------------------------------------------
         .if(name, (q) => q.where('products.name', 'like', `%${name}%`))
         .if(isFlashsale !== undefined && isFlashsale !== '', (q) =>
           q.where('products.is_flashsale', Boolean(Number(isFlashsale)))

@@ -25,8 +25,8 @@ type RamadanParticipantRecord = {
   name: string;
   email: string;
   phone_number?: string;
-  totalFasting: number; // Jumlah Check-in Puasa
-  totalNotFasting: number; // Jumlah Izin Tidak Puasa (Exempt)
+  totalFasting: number;
+  totalNotFasting: number;
   notFastingReasons?: string[];
 };
 
@@ -40,13 +40,8 @@ type ServePayload = {
   currentPage: string | number;
   perPage: string | number;
   total: string | number;
+  lastPage?: number;
   data: RamadanParticipantRecord[];
-};
-
-type ListResponse = {
-  data?: {
-    serve: ServePayload;
-  };
 };
 
 type ColumnsCtx = {
@@ -106,7 +101,7 @@ const columns = (props: ColumnsCtx): ColumnsType<RamadanParticipantRecord> => [
         }}
       >
         <Button
-          key="/detail"
+          key="detail"
           icon={<SearchOutlined />}
           onClick={() => {
             props.setCurrent(record);
@@ -122,7 +117,7 @@ const TableRamadanEvent: React.FC = () => {
   const [data, setData] = React.useState<RamadanParticipantRecord[]>([]);
   const [params, setParams] = React.useState<QueryParams>({
     name: "",
-    sort_by: "total_fasting", // Default sort by fasting count
+    sort_by: "total_fasting",
     direction: "desc",
   });
   const [pagination, setPagination] = React.useState<TablePaginationConfig>({
@@ -139,6 +134,7 @@ const TableRamadanEvent: React.FC = () => {
 
   React.useEffect(() => {
     fetchList(params, pagination);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleTableChange: TableProps<RamadanParticipantRecord>["onChange"] = (
@@ -153,25 +149,43 @@ const TableRamadanEvent: React.FC = () => {
   ) => {
     setLoading(true);
     try {
-      // ✅ UPDATE: Menggunakan endpoint /admin/ramadan-participants
-      const resp = (await http.get(
+      const resp: any = await http.get(
         `/admin/ramadan-participants?page=${
           page?.current ?? pagination.current
         }&per_page=${page?.pageSize ?? pagination.pageSize}&q=${q.name ?? ""}`
-      )) as ListResponse;
+      );
+
+      console.log("Response Raw:", resp); // Debugging
 
       const serve = resp?.data?.serve;
+
       if (serve) {
-        setData(serve.data || []);
+        // ✅ FIX UTAMA: Normalisasi Data
+        // Jika serve.data adalah Array, pakai langsung.
+        // Jika serve.data adalah Object (misal {0: {...}, 1: {...}}), convert jadi Array.
+        let tableData: RamadanParticipantRecord[] = [];
+
+        if (Array.isArray(serve.data)) {
+          tableData = serve.data;
+        } else if (typeof serve.data === "object" && serve.data !== null) {
+          // Konversi Object ke Array
+          tableData = Object.values(serve.data);
+        }
+
+        console.log("Data Table Fixed:", tableData);
+
+        setData(tableData);
         setPagination({
           current: Number(serve.currentPage),
           pageSize: Number(serve.perPage),
           total: Number(serve.total),
         });
+      } else {
+        setData([]);
       }
     } catch (error) {
       console.error("Error fetching ramadan participants:", error);
-      // Tampilkan error tapi jangan crash
+      setData([]);
     } finally {
       setLoading(false);
     }
@@ -192,7 +206,7 @@ const TableRamadanEvent: React.FC = () => {
               value={pagination.pageSize as number}
               onChange={(pageSize) => {
                 const next = {
-                  current: pagination.current ?? 1,
+                  current: 1, // Reset ke halaman 1 saat ubah page size
                   pageSize,
                   total: pagination.total ?? 0,
                 };
@@ -218,7 +232,10 @@ const TableRamadanEvent: React.FC = () => {
               onSearch={(val) => {
                 const next: QueryParams = { name: val };
                 setParams(next);
-                fetchList(next, pagination);
+                // Reset ke halaman 1 saat searching
+                const nextPagination = { ...pagination, current: 1 };
+                setPagination(nextPagination);
+                fetchList(next, nextPagination);
               }}
             />
           </Space>
@@ -292,6 +309,23 @@ const TableRamadanEvent: React.FC = () => {
                 <Tag color="orange">{current.totalNotFasting} Days</Tag>
               </Col>
             </Row>
+            {/* Tampilkan Alasan Jika Ada */}
+            {current.notFastingReasons &&
+              current.notFastingReasons.length > 0 && (
+                <Row style={{ marginTop: 10 }}>
+                  <Col span={10} style={{ fontWeight: "bold" }}>
+                    Alasan Tidak Puasa
+                  </Col>
+                  <Col span={1}>:</Col>
+                  <Col span={13}>
+                    <ul style={{ paddingLeft: 20, margin: 0 }}>
+                      {current.notFastingReasons.map((reason, idx) => (
+                        <li key={idx}>{reason}</li>
+                      ))}
+                    </ul>
+                  </Col>
+                </Row>
+              )}
           </>
         )}
       </Modal>
