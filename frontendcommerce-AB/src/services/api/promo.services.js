@@ -8,4 +8,8 @@ export async function getFlashSale() {
 export async function getSale() {
   const json = await getApi(`/sale`);
   return json?.serve ?? null;
+  
+}
+export async function getSales() {
+  return api.get("/sales"); // base sudah /api/v1
 }

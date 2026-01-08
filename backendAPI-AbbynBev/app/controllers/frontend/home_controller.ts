@@ -7,6 +7,8 @@ import FlashSale from '#models/flashsale'
 import Sale from '#models/sale'
 import { DateTime } from 'luxon'
 
+type PromoKind = 'flash' | 'sale'
+
 export default class HomeController {
   private toISO(v: any): string | null {
     if (v && typeof v.toISO === 'function') return v.toISO()
@@ -14,6 +16,59 @@ export default class HomeController {
     return null
   }
 
+  private nowWib() {
+    const now = DateTime.now().setZone('Asia/Jakarta')
+    const nowStr = now.toFormat('yyyy-LL-dd HH:mm:ss')
+    return { now, nowStr }
+  }
+
+  private basePrice(p: any): number {
+    return Number(p?.basePrice ?? p?.base_price ?? p?.price ?? 0)
+  }
+
+  private firstImageUrl(p: any): string | null {
+    const medias = Array.isArray(p?.medias) ? p.medias : []
+    return medias.length ? medias[0]?.url ?? null : null
+  }
+
+  private preloadPromoProducts(q: any, kind: PromoKind) {
+    if (kind === 'flash') q.pivotColumns(['flash_price', 'stock'])
+    else q.pivotColumns(['sale_price', 'stock'])
+
+    // jangan orderBy('order') (kolomnya ga ada), aman pakai id asc
+    q.preload('medias', (mq: any) => mq.orderBy('id', 'asc'))
+    q.preload('brand', (bq: any) => bq.select(['id', 'name', 'slug']))
+    q.preload('categoryType', (cq: any) => cq.select(['id', 'name']))
+  }
+
+  private mapPromoProducts(products: any[], kind: PromoKind) {
+    const priceKey = kind === 'flash' ? 'pivot_flash_price' : 'pivot_sale_price'
+    const mappedKey = kind === 'flash' ? 'flashPrice' : 'salePrice'
+
+    return (products || []).map((p: any) => {
+      const promoPrice = Number(p?.$extras?.[priceKey] ?? 0)
+      const stock = Number(p?.$extras?.pivot_stock ?? 0)
+
+      return {
+        id: p.id,
+        name: p.name,
+        slug: p.slug ?? null,
+        path: p.path ?? null,
+
+        price: this.basePrice(p),
+        [mappedKey]: promoPrice,
+        stock,
+
+        image: this.firstImageUrl(p),
+        brand: p.brand ? { id: p.brand.id, name: p.brand.name, slug: p.brand.slug } : null,
+        categoryType: p.categoryType ? { id: p.categoryType.id, name: p.categoryType.name } : null,
+      }
+    })
+  }
+
+  // =========================
+  // STATIC PAGES
+  // =========================
   public async getBanner({ response }: HttpContext) {
     try {
       const banners = await Banner.query().apply((s) => s.active()).orderBy('order', 'asc')
@@ -33,7 +88,7 @@ export default class HomeController {
 
       return response.status(200).send({ message: 'Success', serve: termAndCondition })
     } catch (e: any) {
-      return response.status(500).send({ message: e.message || 'Internal Mont = 500', serve: null })
+      return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
     }
   }
 
@@ -52,12 +107,12 @@ export default class HomeController {
 
   public async getPrivacyPolicy({ response }: HttpContext) {
     try {
-      const returnPrivacyPolicy = await Setting.query()
+      const privacy = await Setting.query()
         .select('key', 'value', 'createdAt', 'updatedAt')
         .where('key', SettingType.PRIVACY_POLICY)
         .first()
 
-      return response.status(200).send({ message: 'Success', serve: returnPrivacyPolicy })
+      return response.status(200).send({ message: 'Success', serve: privacy })
     } catch (e: any) {
       return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
     }
@@ -65,12 +120,12 @@ export default class HomeController {
 
   public async getContactSupport({ response }: HttpContext) {
     try {
-      const returnContactSupport = await Setting.query()
+      const contact = await Setting.query()
         .select('key', 'value', 'createdAt', 'updatedAt')
         .where('key', SettingType.CONTACT_US)
         .first()
 
-      return response.status(200).send({ message: 'Success', serve: returnContactSupport })
+      return response.status(200).send({ message: 'Success', serve: contact })
     } catch (e: any) {
       return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
     }
@@ -101,36 +156,26 @@ export default class HomeController {
     }
   }
 
+  // =========================
+  // PROMO: FLASH SALE
+  // =========================
   public async getFlashSale({ response }: HttpContext) {
     try {
-      // ✅ WIB biar match sama waktu yg kamu set di CMS
-      const now = DateTime.now().setZone('Asia/Jakarta')
-      const nowStr = now.toFormat('yyyy-LL-dd HH:mm:ss')
+      const { nowStr } = this.nowWib()
 
       const flashSale = await FlashSale.query()
-        // ✅ kalau boolean tinyint, ini paling aman:
         .where('is_publish', 1 as any)
         .where('start_datetime', '<=', nowStr)
         .where('end_datetime', '>=', nowStr)
         .orderBy('start_datetime', 'desc')
-        .preload('products', (q) => {
-          q.pivotColumns(['flash_price', 'stock'])
-
-          // ✅ FIX: jangan orderBy('order') karena kolomnya gak ada
-          // pilih salah satu:
-          q.preload('medias', (mq) => mq.orderBy('id', 'asc')) // ✅ aman
-          // q.preload('medias') // ✅ ini juga boleh
-
-          q.preload('brand', (bq) => bq.select(['id', 'name', 'slug']))
-          q.preload('categoryType', (cq) => cq.select(['id', 'name']))
-        })
+        .preload('products', (q) => this.preloadPromoProducts(q, 'flash'))
         .first()
 
       if (!flashSale) {
         return response.status(200).send({
           message: 'No active flash sale',
           serve: null,
-          meta: { nowStr, timezone: 'Asia/Jakarta' }, // optional debug
+          meta: { nowStr, timezone: 'Asia/Jakarta' },
         })
       }
 
@@ -145,106 +190,107 @@ export default class HomeController {
           buttonUrl: flashSale.buttonUrl,
           startDatetime: this.toISO(flashSale.startDatetime),
           endDatetime: this.toISO(flashSale.endDatetime),
-
-          products: flashSale.products.map((p: any) => {
-            const flashPrice = Number(p?.$extras?.pivot_flash_price ?? 0)
-            const stock = Number(p?.$extras?.pivot_stock ?? 0)
-
-            const image =
-              Array.isArray(p?.medias) && p.medias.length > 0 ? p.medias[0].url : null
-
-            return {
-              id: p.id,
-              name: p.name,
-              slug: p.slug ?? null,
-              path: p.path ?? null,
-              price: p.basePrice,
-              flashPrice,
-              stock,
-              image,
-              brand: p.brand ? { id: p.brand.id, name: p.brand.name, slug: p.brand.slug } : null,
-              categoryType: p.categoryType
-                ? { id: p.categoryType.id, name: p.categoryType.name }
-                : null,
-            }
-          }),
+          products: this.mapPromoProducts(flashSale.products, 'flash'),
         },
+        meta: { nowStr, timezone: 'Asia/Jakarta' },
       })
     } catch (e: any) {
-      return response.status(500).send({
-        message: e.message || 'Internal Server Error',
-        serve: null,
-      })
+      console.error(e)
+      return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
     }
   }
+
+  // =========================
+  // PROMO: SALE
+  // - serve: active sale sekarang (1 item)
+  // - list: semua sale published yang belum berakhir (buat page sale)
+  // =========================
   public async getSale({ response }: HttpContext) {
     try {
-      const now = DateTime.now().setZone('Asia/Jakarta')
-      const nowStr = now.toFormat('yyyy-LL-dd HH:mm:ss')
+      const { nowStr } = this.nowWib()
 
-      const sale = await Sale.query()
+      const active = await Sale.query()
         .where('is_publish', 1 as any)
         .where('start_datetime', '<=', nowStr)
         .where('end_datetime', '>=', nowStr)
         .orderBy('start_datetime', 'desc')
-        .preload('products', (q) => {
-          q.pivotColumns(['sale_price', 'stock'])
-
-          q.preload('medias', (mq) => mq.orderBy('id', 'asc'))
-          q.preload('brand', (bq) => bq.select(['id', 'name', 'slug']))
-          q.preload('categoryType', (cq) => cq.select(['id', 'name']))
-        })
+        .preload('products', (q) => this.preloadPromoProducts(q, 'sale'))
         .first()
 
-      if (!sale) {
-        return response.status(200).send({
-          message: 'No active sale',
-          serve: null,
-          meta: { nowStr, timezone: 'Asia/Jakarta' },
-        })
+      const list = await Sale.query()
+        .where('is_publish', 1 as any)
+        .where('end_datetime', '>=', nowStr)
+        .orderBy('start_datetime', 'asc')
+        .preload('products', (q) => this.preloadPromoProducts(q, 'sale'))
+
+      const mapSale = (s: any) => ({
+        id: s.id,
+        title: s.title,
+        description: s.description,
+        hasButton: s.hasButton,
+        buttonText: s.buttonText,
+        buttonUrl: s.buttonUrl,
+        startDatetime: this.toISO(s.startDatetime),
+        endDatetime: this.toISO(s.endDatetime),
+        products: this.mapPromoProducts(s.products, 'sale'),
+      })
+
+      return response.status(200).send({
+        message: active ? 'Success' : 'No active sale',
+        serve: active ? mapSale(active) : null,
+        list: list.map(mapSale),
+        meta: { nowStr, timezone: 'Asia/Jakarta' },
+      })
+    } catch (e: any) {
+      console.error(e)
+      return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
+    }
+  }
+
+  // =========================
+  // PROMO: SALES LIST (optional endpoint)
+  // GET /sales?include_expired=1&with_products=1
+  // =========================
+  public async getSales({ request, response }: HttpContext) {
+    try {
+      const { nowStr } = this.nowWib()
+      const qs = request.qs()
+
+      const includeExpired = qs.include_expired === '1' || qs.include_expired === 'true'
+      const onlyWithProducts = qs.with_products !== '0' // default true
+
+      const q = Sale.query().where('is_publish', 1 as any)
+      if (!includeExpired) q.where('end_datetime', '>=', nowStr)
+
+      if (onlyWithProducts) {
+        // ✅ whereHas wajib pakai callback
+        q.whereHas('products', () => {})
       }
+
+      const rows = await q
+        .orderBy('start_datetime', 'desc')
+        .preload('products', (pq) => this.preloadPromoProducts(pq, 'sale'))
+
+      const mapped = rows.map((s: any) => ({
+        id: s.id,
+        title: s.title,
+        description: s.description,
+        hasButton: s.hasButton,
+        buttonText: s.buttonText,
+        buttonUrl: s.buttonUrl,
+        startDatetime: this.toISO(s.startDatetime),
+        endDatetime: this.toISO(s.endDatetime),
+        products: this.mapPromoProducts(s.products, 'sale'),
+      }))
 
       return response.status(200).send({
         message: 'Success',
-        serve: {
-          id: sale.id,
-          title: sale.title,
-          description: sale.description,
-          hasButton: sale.hasButton,
-          buttonText: sale.buttonText,
-          buttonUrl: sale.buttonUrl,
-          startDatetime: this.toISO(sale.startDatetime),
-          endDatetime: this.toISO(sale.endDatetime),
-
-          products: sale.products.map((p: any) => {
-            const salePrice = Number(p?.$extras?.pivot_sale_price ?? 0)
-            const stock = Number(p?.$extras?.pivot_stock ?? 0)
-
-            const image =
-              Array.isArray(p?.medias) && p.medias.length > 0 ? p.medias[0].url : null
-
-            return {
-              id: p.id,
-              name: p.name,
-              slug: p.slug ?? null,
-              path: p.path ?? null,
-              price: p.basePrice,
-              salePrice,
-              stock,
-              image,
-              brand: p.brand ? { id: p.brand.id, name: p.brand.name, slug: p.brand.slug } : null,
-              categoryType: p.categoryType
-                ? { id: p.categoryType.id, name: p.categoryType.name }
-                : null,
-            }
-          }),
-        },
+        serve: mapped,
+        meta: { nowStr, timezone: 'Asia/Jakarta', total: mapped.length },
       })
     } catch (e: any) {
-      return response.status(500).send({
-        message: e.message || 'Internal Server Error',
-        serve: null,
-      })
+      console.error(e)
+      return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
     }
   }
 }

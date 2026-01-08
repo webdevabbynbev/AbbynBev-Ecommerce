@@ -488,6 +488,9 @@ router.get('/user-carts', [CmsDashboardCartsController, 'getUserCart'])
             router.get('/about-us', [FeHomeController, 'getAboutUs'])
             router.get('/flashsale', [FeHomeController, 'getFlashSale'])
             router.get('/sale', [FeHomeController, 'getSale'])
+            router.get('/sales', [FeHomeController, 'getSales']) 
+            
+          
 
             // =========================
             // CART ROUTES (AUTH REQUIRED)
@@ -561,6 +564,7 @@ router.get('/user-carts', [CmsDashboardCartsController, 'getUserCart'])
             router.get('/orders/:transactionNumber', [OrdersController, 'show'])
             router.put('/orders/:transactionNumber/confirm', [OrdersController, 'confirm'])
             router.put('/orders/:transactionNumber/refresh-tracking', [OrdersController, 'refreshTracking'])
+            
           })
           .use(middleware.auth())
 

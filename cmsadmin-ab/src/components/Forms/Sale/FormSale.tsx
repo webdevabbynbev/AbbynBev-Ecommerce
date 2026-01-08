@@ -229,9 +229,9 @@ const FormSale: React.FC<Props> = ({ data, handleClose }) => {
   const validateEndAfterStart = (_: RuleObject, value?: Dayjs) => {
     const start = form.getFieldValue("start_datetime");
     if (!value || !start) return Promise.resolve();
-    return value.isAfter(start)
-      ? Promise.resolve()
-      : Promise.reject(new Error("End Date must be after Start Date"));
+    return value.isSame(start, "day") || value.isAfter(start, "day")
+  ? Promise.resolve()
+  : Promise.reject(new Error("End Date must be same or after Start Date"));
   };
 
   const onFinish = async (values: FormValues) => {
@@ -327,7 +327,7 @@ const FormSale: React.FC<Props> = ({ data, handleClose }) => {
           rules={[{ required: true, message: "Start date is required" }]}
           style={{ flex: 1 }}
         >
-          <DatePicker showTime style={{ width: "100%" }} format={DATE_FMT} />
+          <DatePicker style={{ width: "100%" }} format="YYYY-MM-DD" />
         </Form.Item>
 
         <Form.Item
@@ -339,7 +339,7 @@ const FormSale: React.FC<Props> = ({ data, handleClose }) => {
           ]}
           style={{ flex: 1 }}
         >
-          <DatePicker showTime style={{ width: "100%" }} format={DATE_FMT} />
+          <DatePicker style={{ width: "100%" }} format="YYYY-MM-DD" />
         </Form.Item>
       </Space>
 

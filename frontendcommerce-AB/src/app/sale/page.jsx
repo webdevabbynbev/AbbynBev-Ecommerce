@@ -11,26 +11,26 @@ import {
   TxtField,
 } from "@/components";
 
-import { getSale } from "@/services/api/promo.services";
+import { getFlashSale } from "@/services/api/promo.services";
 import { normalizeProduct } from "@/services/api/normalizers/product";
 
-function normalizeSaleProduct(raw) {
+function normalizeFlashSaleProduct(raw) {
   const base = normalizeProduct(raw);
 
   if (!base) return null;
 
-  const salePrice = Number(raw?.salePrice ?? raw?.sale_price ?? 0);
+  const flashPrice = Number(raw?.flashPrice ?? raw?.flash_price ?? 0);
   const normalPrice = Number(
     raw?.price ?? raw?.basePrice ?? raw?.base_price ?? base.price ?? 0
   );
 
   return {
     ...base,
-    price: salePrice > 0 ? salePrice : normalPrice,
-    realprice: salePrice > 0 ? normalPrice : NaN,
+    price: flashPrice > 0 ? flashPrice : normalPrice,
+    realprice: flashPrice > 0 ? normalPrice : NaN,
     sale: true,
 
-    salePrice,
+    flashPrice,
     stock: Number(raw?.stock ?? 0),
   };
 }
@@ -59,7 +59,7 @@ const SORTS = [
 
 export default function SalePage() {
   const [loading, setLoading] = useState(true);
-  const [sale, setSale] = useState(null);
+  const [flashSale, setFlashSale] = useState(null);
 
   const [activeCategory, setActiveCategory] = useState("All");
   const [sortBy, setSortBy] = useState("recommended");
@@ -77,13 +77,13 @@ export default function SalePage() {
     (async () => {
       try {
         setLoading(true);
-        const data = await getSale(); // ✅ GET /sale
+        const data = await getFlashSale(); // ✅ GET /flashsale
         if (!alive) return;
-        setSale(data);
+        setFlashSale(data);
       } catch (e) {
-        console.error("Failed to load sale:", e);
+        console.error("Failed to load flash sale:", e);
         if (!alive) return;
-        setSale(null);
+        setFlashSale(null);
       } finally {
         if (alive) setLoading(false);
       }
@@ -95,9 +95,9 @@ export default function SalePage() {
   }, []);
 
   const products = useMemo(() => {
-    const rows = Array.isArray(sale?.products) ? sale.products : [];
-    return rows.map(normalizeSaleProduct).filter(Boolean);
-  }, [sale]);
+    const rows = Array.isArray(flashSale?.products) ? flashSale.products : [];
+    return rows.map(normalizeFlashSaleProduct).filter(Boolean);
+  }, [flashSale]);
 
   const categories = useMemo(() => {
     const set = new Set();
@@ -140,12 +140,12 @@ export default function SalePage() {
     return rows;
   }, [products, activeCategory, search, sortBy]);
 
-  const endMs = sale?.endDatetime ? dayjs(sale.endDatetime).valueOf() : 0;
-  const startMs = sale?.startDatetime ? dayjs(sale.startDatetime).valueOf() : 0;
+  const endMs = flashSale?.endDatetime ? dayjs(flashSale.endDatetime).valueOf() : 0;
+  const startMs = flashSale?.startDatetime ? dayjs(flashSale.startDatetime).valueOf() : 0;
   const countdown = endMs ? formatCountdown(endMs - now) : null;
-  const hasCta = Boolean(sale?.hasButton && sale?.buttonUrl);
-  const ctaText = sale?.buttonText || "Shop Now";
-  const ctaUrl = sale?.buttonUrl || "#";
+  const hasCta = Boolean(flashSale?.hasButton && flashSale?.buttonUrl);
+  const ctaText = flashSale?.buttonText || "Shop Now";
+  const ctaUrl = flashSale?.buttonUrl || "#";
   const ctaIsExternal = /^https?:\/\//i.test(ctaUrl);
 
   return (
@@ -156,11 +156,11 @@ export default function SalePage() {
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1">
               <h1 className="font-damion text-4xl text-primary-700">
-                {sale?.title || "Sale"}
+                {flashSale?.title || "Flash Sale"}
               </h1>
-              {sale?.description ? (
+              {flashSale?.description ? (
                 <p className="text-sm text-neutral-600 max-w-2xl">
-                  {sale.description}
+                  {flashSale.description}
                 </p>
               ) : null}
 
@@ -203,7 +203,7 @@ export default function SalePage() {
           {/* Search */}
           <div className="w-full max-w-[620px]">
             <TxtField
-              placeholder="Search product on sale..."
+              placeholder="Search product on flash sale..."
               iconLeftName="MagnifyingGlass"
               variant="outline"
               size="md"
@@ -244,16 +244,16 @@ export default function SalePage() {
       <div className="p-6 xl:max-w-[1280px] lg:max-w-[960px] mx-auto space-y-4">
         {loading ? (
           <>
-            <div className="text-xs text-neutral-500">Loading sale...</div>
+            <div className="text-xs text-neutral-500">Loading flash sale...</div>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {Array.from({ length: 10 }).map((_, i) => (
                 <RegularCardSkeleton key={`sale-skel-${i}`} />
               ))}
             </div>
           </>
-        ) : !sale ? (
+        ) : !flashSale ? (
           <div className="rounded-xl bg-white p-10 text-center text-sm text-neutral-500">
-            Belum ada sale yang aktif.
+            Belum ada flash sale yang aktif.
           </div>
         ) : filtered.length === 0 ? (
           <div className="rounded-xl bg-white p-10 text-center text-sm text-neutral-500">
