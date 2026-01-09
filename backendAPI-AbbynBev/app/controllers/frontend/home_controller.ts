@@ -31,11 +31,19 @@ export default class HomeController {
     return medias.length ? medias[0]?.url ?? null : null
   }
 
-  private preloadPromoProducts(q: any, kind: PromoKind) {
+    private preloadPromoProducts(q: any, kind: PromoKind) {
     if (kind === 'flash') q.pivotColumns(['flash_price', 'stock'])
     else q.pivotColumns(['sale_price', 'stock'])
 
-    // jangan orderBy('order') (kolomnya ga ada), aman pakai id asc
+    q.whereExists((sub: any) => {
+      sub
+        .from('product_onlines as po')
+        .whereColumn('po.product_id', 'products.id')
+        .where('po.is_active', 1)
+    })
+
+    
+    q.whereNull('products.deleted_at')
     q.preload('medias', (mq: any) => mq.orderBy('id', 'asc'))
     q.preload('brand', (bq: any) => bq.select(['id', 'name', 'slug']))
     q.preload('categoryType', (cq: any) => cq.select(['id', 'name']))
