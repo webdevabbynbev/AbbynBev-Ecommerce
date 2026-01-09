@@ -8,6 +8,7 @@ import { FaStar } from "react-icons/fa";
 import { formatToRupiah, getDiscountPercent } from "@/utils";
 import { toast } from "sonner";
 import axios from "@/lib/axios";
+import { useAuth } from "@/context/AuthContext";
 
 import {
   Select,
@@ -41,6 +42,7 @@ const RATING_OPTIONS = [
 
 export default function ProductDetailClient({ product }) {
   const router = useRouter();
+const {user, logout} = useAuth();
 
   // Prevent hydration mismatch for relative time
   const [mounted, setMounted] = useState(false);
@@ -133,10 +135,7 @@ export default function ProductDetailClient({ product }) {
 
   const handleAddToCart = async () => {
     try {
-      const token =
-        typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
-      if (!token) {
+      if (!user) {
         toast.error("Silakan login dulu untuk menambahkan ke keranjang.", {
           action: {
             label: "Login",
@@ -180,7 +179,7 @@ export default function ProductDetailClient({ product }) {
       toast(msg);
 
       if (isUnauthorized && typeof window !== "undefined") {
-        localStorage.removeItem("token");
+        await logout();
         router.push("/sign-in");
       }
     }

@@ -5,7 +5,6 @@ export { FlashSaleCarousel } from "./carousel/flashSaleCarousel.jsx";
 export { Chip } from "./chip/chip.jsx";
 export { MobileProductActionBar } from "./mobile/mobileProductActionBar.jsx";
 export { SearchBar } from "./input/searchBar.jsx";
-export { Textarea } from "./input/textarea.jsx";
 export { MobileBottomNav } from "./mobile/mobileBottomNav.jsx";
 export { AddressList } from "../app/account/AddressList.jsx";
 export { PickCarousel } from "./carousel/pickCarousel.jsx";
@@ -29,6 +28,8 @@ export { AddressCard } from "../app/account/AddressCard.jsx";
 export { Checkbox } from "./ui/Checkbox.jsx";
 export { LoadingSpinner } from "./loading/loadingSpinner.jsx";
 export { SubList } from "./filter/subList.jsx";
+export { Textarea } from "./input/textarea.jsx";
+export { Checkbox } from "./ui/Checkbox.jsx";
 export { NestedSection } from "./filter/nestedSection.jsx";
 export { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/Tabs.jsx";
 export {

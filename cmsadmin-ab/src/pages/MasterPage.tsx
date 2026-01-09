@@ -2,6 +2,7 @@ import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "../layout/MainLayout";
 
+import TableRamadanRecommendation from "../components/Tables/Ramadan/TableRamadanRecommendation";
 import TableAdmin from "../components/Tables/Admin/TableAdmin";
 import TableCustomer from "../components/Tables/Customer/TableCustomer";
 import TableTag from "../components/Tables/Tag/TableTag";

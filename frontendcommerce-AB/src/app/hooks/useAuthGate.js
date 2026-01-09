@@ -1,17 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getToken } from "@/services/authToken";
 import { logoutLocal } from "@/services/auth";
 
+const USER_KEY = "user";
+
 export function useAuthGate(checkIntervalMs = 60_000) {
-  const [isAuthed, setIsAuthed] = useState(() => Boolean(getToken()));
+  const [isAuthed, setIsAuthed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return Boolean(localStorage.getItem(USER_KEY));
+  });
 
   useEffect(() => {
     const check = () => {
-      const token = getToken(); 
-      setIsAuthed(Boolean(token));
-      if (!token) logoutLocal();
+      const hasUser = Boolean(localStorage.getItem(USER_KEY));
+      setIsAuthed(hasUser);
+      if (!hasUser) logoutLocal();
     };
 
     check();
