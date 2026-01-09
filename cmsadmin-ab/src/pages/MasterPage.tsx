@@ -28,6 +28,7 @@ import TableProduct from "../components/Tables/Product/TableProduct";
 import TableTransaction from "../components/Transaction/TableTransaction";
 import TableRamadanEvent from "../components/Tables/Ramadan/TableRamadanEvent";
 import TableSale from "../components/Tables/Sale/TableSale";
+import TableRamadanRecommendation from "../components/Tables/Ramadan/TableRamadanRecommendation";
 
 export default function MasterPage(): React.ReactElement {
   return (
@@ -63,7 +64,7 @@ export default function MasterPage(): React.ReactElement {
         />
         <Route path="/flash-sale" element={<TableFlashSale />} />
         <Route path="/inventory-product" element={<TableProduct />} />
-         <Route path="/sale-products" element={<TableSale />} />
+        <Route path="/sale-products" element={<TableSale />} />
         <Route path="/transactions" element={<TableTransaction />} />
         <Route path="/ramadan-event" element={<TableRamadanEvent />} />
         <Route
