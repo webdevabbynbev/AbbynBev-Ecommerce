@@ -19,4 +19,11 @@ export class ProductRepository {
   paginate(q: ProductQuery, page: number, perPage: number) {
     return q.paginate(page, perPage)
   }
+
+  /* =====================
+   * CSV IMPORT SUPPORT
+   * ===================== */
+  async createMany(data: Partial<Product>[]) {
+    return Product.createMany(data)
+  }
 }

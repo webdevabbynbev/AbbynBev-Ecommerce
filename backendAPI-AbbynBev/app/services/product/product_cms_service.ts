@@ -1,6 +1,5 @@
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
-import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 
 import Product from '#models/product'
 import ProductOnline from '#models/product_online'

@@ -1,6 +1,18 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, belongsTo, hasMany, scope, manyToMany } from '@adonisjs/lucid/orm'
-import type { BelongsTo, HasMany, ManyToMany } from '@adonisjs/lucid/types/relations'
+import {
+  BaseModel,
+  column,
+  belongsTo,
+  hasMany,
+  manyToMany,
+  scope,
+} from '@adonisjs/lucid/orm'
+
+import type {
+  BelongsTo,
+  HasMany,
+  ManyToMany,
+} from '@adonisjs/lucid/types/relations'
 
 import CategoryType from './category_type.js'
 import ProductVariant from './product_variant.js'
@@ -18,6 +30,9 @@ export default class Product extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
+  // ======================
+  // BASIC INFO
+  // ======================
   @column()
   declare name: string
 
@@ -27,6 +42,12 @@ export default class Product extends BaseModel {
   @column()
   declare description: string | null
 
+  @column()
+  declare masterSku: string | null
+
+  // ======================
+  // PRICING & STATUS
+  // ======================
   @column()
   declare basePrice: number | null
 
@@ -39,6 +60,9 @@ export default class Product extends BaseModel {
   @column()
   declare status: 'normal' | 'war' | 'draft'
 
+  // ======================
+  // RELATION IDS
+  // ======================
   @column()
   declare categoryTypeId: number
 
@@ -48,15 +72,9 @@ export default class Product extends BaseModel {
   @column()
   declare personaId: number
 
-  @belongsTo(() => CategoryType)
-  declare categoryType: BelongsTo<typeof CategoryType>
-
-  @belongsTo(() => Brand)
-  declare brand: BelongsTo<typeof Brand>
-
-  @belongsTo(() => Persona)
-  declare persona: BelongsTo<typeof Persona>
-
+  // ======================
+  // SEO
+  // ======================
   @column()
   declare metaTitle: string | null
 
@@ -66,6 +84,9 @@ export default class Product extends BaseModel {
   @column()
   declare metaKeywords: string | null
 
+  // ======================
+  // DISPLAY
+  // ======================
   @column()
   declare position: number | null
 
@@ -75,8 +96,17 @@ export default class Product extends BaseModel {
   @column()
   declare path: string | null
 
-  @column()
-  declare masterSku: string | null
+  // ======================
+  // RELATIONS
+  // ======================
+  @belongsTo(() => CategoryType)
+  declare categoryType: BelongsTo<typeof CategoryType>
+
+  @belongsTo(() => Brand)
+  declare brand: BelongsTo<typeof Brand>
+
+  @belongsTo(() => Persona)
+  declare persona: BelongsTo<typeof Persona>
 
   @hasMany(() => ProductVariant)
   declare variants: HasMany<typeof ProductVariant>
@@ -90,14 +120,14 @@ export default class Product extends BaseModel {
   @hasMany(() => Review)
   declare reviews: HasMany<typeof Review>
 
+  @hasMany(() => FlashSale)
+  declare flashSales: HasMany<typeof FlashSale>
+
   @manyToMany(() => Tag, {
     pivotTable: 'product_tags',
     pivotColumns: ['start_date', 'end_date'],
   })
   declare tags: ManyToMany<typeof Tag>
-
-  @hasMany(() => FlashSale)
-  declare flashSales: HasMany<typeof FlashSale>
 
   @manyToMany(() => ConcernOption, {
     pivotTable: 'product_concerns',
@@ -111,6 +141,9 @@ export default class Product extends BaseModel {
   })
   declare profileOptions: ManyToMany<typeof ProfileCategoryOption>
 
+  // ======================
+  // TIMESTAMPS
+  // ======================
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
@@ -120,23 +153,29 @@ export default class Product extends BaseModel {
   @column.dateTime()
   declare deletedAt: DateTime | null
 
+  // ======================
+  // SCOPES
+  // ======================
   public static active = scope((query) => {
     query.whereNull('products.deleted_at')
   })
 
   public static trashed = scope((query) => {
-    query.whereNotNull('deleted_at')
+    query.whereNotNull('products.deleted_at')
   })
 
   public static visible = scope((query) => {
     query
-      .whereNull('deleted_at')
-      .whereIn('status', ['normal', 'war'])
+      .whereNull('products.deleted_at')
+      .whereIn('products.status', ['normal', 'war'])
       .whereHas('variants' as any, (variantQuery) => {
         variantQuery.where('stock', '>', 0)
       })
   })
 
+  // ======================
+  // HELPERS
+  // ======================
   public async softDelete() {
     this.deletedAt = DateTime.now()
     await this.save()
