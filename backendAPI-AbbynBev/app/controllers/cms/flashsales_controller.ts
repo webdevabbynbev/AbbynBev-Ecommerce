@@ -5,8 +5,11 @@ import { createFlashSaleValidator, updateFlashSaleValidator } from '#validators/
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import emitter from '@adonisjs/core/services/emitter'
+import { PromoFlagService } from '#services/promo/promo_flag_service'
 
 export default class FlashsalesController {
+  private promoFlag = new PromoFlagService()
+
   public async get({ response }: HttpContext) {
     const flashSales = await FlashSale.query()
       .preload('products', (q) => {
@@ -43,7 +46,6 @@ export default class FlashsalesController {
 
   public async create({ request, response, auth }: HttpContext) {
     const payload = await request.validateUsing(createFlashSaleValidator)
-
     const trx = await db.transaction()
 
     try {
@@ -63,8 +65,11 @@ export default class FlashsalesController {
         { client: trx }
       )
 
+      const productIds: number[] = []
+
       if (payload.products?.length) {
         for (const p of payload.products) {
+          productIds.push(Number(p.product_id))
           await FlashSaleProduct.create(
             {
               flashSaleId: flashSale.id,
@@ -75,6 +80,11 @@ export default class FlashsalesController {
             { client: trx }
           )
         }
+      }
+
+      // ✅ sync flag is_flash_sale untuk produk yg di-assign flash sale
+      if (productIds.length) {
+        await this.promoFlag.syncFlashSaleFlags(productIds, trx)
       }
 
       await trx.commit()
@@ -117,6 +127,15 @@ export default class FlashsalesController {
     try {
       const oldData = flashSale.toJSON()
 
+      const oldRows = await db
+      .from('flashsale_products')
+      .useTransaction(trx)
+      .where('flash_sale_id', flashSale.id)
+      .select('product_id')
+
+const oldIds = oldRows.map((r) => Number(r.product_id))
+
+
       flashSale.merge({
         title: payload.title ?? flashSale.title,
         description: payload.description ?? flashSale.description,
@@ -135,10 +154,16 @@ export default class FlashsalesController {
 
       await flashSale.useTransaction(trx).save()
 
-      if (payload.products?.length) {
+      // ✅ kalau products dikirim (meskipun []), berarti replace pivot
+      const productsProvided = payload.products !== undefined
+      let newIds: number[] = oldIds
+
+      if (productsProvided) {
         await FlashSaleProduct.query({ client: trx }).where('flash_sale_id', flashSale.id).delete()
 
-        for (const p of payload.products) {
+        newIds = []
+        for (const p of payload.products || []) {
+          newIds.push(Number(p.product_id))
           await FlashSaleProduct.create(
             {
               flashSaleId: flashSale.id,
@@ -149,6 +174,15 @@ export default class FlashsalesController {
             { client: trx }
           )
         }
+      }
+
+      // ✅ sync flag:
+      // - kalau ada perubahan publish/date, tetap update produk yang terkait
+      // - kalau produk berubah, union old+new supaya yang dilepas ikut di-reset
+      const affectedIds = Array.from(new Set([...(oldIds || []), ...(newIds || [])])).filter(Boolean)
+
+      if (affectedIds.length) {
+        await this.promoFlag.syncFlashSaleFlags(affectedIds, trx)
       }
 
       await trx.commit()
@@ -184,21 +218,48 @@ export default class FlashsalesController {
       })
     }
 
-    const oldData = flashSale.toJSON()
-    await flashSale.delete()
+    const trx = await db.transaction()
 
-    // @ts-ignore
-    await emitter.emit('set:activity-log', {
-      roleName: auth.user?.role_name,
-      userName: auth.user?.name,
-      activity: `Delete Flash Sale ${oldData.title}`,
-      menu: 'Flash Sale',
-      data: oldData,
-    })
+    try {
+      const oldData = flashSale.toJSON()
 
-    return response.status(200).send({
-      message: 'Flash Sale deleted successfully',
-      serve: true,
-    })
+      const rows = await db
+      .from('flashsale_products')
+      .useTransaction(trx)
+      .where('flash_sale_id', flashSale.id)
+      .select('product_id')
+
+const ids = rows.map((r) => Number(r.product_id))
+
+      await FlashSaleProduct.query({ client: trx }).where('flash_sale_id', flashSale.id).delete()
+
+      await flashSale.useTransaction(trx).delete()
+
+      if (ids.length) {
+        await this.promoFlag.syncFlashSaleFlags(ids, trx)
+      }
+
+      await trx.commit()
+
+      // @ts-ignore
+      await emitter.emit('set:activity-log', {
+        roleName: auth.user?.role_name,
+        userName: auth.user?.name,
+        activity: `Delete Flash Sale ${oldData.title}`,
+        menu: 'Flash Sale',
+        data: oldData,
+      })
+
+      return response.status(200).send({
+        message: 'Flash Sale deleted successfully',
+        serve: true,
+      })
+    } catch (error) {
+      await trx.rollback()
+      return response.status(500).send({
+        message: error.message || 'Internal Server Error',
+        serve: null,
+      })
+    }
   }
 }

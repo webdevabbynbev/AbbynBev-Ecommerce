@@ -14,6 +14,7 @@ import FlashSale from './flashsale.js'
 import ConcernOption from './concern_option.js'
 import ProfileCategoryOption from './profile_category_option.js'
 
+
 export default class Product extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
@@ -33,9 +34,15 @@ export default class Product extends BaseModel {
   @column()
   declare weight: number
 
-  @column()
-  declare isFlashsale: boolean
+  @column({ columnName: 'is_flash_sale', consume: (v) => Boolean(v) })
+  declare isFlashSale: boolean
 
+@column({
+    columnName: 'is_flash_sale',
+    consume: (v) => Boolean(Number(v)),
+    prepare: (v) => (v ? 1 : 0),
+  })
+  
   @column()
   declare status: 'normal' | 'war' | 'draft'
 
