@@ -1,0 +1,141 @@
+{
+  "name": "backendAPI-AbbynBev",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "node bin/server.js",
+    "build": "node ace build",
+    "dev": "node ace serve --hmr",
+    "test": "node ace test",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit"
+  },
+  "imports": {
+    "#controllers/*": {
+      "types": "./app/controllers/*.ts",
+      "default": "./app/controllers/*.js"
+    },
+    "#exceptions/*": {
+      "types": "./app/exceptions/*.ts",
+      "default": "./app/exceptions/*.js"
+    },
+    "#models/*": {
+      "types": "./app/models/*.ts",
+      "default": "./app/models/*.js"
+    },
+    "#mails/*": {
+      "types": "./app/mails/*.ts",
+      "default": "./app/mails/*.js"
+    },
+    "#services/*": {
+      "types": "./app/services/*.ts",
+      "default": "./app/services/*.js"
+    },
+    "#listeners/*": {
+      "types": "./app/listeners/*.ts",
+      "default": "./app/listeners/*.js"
+    },
+    "#events/*": {
+      "types": "./app/events/*.ts",
+      "default": "./app/events/*.js"
+    },
+    "#middleware/*": {
+      "types": "./app/middleware/*.ts",
+      "default": "./app/middleware/*.js"
+    },
+    "#validators/*": {
+      "types": "./app/validators/*.ts",
+      "default": "./app/validators/*.js"
+    },
+    "#providers/*": {
+      "types": "./providers/*.ts",
+      "default": "./providers/*.js"
+    },
+    "#policies/*": {
+      "types": "./app/policies/*.ts",
+      "default": "./app/policies/*.js"
+    },
+    "#abilities/*": {
+      "types": "./app/abilities/*.ts",
+      "default": "./app/abilities/*.js"
+    },
+    "#database/*": {
+      "types": "./database/*.ts",
+      "default": "./database/*.js"
+    },
+    "#start/*": {
+      "types": "./start/*.ts",
+      "default": "./start/*.js"
+    },
+    "#tests/*": {
+      "types": "./tests/*.ts",
+      "default": "./tests/*.js"
+    },
+    "#config/*": {
+      "types": "./config/*.ts",
+      "default": "./config/*.js"
+    }
+  },
+  "devDependencies": {
+    "@adonisjs/assembler": "^7.8.2",
+    "@adonisjs/eslint-config": "^2.0.0",
+    "@adonisjs/prettier-config": "^1.4.4",
+    "@adonisjs/tsconfig": "^1.4.0",
+    "@japa/api-client": "^3.1.0",
+    "@japa/assert": "^4.0.1",
+    "@japa/plugin-adonisjs": "^4.0.0",
+    "@japa/runner": "^4.2.0",
+    "@swc/core": "1.11.24",
+    "@types/luxon": "^3.7.1",
+    "@types/node": "^22.15.18",
+    "eslint": "^9.26.0",
+    "hot-hook": "^0.4.0",
+    "nodemon": "^3.1.11",
+    "pino-pretty": "^13.0.0",
+    "prettier": "^3.5.3",
+    "ts-node": "^10.9.2",
+    "ts-node-maintained": "^10.9.5",
+    "typescript": "~5.8"
+  },
+  "dependencies": {
+    "@adonisjs/ally": "^5.1.0",
+    "@adonisjs/auth": "^9.4.0",
+    "@adonisjs/core": "^6.18.0",
+    "@adonisjs/cors": "^2.2.1",
+    "@adonisjs/drive": "^3.4.1",
+    "@adonisjs/limiter": "^2.4.0",
+    "@adonisjs/lucid": "^21.6.1",
+    "@adonisjs/mail": "^9.2.2",
+    "@material/web": "^2.4.1",
+    "@react-pdf/renderer": "^4.3.1",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@types/lodash": "^4.17.20",
+    "@vinejs/vine": "^3.0.1",
+    "adonis-captcha-guard": "^1.0.1",
+    "axios": "^1.13.2",
+    "cloudinary": "^2.8.0",
+    "csv-parser": "^3.2.0",
+    "edge.js": "^6.3.0",
+    "exceljs": "^4.4.0",
+    "google-auth-library": "^10.2.1",
+    "jsbarcode": "^3.12.1",
+    "luxon": "^3.7.1",
+    "midtrans-client": "^1.4.3",
+    "moment": "^2.30.1",
+    "multer": "^2.0.2",
+    "mysql2": "^3.14.3",
+    "openai": "^5.23.2",
+    "reflect-metadata": "^0.2.2",
+    "rollup": "^4.54.0"
+  },
+  "hotHook": {
+    "boundaries": [
+      "./app/controllers/**/*.ts",
+      "./app/middleware/*.ts"
+    ]
+  },
+  "prettier": "@adonisjs/prettier-config"
+}

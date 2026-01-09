@@ -1,0 +1,11 @@
+.left-side {
+  display: none;
+  flex: 1;
+  min-height: 100vh;
+}
+
+@media (min-width: 992px) {
+  .left-side {
+    display: block !important;
+  }
+}

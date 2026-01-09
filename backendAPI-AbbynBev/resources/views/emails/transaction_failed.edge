@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      Invoice Transaksi
+    </title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f9f9f9;
+        color: #333;
+      }
+      
+      .container {
+        max-width: 700px;
+        margin: 20px auto;
+        background: #fff;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e8e8e8;
+      }
+      
+      .header {
+        background-color: #000;
+        color: white;
+        padding: 20px;
+        text-align: center;
+        font-size: 20px;
+        font-weight: bold;
+      }
+      
+      .content {
+        padding: 20px;
+        line-height: 1.6;
+      }
+      
+      .content h1 {
+        font-size: 18px;
+        margin-bottom: 10px;
+      }
+      
+      .content p {
+        margin: 10px 0;
+      }
+      
+      .content a {
+        color: #fff;
+        text-decoration: none;
+        text-align: center;
+      }
+      
+      .status {
+        background-color: #000;
+        color: #fff;
+        text-align: center;
+        margin: 20px 0;
+      }
+      
+      .status.pending {
+        color: #f0ad4e;
+        font-weight: bold;
+      }
+      
+      .status.success {
+        color: #5cb85c;
+        font-weight: bold;
+      }
+      
+      .status.delivered {
+        color: #0275d8;
+        font-weight: bold;
+      }
+      
+      .details {
+        margin-top: 20px;
+      }
+      
+      .details table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+      
+      .details th,
+      .details td {
+        text-align: left;
+        padding: 8px 12px;
+        border-bottom: 1px solid #ddd;
+      }
+      
+      .details th {
+        background-color: #f9f9f9;
+        font-weight: bold;
+      }
+      
+      .product-image {
+        text-align: center;
+        margin: 20px 0;
+      }
+      
+      .product-image img {
+        max-width: 200px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      
+      .footer {
+        padding: 20px;
+        background-color: #f1f1f1;
+        text-align: center;
+        font-size: 12px;
+        color: #777;
+      }
+      
+      .footer a {
+        color: #000;
+        text-decoration: none;
+      }
+      
+      .btn-pov {
+        background-color: #000;
+        color: #fff;
+        padding: 10px 20px;
+        border-radius: 5px;
+        text-decoration: none;
+        margin: auto;
+        border: none;
+        cursor: pointer;
+        display: block;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        POV
+      </div>
+      <div class="content">
+        <h1>
+          Hi, {{ name }},
+        </h1>
+        <p>
+          We regret to inform you that your transaction with the number #{{ transaction.transactionNumber }} has failed. Please try again or contact our support team for assistance.
+        </p>
+        <a class="btn-pov" href="mailto:contact@thepov-id.com">Contact Support</a>
+        <p>
+          We apologize for any inconvenience this may have caused. Thank you for your understanding.
+        </p>
+        <p>
+          Thank you for your patience and understanding.
+        </p>
+      </div>
+      <div class="footer">
+        This is an automated email. Please do not reply to this email. Add <a href="mailto:contact@thepov-id.com">contact
+          @thepov
+          -id.com</a>to your email contact list to ensure emails from POV are delivered to your inbox.<br />
+        Jl. Jend. Sudirman No.67, Karanganyar, Kec. Astanaanyar, Kota Bandung, Jawa Barat 40241
+      </div>
+    </div>
+  </body>
+</html>

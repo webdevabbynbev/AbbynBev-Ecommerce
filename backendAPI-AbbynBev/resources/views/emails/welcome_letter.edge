@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>
+      Welcome to Abby n Bev
+    </title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body
+    style="font-family: 'Plus Jakarta Sans', sans-serif; background: #f5f5f5; padding: 20px; color: #333;"
+  >
+    <table
+      width="100%"
+      cellspacing="0"
+      cellpadding="0"
+      style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 10px; overflow: hidden;"
+    >
+      <!-- Header -->
+      <tr>
+        <td align="center" style="padding: 30px; background: #ae2d68; color: #ffffff;">
+          <h1 style="margin: 0; font-size: 24px;">
+            ✨ Welcome to Abby n Bev ✨
+          </h1>
+          <p style="margin: 5px 0 0 0; font-size: 16px;">
+            Curated For Your Beauty
+          </p>
+        </td>
+      </tr>
+
+      <!-- Body -->
+      <tr>
+        <td style="padding: 30px;">
+          <p style="margin: 0 0 15px 0;">
+            Hi <b>{{ user.firstName }} {{ user.lastName }}</b>,
+          </p>
+          <p style="margin: 0 0 15px 0;">
+            Welcome to <b>Abby n Bev</b>Family! 🎉
+          </p>
+          <p style="margin: 0 0 15px 0;">
+            Your account is ready, and you can now explore our curated beauty
+            products from makeup to skincare just for you.
+          </p>
+          <p style="margin: 0 0 30px 0;">
+            We’re so excited to be a part of your beauty journey 💖
+          </p>
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a
+              href="{{ appDomain }}"
+              style="background: #ae2d68; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;"
+            >Shop Now</a>
+          </div>
+
+          <p style="margin: 0 0 30px 0;">
+            Stay tuned for exclusive deals & surprises along the way!
+          </p>
+          <p style="margin: 0;">
+            With love,<br />
+            <b>Abby n Bev Team</b>
+          </p>
+        </td>
+      </tr>
+
+      <!-- Footer -->
+      <tr>
+        <td align="center" style="padding: 20px; background: #ffffff; font-size: 12px; color: #777;">
+          <p style="margin: 0;">
+            &copy; {{ currentYear }} CV. Gaya Beauty Utama, All Rights Reserved.
+          </p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

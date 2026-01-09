@@ -1,0 +1,148 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta content="text/html; charset=utf-8" http-equiv="Content-Type" />
+    <title>
+      Password Reset - Abby n Bev
+    </title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body
+    style="padding:0;width:100%!important;-webkit-text-size-adjust:100%;margin:0;-ms-text-size-adjust:100%;font-family:'Plus Jakarta Sans',sans-serif;background:#f5f5f5;"
+    marginheight="0"
+    marginwidth="0"
+  >
+    <center>
+      <table cellpadding="8" cellspacing="0" border="0" style="padding:0;width:100%!important;margin:0;">
+        <tr>
+          <td valign="top">
+            <!-- HEADER -->
+            <table cellpadding="0" cellspacing="0" align="center" border="0">
+              <tr>
+                <td height="24">
+                </td>
+              </tr>
+              <tr>
+                <td align="center">
+                  <img
+                    width="200"
+                    height="200"
+                    src="https://i.imgur.com/n74d9Fm.png"
+                    alt="{{ appName }}"
+                    title="{{ appName }}"
+                    style="display:block;"
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td height="24">
+                </td>
+              </tr>
+            </table>
+            <!-- END HEADER -->
+
+            <!-- BODY -->
+            <table cellpadding="0" cellspacing="0" border="0" align="center">
+              <tr>
+                <td width="400">
+                  <table cellpadding="0" cellspacing="0" align="center" border="0" style="text-align:left;">
+                    <tr>
+                      <td style="color:#1b1717;font-size:20px;font-weight:600;padding-bottom:10px;">
+                        Hi
+                        <span style="color:#ae2d68;">
+                          {{ `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Customer' }},
+                        </span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="color:#525c66;font-size:16px;line-height:23px;padding-bottom:10px;">
+                        We received a request to reset your password for your
+                        Abby n Bev account.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="color:#525c66;font-size:16px;line-height:23px;padding-bottom:10px;">
+                        If you did not make this request, you can safely ignore
+                        this email.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="color:#525c66;font-size:16px;line-height:23px;padding-bottom:10px;">
+                        Otherwise, click the button below to change your
+                        password.
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- BUTTON -->
+              <tr>
+                <td width="400">
+                  <table cellpadding="0" cellspacing="0" align="center" border="0">
+                    <tr>
+                      <td>
+                        <table
+                          border="0"
+                          cellpadding="0"
+                          cellspacing="0"
+                          align="center"
+                          style="background-color:#ae2d68;border-radius:6px;margin:18px auto;"
+                        >
+                          <tr>
+                            <td align="center" style="padding:14px 24px;text-align:center;">
+                              <a
+                                href="{{ url }}"
+                                style="color:#ffffff;text-decoration:none;display:inline-block;font-size:16px;font-weight:600;"
+                              >
+                                Change Password
+                              </a>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+            <!-- END BODY -->
+
+            <!-- FOOTER -->
+            <table cellpadding="0" cellspacing="0" align="center" border="0">
+              <tr>
+                <td height="20">
+                  <table cellpadding="0" cellspacing="0" align="center" border="0">
+                    <tr>
+                      <td width="400" align="center" style="border-top:2px solid #eee;">
+                        &nbsp;
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <table cellpadding="0" cellspacing="0" align="center" border="0">
+                    <tbody>
+                      <tr>
+                        <td width="400" align="center" style="color:#919ba1;font-size:12px;">
+                          © {{ currentYear }} CV. Gaya Beauty Utama, All Rights
+                          Reserved.
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            </table>
+            <!-- END FOOTER -->
+          </td>
+        </tr>
+      </table>
+    </center>
+  </body>
+</html>

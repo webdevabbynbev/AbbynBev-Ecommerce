@@ -1,0 +1,41 @@
+.ant-layout {
+    height: 100%;
+}
+
+.trigger {
+    padding: 0 24px;
+    font-size: 18px;
+    line-height: 64px;
+    cursor: pointer;
+    transition: color 0.3s;
+    margin-top: 5px;
+}
+
+.trigger:hover {
+    color: var(--ant-primary-color);
+}
+
+.logo {
+    height: 40px;
+    margin: 15px 30px 5px 30px;
+    text-align: center;
+}
+
+.logo img {
+    height: 100%;
+    object-fit: contain;
+}
+
+.site-layout {
+    padding: 20px;
+}
+
+.site-layout .site-layout-background {
+    background: #fff;
+    border-radius: 0.428rem;
+}
+
+.ant-layout-sider {
+    box-shadow: 0 0 15px 0 rgb(34 41 47 / 5%);
+    overflow-x: hidden;
+}
