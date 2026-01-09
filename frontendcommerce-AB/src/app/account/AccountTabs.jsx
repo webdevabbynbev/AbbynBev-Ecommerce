@@ -8,10 +8,7 @@ export default function AccountTabs({ slug }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Tabs internal (profile + wishlist)
   const INTERNAL_TABS = ["profile", "wishlist"];
-
-  // Jika halaman adalah order-history, kita harus override slug
   const activeSlug = pathname.includes("order-history") ? null : slug;
 
   return (
@@ -24,7 +21,7 @@ export default function AccountTabs({ slug }) {
       {/* SIDEBAR */}
       <TabsList
         className="
-          flex md:flex-col sm:flex-row 
+          flex flex-row lg:flex-col 
           h-fit w-[220px] 
           items-start 
           rounded-xl border p-4 space-y-2 
