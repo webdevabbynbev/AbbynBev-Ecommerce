@@ -2,8 +2,11 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { formatToRupiah, normalizeCardProduct, slugify } from "@/utils";
+import { ProgressBar } from "../progress/progressBar";
 
 export function FlashSaleCard({ product, item }) {
+  const flashStock = 100
+  const flashStockLeft = 10
   const data = useMemo(
     () => normalizeCardProduct(product ?? item),
     [product, item]
@@ -16,6 +19,15 @@ export function FlashSaleCard({ product, item }) {
   const slugSource = data.slug || item?.slug || data.name;
   const safeSlug = slugSource ? slugify(String(slugSource)) : "";
   const href = safeSlug ? `/${encodeURIComponent(safeSlug)}` : "#";
+
+  // ===== FLASH SALE PROGRESS =====
+  const totalStock = Number(flashStock ?? 0);
+  const stockLeft = Number(flashStockLeft ?? 0);
+
+  const progress =
+    totalStock > 0
+      ? Math.round((stockLeft / totalStock) * 100)
+      : 0;
 
   return (
     <div className="group relative flex h-full w-full flex-col rounded-lg bg-white space-y-4 transition-all overflow-hidden">
@@ -50,6 +62,7 @@ export function FlashSaleCard({ product, item }) {
             </div>
           </div>
 
+          {/* PRICE */}
           <div className="price flex items-center space-x-2">
             {hasSale ? (
               <>
@@ -67,6 +80,21 @@ export function FlashSaleCard({ product, item }) {
             )}
           </div>
 
+          {/* 🔥 FLASH SALE PROGRESS */}
+          {totalStock > 0 && (
+            <div className="space-y-1">
+              <ProgressBar value={progress} height={6} />
+              <p className="text-xs text-neutral-500">
+                Tersisa{" "}
+                <span className="font-bold text-primary-700">
+                  {stockLeft}
+                </span>{" "}
+                dari {totalStock}
+              </p>
+            </div>
+          )}
+
+          {/* BRAND / CATEGORY */}
           <div className="text-xs category-brand flex flex-row relative items-center space-x-1.5 overflow-hidden h-6">
             <p className="text-neutral-400 transition-transform duration-300 group-hover:-translate-y-6">
               {data.brand || "—"}
