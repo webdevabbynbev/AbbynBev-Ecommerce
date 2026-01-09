@@ -27,7 +27,7 @@ export { LoginRegisModalForm } from "./auth/loginRegis.jsx";
 export { RegularCardSkeleton } from "./skeleton/skeletonCollection.jsx";
 export { AddressCard } from "../app/account/AddressCard.jsx";
 export { Checkbox } from "./ui/Checkbox.jsx";
-export { LoadingSpinner } from "./loadingSpinner.jsx";
+export { LoadingSpinner } from "./loading/loadingSpinner.jsx";
 export { SubList } from "./filter/subList.jsx";
 export { NestedSection } from "./filter/nestedSection.jsx";
 export { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/Tabs.jsx";

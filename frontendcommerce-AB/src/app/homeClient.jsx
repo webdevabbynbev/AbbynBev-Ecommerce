@@ -102,6 +102,9 @@ export default function HomeClient() {
 
     return (
       <div className="xl:max-w-7xl lg:max-w-240 mx-auto px-6 space-y-6">
+        <h1 className="sr-only">
+          Situs Belanja Online Makeup dan Skincare Terbaik Di Indonesia
+        </h1>
         <div className="flex items-start justify-between">
           <div className="flex-row space-y-1">
             <h3
