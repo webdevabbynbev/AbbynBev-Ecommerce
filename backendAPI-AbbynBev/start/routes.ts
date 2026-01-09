@@ -14,41 +14,28 @@ import { Role } from '../app/enums/role.js'
 // =========================
 // CMS / ADMIN CONTROLLERS (DECLARE ONCE ONLY)
 // =========================
-const CmsRamadanParticipantsController = () =>
-  import('#controllers/cms/ramadan/ramadan_participants_controller')
 
+const CmsRamadanParticipantsController = () => import('#controllers/cms/ramadan/ramadan_participants_controller')
 const UsersController = () => import('#controllers/cms/users/admin_users_controller')
 const CustomersController = () => import('#controllers/cms/users/customers_controller')
-
 const CategoryTypesController = () => import('#controllers/cms/category_types_controller')
 const SettingCmsController = () => import('#controllers/cms/setting_cms_controller')
 const SettingsPoliciesController = () => import('#controllers/cms/settings/policies_controller')
 const SettingsPagesController = () => import('#controllers/cms/settings/pages_controller')
-
 const AttributesController = () => import('#controllers/cms/attributes_controller')
-
 const ProductController = () => import('#controllers/cms/products/products_controller')
-const ProductCsvImportController = () =>
-  import('#controllers/cms/products/product_csv_import_controller')
-const ProductFlashsaleController = () =>
-  import('#controllers/cms/products/product_flashsale_controller')
-const ProductPositionsController = () =>
-  import('#controllers/cms/products/product_positions_controller')
-const ProductPublicationsController = () =>
-  import('#controllers/cms/products/product_publications_controller')
-
+const ProductCsvImportController = () => import('#controllers/cms/products/product_csv_import_controller')
+const ProductFlashsaleController = () => import('#controllers/cms/products/product_flashsale_controller')
+const ProductPositionsController = () => import('#controllers/cms/products/product_positions_controller')
+const ProductPublicationsController = () => import('#controllers/cms/products/product_publications_controller')
 const VouchersController = () => import('#controllers/cms/vouchers_controller')
 const FaqsController = () => import('#controllers/cms/faqs_controller')
 const BannerController = () => import('#controllers/cms/banners/banners_controller')
 const BannerOrdersController = () => import('#controllers/cms/banners/banner_orders_controller')
-
 const CmsDashboardUsersController = () => import('#controllers/cms/dashboard/users_controller')
-const CmsDashboardTransactionsController = () =>
-  import('#controllers/cms/dashboard/transactions_controller')
-const CmsDashboardProductsController = () =>
-  import('#controllers/cms/dashboard/products_controller')
+const CmsDashboardTransactionsController = () =>import('#controllers/cms/dashboard/transactions_controller')
+const CmsDashboardProductsController = () => import('#controllers/cms/dashboard/products_controller')
 const CmsDashboardCartsController = () => import('#controllers/cms/dashboard/carts_controller')
-
 const CmsSupportTicketController = () => import('#controllers/cms/support_tickets_controller')
 const CmsReviewsController = () => import('#controllers/cms/reviews_controller')
 const CmsTagController = () => import('#controllers/cms/tags_controller')
@@ -58,22 +45,18 @@ const CmsConcernController = () => import('#controllers/cms/concerns_controller'
 const CmsFlashSaleController = () => import('#controllers/cms/flashsales_controller')
 const CmsSaleController = () => import('#controllers/cms/sales_controller')
 const CmsTransactionsController = () => import('#controllers/cms/transactions_controller')
-
 const CmsProfileCategoriesController = () => import('#controllers/cms/profile_categories_controller')
-const CmsProfileCategoryOptionsController = () =>
-  import('#controllers/cms/profile_category_options_controller')
-
+const CmsProfileCategoryOptionsController = () =>import('#controllers/cms/profile_category_options_controller')
 const CmsConcernOptionController = () => import('#controllers/cms/concern_options_controller')
 const CmsStockMovementsController = () => import('#controllers/cms/stock_movements_controller')
 const CmsProductOnlinesController = () => import('#controllers/cms/product_onlines_controller')
 const CmsActivityLogsController = () => import('#controllers/cms/activity_logs_controller')
-
-const CmsRamadanRecommendationsController = () =>
-  import('#controllers/cms/ramadan/ramadan_recommendations_controller')
+const CmsRamadanRecommendationsController = () => import('#controllers/cms/ramadan/ramadan_recommendations_controller')
 
 // =========================
 // FRONTEND CONTROLLERS
 // =========================
+
 const FeCategoryTypesController = () => import('#controllers/frontend/category_types_controller')
 const FeVoucherController = () => import('#controllers/frontend/vouchers_controller')
 const FeProductController = () => import('#controllers/frontend/products_controller')
@@ -85,19 +68,12 @@ const FeHomeController = () => import('#controllers/frontend/home_controller')
 const FeBrandController = () => import('#controllers/frontend/brands_controller')
 const FePersonaController = () => import('#controllers/frontend/personas_controller')
 const FeConcernController = () => import('#controllers/frontend/concerns_controller')
-
-const FeTransactionCartController = () =>
-  import('#controllers/frontend/transaction_carts_controller')
+const FeTransactionCartController = () =>import('#controllers/frontend/transaction_carts_controller')
 const FeTagsController = () => import('#controllers/frontend/tags_controller')
-const FeUserBeautyProfilesController = () =>
-  import('#controllers/frontend/user_beauty_profiles_controller')
-const FeProductRecommendationsController = () =>
-  import('#controllers/frontend/product_recommendations_controller')
-const FeTransactionEcommerceController = () =>
-  import('#controllers/frontend/transaction_commerces_controller')
-const FeRamadanCheckinsController = () =>
-  import('#controllers/frontend/ramadan_checkins_controller')
-
+const FeUserBeautyProfilesController = () => import('#controllers/frontend/user_beauty_profiles_controller')
+const FeProductRecommendationsController = () => import('#controllers/frontend/product_recommendations_controller')
+const FeTransactionEcommerceController = () => import('#controllers/frontend/transaction_commerces_controller')
+const FeRamadanCheckinsController = () => import('#controllers/frontend/ramadan_checkins_controller')
 const OrdersController = () => import('#controllers/frontend/orders_controller')
 
 // =========================
@@ -110,7 +86,6 @@ const PosTransactionPosController = () => import('#controllers/pos/transaction_p
 // AUTH & UPLOAD CONTROLLERS
 // =========================
 const UploadsController = () => import('#controllers/upload_controller')
-
 const AuthSessionsController = () => import('#controllers/auth/auth_sessions_controller')
 const AuthRegistrationController = () => import('#controllers/auth/auth_registration_controller')
 const AuthPasswordResetController = () => import('#controllers/auth/auth_password_reset_controller')
@@ -122,26 +97,28 @@ const AuthAccountController = () => import('#controllers/auth/auth_account_contr
 router
   .group(() => {
     // =========================
-    // AUTH & UPLOAD
-    // =========================
-    router.post('/auth/login-google', [AuthSessionsController, 'loginGoogle'])
-    router.post('/auth/register', [AuthRegistrationController, 'register'])
-    router.post('/auth/verify-register', [AuthRegistrationController, 'verifyRegisterOtp'])
-    router.post('/auth/login', [AuthSessionsController, 'login'])
-    router.post('/auth/verify-login', [AuthSessionsController, 'verifyLoginOtp'])
-    router.post('/auth/login-admin', [AuthSessionsController, 'loginAdmin'])
-    router.post('/auth/login-cashier', [AuthSessionsController, 'loginCashier'])
+// AUTH & UPLOAD
+// =========================
 
-    router.post('/auth/forgot', [AuthPasswordResetController, 'requestForgotPassword'])
-    router
-      .get('/auth/forgot-password/:email/verify', [
-        AuthPasswordResetController,
-        'verifyForgotPassword',
-      ])
-      .as('verifyForgotPassword')
-    router.post('/auth/reset-password', [AuthPasswordResetController, 'resetPassword'])
-
-    router.post('/upload', [UploadsController, 'upload'])
+// Google Auth
+router.post('/auth/login-google', [AuthSessionsController, 'loginGoogle'])
+router.post('/auth/register-google', [AuthSessionsController, 'registerGoogle'])
+router.post('/auth/register/google', [AuthSessionsController, 'registerGoogle'])
+router.post('/auth/register', [AuthRegistrationController, 'register'])
+router.post('/auth/verify-register', [AuthRegistrationController, 'verifyRegisterOtp'])
+router.post('/auth/login', [AuthSessionsController, 'login'])
+router.post('/auth/verify-login', [AuthSessionsController, 'verifyLoginOtp'])
+router.post('/auth/login-admin', [AuthSessionsController, 'loginAdmin'])
+router.post('/auth/login-cashier', [AuthSessionsController, 'loginCashier'])
+router.post('/auth/forgot', [AuthPasswordResetController, 'requestForgotPassword'])
+router
+  .get('/auth/forgot-password/:email/verify', [
+    AuthPasswordResetController,
+    'verifyForgotPassword',
+  ])
+  .as('verifyForgotPassword')
+router.post('/auth/reset-password', [AuthPasswordResetController, 'resetPassword'])
+router.post('/upload', [UploadsController, 'upload'])
 
     // =========================
     // ADMIN CMS ROUTES
@@ -149,7 +126,6 @@ router
     router
       .group(() => {
         router.get('/ramadan-participants', [CmsRamadanParticipantsController, 'index'])
-
         router
           .group(() => {
             router.get('', [UsersController, 'getAdmin'])
@@ -163,7 +139,6 @@ router
           .prefix('/users')
 
         router.get('/customers', [CustomersController, 'getCustomers'])
-
         router
           .group(() => {
             router.get('', [CategoryTypesController, 'get'])
@@ -197,7 +172,6 @@ router
             router.post('/privacy-policy', [SettingsPoliciesController, 'createPrivacyPolicy'])
             router.get('/return-policy', [SettingsPoliciesController, 'getReturnPolicy'])
             router.post('/return-policy', [SettingsPoliciesController, 'createReturnPolicy'])
-
             router.get('/about-us', [SettingsPagesController, 'getAboutUs'])
             router.post('/about-us', [SettingsPagesController, 'createAboutUs'])
             router.get('/contact-us', [SettingsPagesController, 'getContactUs'])
@@ -224,14 +198,9 @@ router
             router.post('', [ProductController, 'create'])
             router.put('/:id', [ProductController, 'update'])
             router.delete('/:id', [ProductController, 'delete'])
-
-            // CSV import
             router.post('/import-csv', [ProductCsvImportController, 'import'])
-
-            // media upload (kalau memang ada di controller kamu)
             router.post('/:id/medias', [ProductController, 'uploadMedia'])
             router.post('/:id/medias/bulk', [ProductController, 'uploadMediaBulk'])
-
             router.get('/is-flashsale/list', [ProductFlashsaleController, 'getIsFlashsale'])
             router.post('/update-order', [ProductPositionsController, 'updateProductIndex'])
             router.post('/:id/publish', [ProductPublicationsController, 'publish'])
@@ -240,7 +209,6 @@ router
           .use(middleware.roleAdmin())
           .prefix('/product')
 
-        // ✅ INI BAGIAN YANG ERROR TADI - sekarang aman karena tidak ada redeclare
         router
           .group(() => {
             router.get('', [CmsProductOnlinesController, 'get'])
@@ -433,7 +401,6 @@ router
           })
           .prefix('/ramadan-recommendations')
 
-        // dashboard
         router.get('/total-user', [CmsDashboardUsersController, 'getTotalRegisterUser'])
         router.get('/total-register-user-period', [
           CmsDashboardUsersController,
@@ -471,7 +438,6 @@ router
     router.get('/category-types/:slug', [FeCategoryTypesController, 'show'])
     router.get('/products', [FeProductController, 'get'])
     router.get('/products/*', [FeProductController, 'show'])
-
     router.get('/banners', [FeHomeController, 'getBanner'])
     router.get('/tnc', [FeHomeController, 'getTermAndCondition'])
     router.get('/return-policy', [FeHomeController, 'getReturnPolicy'])
@@ -482,7 +448,6 @@ router
     router.get('/flashsale', [FeHomeController, 'getFlashSale'])
     router.get('/sale', [FeHomeController, 'getSale'])
     router.get('/sales', [FeHomeController, 'getSales'])
-
     router.get('/brands', [FeBrandController, 'list'])
     router.get('/brands/:slug', [FeBrandController, 'show'])
     router.get('/personas', [FePersonaController, 'list'])
@@ -491,7 +456,6 @@ router
     router.get('/concern/:slug', [FeConcernController, 'show'])
     router.get('/tags', [FeTagsController, 'list'])
     router.get('/tags/:slug', [FeTagsController, 'show'])
-
     router.post('/support-tickets', [FeSupportTicketController, 'create'])
 
     // =========================
@@ -505,25 +469,20 @@ router
         router.put('/profile/picture', [AuthAccountController, 'updateProfilePicture'])
         router.put('/profile/password', [AuthAccountController, 'updatePassword'])
         router.post('/profile/deactivate', [AuthAccountController, 'deactivateAccount'])
-
         router.post('/vouchers/validate', [FeVoucherController, 'validate'])
-
         router.get('/wishlists', [FeWishlist, 'get'])
         router.get('/wishlists/list', [FeWishlist, 'list'])
         router.post('/wishlists', [FeWishlist, 'create'])
         router.delete('/wishlists', [FeWishlist, 'delete'])
-
         router.get('/addresses', [UserAddressesController, 'list'])
         router.post('/addresses', [UserAddressesController, 'create'])
         router.put('/addresses', [UserAddressesController, 'update'])
         router.delete('/addresses', [UserAddressesController, 'delete'])
         router.get('/areas', [UserAddressesController, 'searchAreas'])
         router.post('/get-cost', [UserAddressesController, 'getCost'])
-
         router.get('/beauty', [FeUserBeautyProfilesController, 'getUserSelections'])
         router.post('/beauty/concerns', [FeUserBeautyProfilesController, 'saveConcerns'])
         router.post('/beauty/profiles', [FeUserBeautyProfilesController, 'saveProfiles'])
-
         router.get('/recommendations', [
           FeProductRecommendationsController,
           'getProductRecommendations',
@@ -551,11 +510,9 @@ router
         router.post('/cart/update-selection', [FeTransactionCartController, 'updateSelection'])
         router.get('/cart/get-total', [FeTransactionCartController, 'getTotal'])
         router.get('/cart/mini', [FeTransactionCartController, 'miniCart'])
-
         router.put('/cart/:id', [FeTransactionCartController, 'update'])
         router.patch('/cart/:id', [FeTransactionCartController, 'update'])
         router.delete('/cart/:id', [FeTransactionCartController, 'delete'])
-
         router.put('/cart', [FeTransactionCartController, 'update'])
         router.patch('/cart', [FeTransactionCartController, 'update'])
         router.delete('/cart', [FeTransactionCartController, 'delete'])
