@@ -14,7 +14,6 @@ import FlashSale from './flashsale.js'
 import ConcernOption from './concern_option.js'
 import ProfileCategoryOption from './profile_category_option.js'
 
-
 export default class Product extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
@@ -34,15 +33,14 @@ export default class Product extends BaseModel {
   @column()
   declare weight: number
 
-  @column({ columnName: 'is_flash_sale', consume: (v) => Boolean(v) })
-  declare isFlashSale: boolean
-
-@column({
+  // ✅ FIX: hanya satu kolom, parsing aman untuk 0/1 string/number
+  @column({
     columnName: 'is_flash_sale',
     consume: (v) => Boolean(Number(v)),
     prepare: (v) => (v ? 1 : 0),
   })
-  
+  declare isFlashSale: boolean
+
   @column()
   declare status: 'normal' | 'war' | 'draft'
 
@@ -127,23 +125,44 @@ export default class Product extends BaseModel {
   @column.dateTime()
   declare deletedAt: DateTime | null
 
+  // =========================
+  // SCOPES
+  // =========================
   public static active = scope((query) => {
     query.whereNull('products.deleted_at')
   })
 
   public static trashed = scope((query) => {
-    query.whereNotNull('deleted_at')
+    query.whereNotNull('products.deleted_at')
   })
 
   public static visible = scope((query) => {
     query
-      .whereNull('deleted_at')
+      .whereNull('products.deleted_at')
       .whereIn('status', ['normal', 'war'])
       .whereHas('variants' as any, (variantQuery) => {
         variantQuery.where('stock', '>', 0)
       })
   })
 
+  public static search = scope((query, keyword: string) => {
+    const k = String(keyword || '').trim()
+    if (!k) return
+
+    query.where((subQuery) => {
+      subQuery
+        .where('products.name', 'like', `%${k}%`)
+        .orWhere('products.slug', 'like', `%${k}%`)
+        .orWhere('products.master_sku', 'like', `%${k}%`)
+        .orWhereHas('variants' as any, (vq) => {
+          vq.where('sku', 'like', `%${k}%`)
+        })
+    })
+  })
+
+  // =========================
+  // SOFT DELETE HELPERS
+  // =========================
   public async softDelete() {
     this.deletedAt = DateTime.now()
     await this.save()
