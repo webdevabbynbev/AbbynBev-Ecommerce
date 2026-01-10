@@ -3,6 +3,10 @@
 import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MobileCartActionBar } from "@/components";
+import { Button } from "@/components";
+import { QuantityInput } from "@/components";
+import { Checkbox } from "@/components";
+import { formatToRupiah } from "@/utils";
 import axios from "@/lib/axios";
 import Image from "next/image";
 
@@ -107,12 +111,22 @@ export default function CartPage() {
       return;
     }
 
+    const prevCart = cart;
+
+    setCart((prev) =>
+      prev.map((x) =>
+        Number(x.id) === Number(item.id)
+          ? { ...x, qty: newQty, quantity: newQty, qtyCheckout: newQty }
+          : x
+      )
+    );
+
     try {
       setLoadingItemId(item.id);
       await axios.put(`/cart/${item.id}`, { qty: newQty });
-      await loadCart();
     } catch (err) {
       console.error("Error update qty:", err);
+      setCart(prevCart);
       alert(err?.response?.data?.message || "Gagal mengubah jumlah produk");
     } finally {
       setLoadingItemId(null);
@@ -194,17 +208,9 @@ export default function CartPage() {
   };
 
   return (
-    <div className="mx-auto px-4 w-auto py-10">
-      <div className="flex items-center justify-between mb-6 ">
+    <div className="mx-auto px-4 w-auto py-10 lg:max-w-6xl">
+      <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold">Cart</h1>
-
-        <button
-          onClick={handleCheckout}
-          disabled={selectedCount === 0 || loadingCheckout}
-          className="px-5 py-2 rounded-full bg-pink-600 text-white font-semibold disabled:opacity-40"
-        >
-          {loadingCheckout ? "Processing..." : `Checkout (${selectedCount})`}
-        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8">
@@ -212,12 +218,11 @@ export default function CartPage() {
         <div className="bg-white border rounded-xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                className="w-5 h-5 accent-pink-600 cursor-pointer"
+              <Checkbox
+                className="w-5 h-5"
                 checked={allSelected}
                 disabled={loadingCart}
-                onChange={(e) => toggleSelectAll(e.target.checked)}
+                onCheckedChange={(checked) => toggleSelectAll(checked === true)}
               />
               Select all
             </label>
@@ -272,12 +277,14 @@ export default function CartPage() {
                 className="flex justify-between mx-auto items-center border-b pb-4 mb-4 lg:max-w-6xl xl:max-w-7xl"
               >
                 <div className="flex gap-3 items-start lg:max-w-6xl xl:max-w-7xl justify-between">
-                  <input
-                    type="checkbox"
-                    className="mt-2 w-5 h-5 accent-pink-600 cursor-pointer"
+                  <Checkbox
+                    className="mt-2 w-4 h-4"
                     checked={!!id && isSelected(item)}
                     disabled={!id || busy || loadingCheckout}
-                    onChange={(e) => toggleSelect(id, e.target.checked)}
+                    onCheckedChange={(checked) => {
+                      if (!id) return;
+                      toggleSelect(id, checked === true);
+                    }}
                   />
 
                   <Image
@@ -288,51 +295,43 @@ export default function CartPage() {
                     className="rounded-sm"
                   />
 
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium truncate w-full">{productName}</p>
+                  <div className="w-full flex flex-col">
+                    <p className="font-medium line-clamp-1">{productName}</p>
                     <p className="text-sm text-gray-500">
                       Variant: {variantName}
                     </p>
 
                     <div className="mt-2 flex items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <button
-                          disabled={busy || quantity <= 1 || loadingCheckout}
-                          onClick={() => handleUpdateQty(item, quantity - 1)}
-                          className="w-7 h-7 flex items-center justify-center border rounded-full text-sm disabled:opacity-40"
-                        >
-                          -
-                        </button>
+                      <QuantityInput
+                        min={1}
+                        max={toNumber(
+                          item?.variant?.stock ?? product?.stock ?? 999999,
+                          999999
+                        )}
+                        value={quantity}
+                        disabled={busy || loadingCheckout}
+                        onChange={(newQty) => handleUpdateQty(item, newQty)}
+                      />
 
-                        <span className="min-w-8 text-center">{quantity}</span>
-
-                        <button
-                          disabled={busy || loadingCheckout}
-                          onClick={() => handleUpdateQty(item, quantity + 1)}
-                          className="w-7 h-7 flex items-center justify-center border rounded-full text-sm disabled:opacity-40"
-                        >
-                          +
-                        </button>
-                      </div>
-
-                      <button
+                      <Button
+                        variant="tertiary"
+                        size="sm"
                         disabled={busy || loadingCheckout}
                         onClick={() => handleDelete(item)}
-                        className="text-xs text-red-500 hover:underline disabled:opacity-40"
+                        className="text-xs hover:underline disabled:opacity-40"
                       >
                         Remove
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
-
-                <p className="font-semibold text-pink-600 text-right">
-                  Rp{" "}
-                  {toNumber(
-                    item.amount ?? item.price ?? product.price ?? 0,
-                    0
-                  ).toLocaleString("id-ID")}
-                </p>
+                <div className="w-100">
+                  <p className="font-semibold text-primary-700 text-right">
+                    {formatToRupiah(
+                      item.amount ?? item.price ?? product.price ?? 0
+                    )}
+                  </p>
+                </div>
               </div>
             );
           })}
@@ -340,27 +339,33 @@ export default function CartPage() {
 
         {/* RIGHT */}
         <div className="hidden w-full bg-white border rounded-2xl shadow-md p-6 h-fit lg:block">
-          <h2 className="text-xl font-semibold mb-6">Summary</h2>
+          <div className="flex flex-col gap-6">
+            <h2 className="text-xl font-semibold">Summary</h2>
 
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between">
-              <span>Selected item(s)</span>
-              <span>{selectedCount}</span>
+            <div className="flex flex-col gap-4 text-sm">
+              <div className="flex justify-between">
+                <span>Selected item(s)</span>
+                <span>{selectedCount}</span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Subtotal (selected)</span>
+                <span>Rp {selectedSubtotal.toLocaleString("id-ID")}</span>
+              </div>
             </div>
 
-            <div className="flex justify-between">
-              <span>Subtotal (selected)</span>
-              <span>Rp {selectedSubtotal.toLocaleString("id-ID")}</span>
-            </div>
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={handleCheckout}
+              disabled={selectedCount === 0 || loadingCheckout}
+              className="w-full"
+            >
+              {loadingCheckout
+                ? "Processing..."
+                : `Checkout (${selectedCount})`}
+            </Button>
           </div>
-
-          <button
-            onClick={handleCheckout}
-            disabled={selectedCount === 0 || loadingCheckout}
-            className="w-full mt-6 py-3 bg-pink-600 text-white rounded-full font-semibold disabled:opacity-40"
-          >
-            {loadingCheckout ? "Processing..." : "Checkout"}
-          </button>
 
           <p className="text-xs text-gray-400 mt-3">
             *Shipping & payment dipilih di halaman checkout.
