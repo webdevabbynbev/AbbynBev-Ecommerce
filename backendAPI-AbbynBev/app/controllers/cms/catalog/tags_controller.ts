@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import Tag from '#models/tag'
 import { storeTagValidator, updateTagValidator } from '#validators/tag'
 import emitter from '@adonisjs/core/services/emitter'
-import Helpers from '../../utils/helpers.js'
+import Helpers from '#utils/helpers'
 
 export default class TagsController {
   public async get({ response, request }: HttpContext) {

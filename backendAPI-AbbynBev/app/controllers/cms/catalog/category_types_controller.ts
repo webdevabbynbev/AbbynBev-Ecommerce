@@ -1,9 +1,10 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import Helpers from '../../utils/helpers.js'
+import Helpers from '#utils/helpers'
 import CategoryType from '#models/category_type'
 import { createCategoryType } from '#validators/category_types'
 import emitter from '@adonisjs/core/services/emitter'
-import { cloudinaryImageUrl } from '../../utils/cloudinary_url.js'
+import { cloudinaryImageUrl } from '#utils/cloudinary_url'
+
 
 export default class CategoryTypesController {
   public async get({ response, request }: HttpContext) {

@@ -1,8 +1,8 @@
 
 import type { HttpContext } from '@adonisjs/core/http'
-import { TransactionRepository } from '../../services/transaction/transaction_repository.js'
-import { AdminFulfillmentService } from '../../services/transaction/admin_fulfillment_service.js'
-import NumberUtils from '../../utils/number.js'
+import { TransactionRepository } from '#services/transaction/transaction_repository'
+import { AdminFulfillmentService } from '#services/transaction/admin_fulfillment_service'
+import NumberUtils from '#utils/number'
 
 export default class TransactionsController {
   private repo = new TransactionRepository()

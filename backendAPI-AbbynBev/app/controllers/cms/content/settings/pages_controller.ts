@@ -1,9 +1,9 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { SettingType } from '../../../enums/setting_types.js'
+import { SettingType } from '#enums/setting_types'
 import { TextSettingService } from '#services/cms/settings/text_setting_service'
 import { ActivityLogService } from '#services/activity_log_service'
 
-export default class SettingsPoliciesController {
+export default class SettingsPagesController {
   private svc = new TextSettingService()
 
   private async getByKey({ response }: HttpContext, key: SettingType) {
@@ -36,24 +36,17 @@ export default class SettingsPoliciesController {
     })
   }
 
-  public async getTermAndCondition(ctx: HttpContext) {
-    return this.getByKey(ctx, SettingType.TERM_AND_CONDITIONS)
+  public async getAboutUs(ctx: HttpContext) {
+    return this.getByKey(ctx, SettingType.ABOUT_US)
   }
-  public async createTermAndCondition(ctx: HttpContext) {
-    return this.upsertByKey(ctx, SettingType.TERM_AND_CONDITIONS, 'Term and Condition')
-  }
-
-  public async getReturnPolicy(ctx: HttpContext) {
-    return this.getByKey(ctx, SettingType.RETURN_POLICY)
-  }
-  public async createReturnPolicy(ctx: HttpContext) {
-    return this.upsertByKey(ctx, SettingType.RETURN_POLICY, 'Return Policy')
+  public async createAboutUs(ctx: HttpContext) {
+    return this.upsertByKey(ctx, SettingType.ABOUT_US, 'About Us')
   }
 
-  public async getPrivacyPolicy(ctx: HttpContext) {
-    return this.getByKey(ctx, SettingType.PRIVACY_POLICY)
+  public async getContactUs(ctx: HttpContext) {
+    return this.getByKey(ctx, SettingType.CONTACT_US)
   }
-  public async createPrivacyPolicy(ctx: HttpContext) {
-    return this.upsertByKey(ctx, SettingType.PRIVACY_POLICY, 'Privacy Policy')
+  public async createContactUs(ctx: HttpContext) {
+    return this.upsertByKey(ctx, SettingType.CONTACT_US, 'Contact Us')
   }
 }

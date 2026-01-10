@@ -8,7 +8,7 @@ import type { CmsProductUpsertPayload } from '#services/product/product_cms_serv
 
 import ProductMedia from '#models/product_media'
 
-import FileUploadService from '../../../utils/upload_file_service.js'
+import FileUploadService from '#utils/upload_file_service'
 
 export default class ProductsController {
   private productService = new ProductService()

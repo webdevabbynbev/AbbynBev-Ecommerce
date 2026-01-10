@@ -15,7 +15,6 @@ import { UserRepository } from '#services/user/user_repository'
 export default class AuthSessionsController {
   private userRepo = new UserRepository()
 
-  // ✅ cookie name harus konsisten sama middleware nanti
   private authCookieName = 'auth_token'
 
   private authCookieOptions = {
@@ -38,9 +37,6 @@ export default class AuthSessionsController {
     })
   }
 
-  /**
-   * helper: hapus serve.token dari payload supaya token tidak muncul di response body
-   */
   private stripTokenFromPayload(payload: any) {
     const cloned = { ...payload, serve: { ...(payload?.serve ?? {}) } }
     if (cloned?.serve) delete cloned.serve.token
@@ -57,30 +53,31 @@ export default class AuthSessionsController {
       const token = result.payload?.serve?.token
       if (token) this.setAuthCookie(response, token, 60 * 60 * 24)
 
-      return response.ok(this.stripTokenFromPayload(result.payload))
+      return response.ok(result.payload)
     } catch (error) {
       return internalError(response, error)
     }
   }
 
   public async loginAdmin({ request, response }: HttpContext) {
-    try {
-      const { email, password } = request.only(['email', 'password'])
-      const result = await AuthLoginService.loginAdmin(email, password)
+  try {
+    const { email, password } = request.only(['email', 'password'])
+    const result = await AuthLoginService.loginAdmin(email, password)
 
-      if (!result.ok) {
-        const fn = result.errorType === 'badRequest400' ? badRequest400 : badRequest
-        return fn(response, result.message)
-      }
-
-      const token = result.payload?.serve?.token
-      if (token) this.setAuthCookie(response, token, 60 * 60 * 24)
-
-      return response.ok(this.stripTokenFromPayload(result.payload))
-    } catch (error) {
-      return internalError(response, error)
+    if (!result.ok) {
+      const fn = result.errorType === 'badRequest400' ? badRequest400 : badRequest
+      return fn(response, result.message)
     }
+
+    const token = result.payload?.serve?.token
+    if (token) this.setAuthCookie(response, token, 60 * 60 * 24)
+
+    return response.ok(result.payload)
+  } catch (error) {
+    return internalError(response, error)
   }
+}
+
 
   public async login({ request, response }: HttpContext) {
     try {
@@ -127,7 +124,6 @@ export default class AuthSessionsController {
         serve: true,
       })
     } catch (error) {
-      // tetap lihat best-effort: clear cookie
       this.clearAuthCookie(response)
       return internalError(response, error)
     }

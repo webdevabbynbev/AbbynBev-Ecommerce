@@ -15,43 +15,63 @@ import { Role } from '../app/enums/role.js'
 // CMS / ADMIN CONTROLLERS (DECLARE ONCE ONLY)
 // =========================
 
-const CmsRamadanParticipantsController = () => import('#controllers/cms/ramadan/ramadan_participants_controller')
+// events
+const CmsRamadanParticipantsController = () => import('#controllers/cms/events/ramadan/ramadan_participants_controller')
+const CmsRamadanRecommendationsController = () => import('#controllers/cms/events/ramadan/ramadan_recommendations_controller')
+
+// users
 const UsersController = () => import('#controllers/cms/users/admin_users_controller')
 const CustomersController = () => import('#controllers/cms/users/customers_controller')
-const CategoryTypesController = () => import('#controllers/cms/category_types_controller')
-const SettingCmsController = () => import('#controllers/cms/setting_cms_controller')
-const SettingsPoliciesController = () => import('#controllers/cms/settings/policies_controller')
-const SettingsPagesController = () => import('#controllers/cms/settings/pages_controller')
-const AttributesController = () => import('#controllers/cms/attributes_controller')
-const ProductController = () => import('#controllers/cms/products/products_controller')
-const ProductCsvImportController = () => import('#controllers/cms/products/product_csv_import_controller')
-const ProductFlashsaleController = () => import('#controllers/cms/products/product_flashsale_controller')
-const ProductPositionsController = () => import('#controllers/cms/products/product_positions_controller')
-const ProductPublicationsController = () => import('#controllers/cms/products/product_publications_controller')
-const VouchersController = () => import('#controllers/cms/vouchers_controller')
-const FaqsController = () => import('#controllers/cms/faqs_controller')
-const BannerController = () => import('#controllers/cms/banners/banners_controller')
-const BannerOrdersController = () => import('#controllers/cms/banners/banner_orders_controller')
-const CmsDashboardUsersController = () => import('#controllers/cms/dashboard/users_controller')
-const CmsDashboardTransactionsController = () =>import('#controllers/cms/dashboard/transactions_controller')
-const CmsDashboardProductsController = () => import('#controllers/cms/dashboard/products_controller')
-const CmsDashboardCartsController = () => import('#controllers/cms/dashboard/carts_controller')
-const CmsSupportTicketController = () => import('#controllers/cms/support_tickets_controller')
-const CmsReviewsController = () => import('#controllers/cms/reviews_controller')
-const CmsTagController = () => import('#controllers/cms/tags_controller')
-const CmsBrandController = () => import('#controllers/cms/brands_controller')
-const CmsPersonaController = () => import('#controllers/cms/personas_controller')
-const CmsConcernController = () => import('#controllers/cms/concerns_controller')
-const CmsFlashSaleController = () => import('#controllers/cms/flashsales_controller')
-const CmsSaleController = () => import('#controllers/cms/sales_controller')
-const CmsTransactionsController = () => import('#controllers/cms/transactions_controller')
-const CmsProfileCategoriesController = () => import('#controllers/cms/profile_categories_controller')
-const CmsProfileCategoryOptionsController = () =>import('#controllers/cms/profile_category_options_controller')
-const CmsConcernOptionController = () => import('#controllers/cms/concern_options_controller')
-const CmsStockMovementsController = () => import('#controllers/cms/stock_movements_controller')
-const CmsProductOnlinesController = () => import('#controllers/cms/product_onlines_controller')
-const CmsActivityLogsController = () => import('#controllers/cms/activity_logs_controller')
-const CmsRamadanRecommendationsController = () => import('#controllers/cms/ramadan/ramadan_recommendations_controller')
+
+// catalog
+const CategoryTypesController = () => import('#controllers/cms/catalog/category_types_controller')
+const AttributesController = () => import('#controllers/cms/catalog/attributes_controller')
+const CmsTagController = () => import('#controllers/cms/catalog/tags_controller')
+const CmsBrandController = () => import('#controllers/cms/catalog/brands_controller')
+const CmsPersonaController = () => import('#controllers/cms/catalog/personas_controller')
+const CmsConcernController = () => import('#controllers/cms/catalog/concerns_controller')
+const CmsConcernOptionController = () => import('#controllers/cms/catalog/concern_options_controller')
+const CmsProfileCategoriesController = () => import('#controllers/cms/catalog/profile_categories_controller')
+const CmsProfileCategoryOptionsController = () => import('#controllers/cms/catalog/profile_category_options_controller')
+
+// catalog/products
+const ProductController = () => import('#controllers/cms/catalog/products/products_controller')
+const ProductCsvImportController = () => import('#controllers/cms/catalog/products/product_csv_import_controller')
+const ProductFlashsaleController = () => import('#controllers/cms/catalog/products/product_flashsale_controller')
+const ProductPositionsController = () => import('#controllers/cms/catalog/products/product_positions_controller')
+const ProductPublicationsController = () => import('#controllers/cms/catalog/products/product_publications_controller')
+
+// promotions
+const VouchersController = () => import('#controllers/cms/promotions/vouchers_controller')
+const CmsFlashSaleController = () => import('#controllers/cms/promotions/flashsales_controller')
+const CmsSaleController = () => import('#controllers/cms/promotions/sales_controller')
+
+// inventory
+const CmsStockMovementsController = () => import('#controllers/cms/inventory/stock_movements_controller')
+const CmsProductOnlinesController = () => import('#controllers/cms/inventory/product_onlines_controller')
+
+// content
+const SettingCmsController = () => import('#controllers/cms/content/setting_cms_controller')
+const SettingsPoliciesController = () => import('#controllers/cms/content/settings/policies_controller')
+const SettingsPagesController = () => import('#controllers/cms/content/settings/pages_controller')
+const FaqsController = () => import('#controllers/cms/content/faqs_controller')
+const BannerController = () => import('#controllers/cms/content/banners/banners_controller')
+const BannerOrdersController = () => import('#controllers/cms/content/banners/banner_orders_controller')
+
+// orders
+const CmsSupportTicketController = () => import('#controllers/cms/orders/support_tickets_controller')
+const CmsReviewsController = () => import('#controllers/cms/orders/reviews_controller')
+const CmsTransactionsController = () => import('#controllers/cms/orders/transactions_controller')
+
+// analytics/dashboard
+const CmsDashboardUsersController = () => import('#controllers/cms/analytics/dashboard/users_controller')
+const CmsDashboardTransactionsController = () => import('#controllers/cms/analytics/dashboard/transactions_controller')
+const CmsDashboardProductsController = () => import('#controllers/cms/analytics/dashboard/products_controller')
+const CmsDashboardCartsController = () => import('#controllers/cms/analytics/dashboard/carts_controller')
+
+// system
+const CmsActivityLogsController = () => import('#controllers/cms/system/activity_logs_controller')
+
 
 // =========================
 // FRONTEND CONTROLLERS
