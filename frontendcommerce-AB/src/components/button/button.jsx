@@ -16,7 +16,7 @@ export function Button({
   const baseStyles =
     "inline-flex items-center justify-center font-bold rounded-[24px] " +
     "p-0 leading-none select-none transition-colors " +
-    "disabled:opacity-50 disabled:cursor-not-allowed";
+    "disabled:opacity-50 disabled:bg-neutral-100 disabled:cursor-not-allowed disabled:text-neutral-400";
 
   const variants = {
     primary:
