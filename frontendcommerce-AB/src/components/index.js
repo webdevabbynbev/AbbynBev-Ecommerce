@@ -28,6 +28,7 @@ export { AddressCard } from "../app/account/AddressCard.jsx";
 export { Checkbox } from "./ui/Checkbox.jsx";
 export { LoadingSpinner } from "./loading/loadingSpinner.jsx";
 export { SubList } from "./filter/subList.jsx";
+export { Textarea } from "./input/textarea.jsx";
 export { NestedSection } from "./filter/nestedSection.jsx";
 export { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/Tabs.jsx";
 export {
