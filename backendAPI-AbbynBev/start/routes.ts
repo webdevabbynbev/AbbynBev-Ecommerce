@@ -18,7 +18,7 @@ import { Role } from '../app/enums/role.js'
 // events
 const CmsRamadanParticipantsController = () => import('#controllers/cms/events/ramadan/ramadan_participants_controller')
 const CmsRamadanRecommendationsController = () => import('#controllers/cms/events/ramadan/ramadan_recommendations_controller')
-
+const CmsRamadanSpinPrizesController = () => import('#controllers/cms/events/ramadan/ramadan_spin_prizes_controller')
 // users
 const UsersController = () => import('#controllers/cms/users/admin_users_controller')
 const CustomersController = () => import('#controllers/cms/users/customers_controller')
@@ -77,23 +77,32 @@ const CmsActivityLogsController = () => import('#controllers/cms/system/activity
 // FRONTEND CONTROLLERS
 // =========================
 
-const FeCategoryTypesController = () => import('#controllers/frontend/category/category_types_controller')
+const FeCategoryTypesController = () =>
+  import('#controllers/frontend/category/category_types_controller')
 const FeVoucherController = () => import('#controllers/frontend/vouchers/vouchers_controller')
 const FeProductController = () => import('#controllers/frontend/products/products_controller')
 const FeReviewController = () => import('#controllers/frontend/reviews/reviews_controller')
 const FeWishlist = () => import('#controllers/frontend/wishlist/wishlists_controller')
-const FeSupportTicketController = () => import('#controllers/frontend/support/support_tickets_controller')
+const FeSupportTicketController = () =>
+  import('#controllers/frontend/support/support_tickets_controller')
 const UserAddressesController = () => import('#controllers/frontend/user/user_addresses_controller')
 const FeHomeController = () => import('#controllers/frontend/home/home_controller')
 const FeBrandController = () => import('#controllers/frontend/brands/brands_controller')
 const FePersonaController = () => import('#controllers/frontend/personas/personas_controller')
 const FeConcernController = () => import('#controllers/frontend/concerns/concerns_controller')
-const FeTransactionCartController = () =>import('#controllers/frontend/transaction/transaction_carts_controller')
+const FeTransactionCartController = () =>
+  import('#controllers/frontend/transaction/transaction_carts_controller')
 const FeTagsController = () => import('#controllers/frontend/tags/tags_controller')
-const FeUserBeautyProfilesController = () => import('#controllers/frontend/user/user_beauty_profiles_controller')
-const FeProductRecommendationsController = () => import('#controllers/frontend/products/products_recommendations_controller')
-const FeTransactionEcommerceController = () => import('#controllers/frontend/transaction/transaction_commerces_controller')
-const FeRamadanCheckinsController = () => import('#controllers/frontend/ramadan/ramadan_checkins_controller')
+const FeUserBeautyProfilesController = () =>
+  import('#controllers/frontend/user/user_beauty_profiles_controller')
+const FeProductRecommendationsController = () =>
+  import('#controllers/frontend/products/products_recommendations_controller')
+const FeTransactionEcommerceController = () =>
+  import('#controllers/frontend/transaction/transaction_commerces_controller')
+const FeRamadanCheckinsController = () =>
+  import('#controllers/frontend/ramadan/ramadan_checkins_controller')
+const FeRamadanSpinController = () =>
+  import('#controllers/frontend/ramadan/ramadan_spin_controller')
 const OrdersController = () => import('#controllers/frontend/orders/orders_controller')
 
 // =========================
@@ -117,29 +126,29 @@ const AuthAccountController = () => import('#controllers/auth/auth_account_contr
 router
   .group(() => {
     // =========================
-// AUTH & UPLOAD
-// =========================
+    // AUTH & UPLOAD
+    // =========================
 
-// Google Auth
-router.post('/auth/login-google', [AuthSessionsController, 'loginGoogle'])
-router.post('/auth/register-google', [AuthSessionsController, 'registerGoogle'])
-router.post('/auth/register/google', [AuthSessionsController, 'registerGoogle'])
-router.post('/auth/register', [AuthRegistrationController, 'register'])
-router.post('/auth/verify-register', [AuthRegistrationController, 'verifyRegisterOtp'])
-router.post('/auth/login', [AuthSessionsController, 'login'])
-router.post('/auth/verify-login', [AuthSessionsController, 'verifyLoginOtp'])
-router.post('/auth/login-admin', [AuthSessionsController, 'loginAdmin'])
-router.post('/auth/login-cashier', [AuthSessionsController, 'loginCashier'])
-router.post('/auth/forgot', [AuthPasswordResetController, 'requestForgotPassword'])
+    // Google Auth
+    router.post('/auth/login-google', [AuthSessionsController, 'loginGoogle'])
+    router.post('/auth/register-google', [AuthSessionsController, 'registerGoogle'])
+    router.post('/auth/register/google', [AuthSessionsController, 'registerGoogle'])
+    router.post('/auth/register', [AuthRegistrationController, 'register'])
+    router.post('/auth/verify-register', [AuthRegistrationController, 'verifyRegisterOtp'])
+    router.post('/auth/login', [AuthSessionsController, 'login'])
+    router.post('/auth/verify-login', [AuthSessionsController, 'verifyLoginOtp'])
+    router.post('/auth/login-admin', [AuthSessionsController, 'loginAdmin'])
+    router.post('/auth/login-cashier', [AuthSessionsController, 'loginCashier'])
+    router.post('/auth/forgot', [AuthPasswordResetController, 'requestForgotPassword'])
 
-router
-  .get('/auth/forgot-password/:email/verify', [
-    AuthPasswordResetController,
-    'verifyForgotPassword',
-  ])
-  .as('verifyForgotPassword')
-router.post('/auth/reset-password', [AuthPasswordResetController, 'resetPassword'])
-router.post('/upload', [UploadsController, 'upload'])
+    router
+      .get('/auth/forgot-password/:email/verify', [
+        AuthPasswordResetController,
+        'verifyForgotPassword',
+      ])
+      .as('verifyForgotPassword')
+    router.post('/auth/reset-password', [AuthPasswordResetController, 'resetPassword'])
+    router.post('/upload', [UploadsController, 'upload'])
 
     // =========================
     // ADMIN CMS ROUTES
@@ -421,6 +430,14 @@ router.post('/upload', [UploadsController, 'upload'])
             router.delete('/:id', [CmsRamadanRecommendationsController, 'destroy'])
           })
           .prefix('/ramadan-recommendations')
+        router
+          .group(() => {
+            router.get('/', [CmsRamadanSpinPrizesController, 'index'])
+            router.post('/', [CmsRamadanSpinPrizesController, 'store'])
+            router.put('/:id', [CmsRamadanSpinPrizesController, 'update'])
+            router.delete('/:id', [CmsRamadanSpinPrizesController, 'destroy'])
+          })
+          .prefix('/ramadan-spin-prizes')
 
         router.get('/total-user', [CmsDashboardUsersController, 'getTotalRegisterUser'])
         router.get('/total-register-user-period', [
@@ -428,7 +445,10 @@ router.post('/upload', [UploadsController, 'upload'])
           'getTotalRegisterUserByPeriod',
         ])
 
-        router.get('/total-transaction', [CmsDashboardTransactionsController, 'getTotalTransaction'])
+        router.get('/total-transaction', [
+          CmsDashboardTransactionsController,
+          'getTotalTransaction',
+        ])
         router.get('/total-transaction-month', [
           CmsDashboardTransactionsController,
           'getTotalTransactionByMonth',
@@ -559,12 +579,17 @@ router.post('/upload', [UploadsController, 'upload'])
         router.get('/ramadan/checkin/status', [FeRamadanCheckinsController, 'status'])
         router.post('/ramadan/checkin', [FeRamadanCheckinsController, 'checkin'])
         router.post('/ramadan/checkin/exempt', [FeRamadanCheckinsController, 'exempt'])
+        router.get('/ramadan/spin/status', [FeRamadanSpinController, 'status'])
+        router.post('/ramadan/spin', [FeRamadanSpinController, 'spin'])
       })
       .use(middleware.auth({ guards: ['api'] }))
 
     router.put('/transaction/status', [FeTransactionEcommerceController, 'updateWaybillStatus'])
     router.post('/transaction/pickup', [FeTransactionEcommerceController, 'requestPickup'])
-    router.post('/transaction/retrieve', [FeTransactionEcommerceController, 'getByTransactionNumber'])
+    router.post('/transaction/retrieve', [
+      FeTransactionEcommerceController,
+      'getByTransactionNumber',
+    ])
     router.post('/midtrans/callback', [FeTransactionEcommerceController, 'webhookMidtrans'])
 
     // =========================
@@ -575,7 +600,10 @@ router.post('/upload', [UploadsController, 'upload'])
         router.get('/orders', [OrdersController, 'index'])
         router.get('/orders/:transactionNumber', [OrdersController, 'show'])
         router.put('/orders/:transactionNumber/confirm', [OrdersController, 'confirm'])
-        router.put('/orders/:transactionNumber/refresh-tracking', [OrdersController, 'refreshTracking'])
+        router.put('/orders/:transactionNumber/refresh-tracking', [
+          OrdersController,
+          'refreshTracking',
+        ])
       })
       .use(middleware.auth())
 

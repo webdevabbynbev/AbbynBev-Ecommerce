@@ -1,5 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { CartService } from '#services/cart/cart_service'
+import { CartService } from '../../../services/cart/cart_service.js'
 
 export default class TransactionCartsController {
   private cartService = new CartService()
