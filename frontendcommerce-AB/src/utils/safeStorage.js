@@ -1,7 +1,9 @@
 /**
- * Wrapper untuk localStorage/sessionStorage yang:
+ * Wrapper untuk storage berbasis cookie HttpOnly yang:
  * 1. Mencegah menyimpan URLs eksternal
  * 2. Logging akses untuk debugging
+ *
+ * Catatan: Cookie HttpOnly harus di-set oleh server (via API route).
  */
 
 const URL_PATTERN = /^https?:\/\//i;
@@ -24,29 +26,38 @@ function sanitizeValue(value, key = "") {
 }
 
 export const safeLocalStorage = {
-  setItem(key, value) {
+  async setItem(key, value) {
     const sanitized = sanitizeValue(value, key);
     if (sanitized !== null && sanitized !== undefined) {
       try {
-        localStorage.setItem(key, sanitized);
+        await fetch("/api/storage", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key, value: sanitized }),
+        });
       } catch (e) {
         console.error("[safeStorage] Failed to set item:", key, e);
       }
     }
   },
 
-  getItem(key) {
+  async getItem(key) {
     try {
-      return localStorage.getItem(key);
+      const res = await fetch(`/api/storage?key=${encodeURIComponent(key)}`);
+      if (!res.ok) return null;
+      const payload = await res.json();
+      return payload?.value ?? null;
     } catch (e) {
       console.error("[safeStorage] Failed to get item:", key, e);
       return null;
     }
   },
 
-  removeItem(key) {
+  async removeItem(key) {
     try {
-      localStorage.removeItem(key);
+      await fetch(`/api/storage?key=${encodeURIComponent(key)}`, {
+        method: "DELETE",
+      });
     } catch (e) {
       console.error("[safeStorage] Failed to remove item:", key, e);
     }

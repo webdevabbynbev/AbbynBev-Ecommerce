@@ -1,94 +1,20 @@
-"use client";
+import NewArrivalClient from "./newArrivalClient";
 
-import { Fragment, useEffect, useState } from "react";
-import { LoadingSpinner, NewArrivaleCard } from "@/components";
-import { getProducts } from "@/services/api/product.services";
-import { getBrands } from "@/services/api/brands.services";
+export const metadata = {
+  title: "New Arrival",
+
+  description:
+    "Produk baru sudah ready di beauty store Abby n Bev! Dari makeup sampai skincare terbaru yang siap kamu coba sebelum jadi viral.",
+
+  openGraph: {
+    title: "Abby n Bev - Makeup & Skincare Terbaik di Indonesia",
+    description:
+      "Produk baru sudah ready di beauty store Abby n Bev! Dari makeup sampai skincare terbaru yang siap kamu coba sebelum jadi viral.",
+    siteName: "Abby n Bev",
+    type: "website",
+  },
+};
 
 export default function NewArrivalPage() {
-  const sections = [];
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [Brands, setBrands] = useState([]);
-  const [Meta, setMeta] = useState({});
-  const page = 1;
-  const itemsPerPage = 16; // <- sesuaikan kebutuhan
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-
-        const [resProducts, resBrands] = await Promise.all([
-          getProducts({ page, per_page: itemsPerPage }),
-          getBrands(),
-        ]);
-
-        setProducts(resProducts.data || []);
-        setMeta(resProducts.meta || {});
-        setBrands(resBrands.data || []);
-      } catch (error) {
-        console.error("Gagal mengambil data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [page, itemsPerPage]);
-
-  for (let i = 0; i < products.length; i += 5) {
-    sections.push(products.slice(i, i + 5));
-  }
-
-  return (
-    <div className="max-w-7xl mx-auto px-8 py-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-neutral-900 mb-1">
-          New arrivals
-        </h1>
-        <p className="text-sm text-neutral-500">
-          Produk-produk terbaru yang baru saja hadir di Abby N Bev.
-        </p>
-      </div>
-
-      {loading ? (
-        <LoadingSpinner />
-      ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5 auto-rows-fr grid-flow-dense">
-          {sections.map((group, index) => {
-            const isFullSection = group.length === 5;
-            const hero = isFullSection ? group[0] : null;
-            const rest = isFullSection ? group.slice(1) : group;
-            const isHeroLeft = index % 2 === 0;
-
-            return (
-              <Fragment key={index}>
-                {isHeroLeft && hero && (
-                  <div className="col-span-2 row-span-2">
-                    <NewArrivaleCard product={hero} />
-                  </div>
-                )}
-
-                {rest.map((product) => (
-                  <div
-                    key={product.id}
-                    className="rounded-xl border border-neutral-200 hover:shadow-sm transition-shadow overflow-hidden"
-                  >
-                    <NewArrivaleCard product={product} />
-                  </div>
-                ))}
-
-                {!isHeroLeft && hero && (
-                  <div className="col-span-2 row-span-2">
-                    <NewArrivaleCard product={hero} />
-                  </div>
-                )}
-              </Fragment>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+  return <NewArrivalClient />;
 }

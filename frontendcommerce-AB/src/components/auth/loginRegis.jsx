@@ -69,7 +69,6 @@ export function LoginRegisModalForm() {
     try {
       const data = await loginUser(loginId, loginPassword);
 
-      const token = data?.serve?.token;
       const user = data?.serve?.data;
 
       if (token && user) {
@@ -127,11 +126,10 @@ export function LoginRegisModalForm() {
         otp
       );
 
-      const token = data?.serve?.token;
       const user = data?.serve?.data;
 
-      if (token && user) {
-        login({ user, token });
+      if (user) {
+        login({ user, token: null });
         router.push("/account/profile");
         return;
       }
@@ -158,7 +156,6 @@ export function LoginRegisModalForm() {
       const data = await LoginGoogle(token, mode);
 
       const user = data?.serve?.data;
-      const accessToken = data?.serve?.token;
 
       const isNewUser = !!data?.serve?.is_new_user;
       const needsProfile = !!data?.serve?.needs_profile_completion;

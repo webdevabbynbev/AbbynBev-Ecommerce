@@ -52,11 +52,15 @@ export default function BrandDetailClient({ brandData }) {
 
         {/* Brand info */}
         <div className="w-full flex flex-col md:flex-row md:items-center gap-10">
-          <div className="h-[150px] w-[150px] flex items-center justify-center rounded-xl bg-white shadow">
+          <div className="h-37.5 w-37.5 flex items-center justify-center rounded-xl bg-white shadow">
             <img
               src={`/${brandData.logo}`}
               alt={brandData.brandname}
-              className="p-2 max-h-[150px] max-w-[150px] object-contain"
+              className="p-2 max-h-37.5 max-w-37.5 object-contain"
+              onError={(e) => {
+                e.currentTarget.src =
+                  "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
+              }}
             />
           </div>
           <div className="flex flex-col space-y-3 w-full">
@@ -67,7 +71,7 @@ export default function BrandDetailClient({ brandData }) {
 
         <div className="flex w-full justify-between">
           {/* Sidebar filter */}
-          <div className="w-[400px] pr-5 py-6">
+          <div className="w-100 pr-5 py-6">
             <Filter showBrandFilter={false} className="w-full py-24" />
           </div>
 
@@ -79,7 +83,7 @@ export default function BrandDetailClient({ brandData }) {
                 iconLeftName="MagnifyingGlass"
                 variant="outline"
                 size="md"
-                className="w-full min-w-[280px]"
+                className="w-full min-w-70"
               />
             </div>
 

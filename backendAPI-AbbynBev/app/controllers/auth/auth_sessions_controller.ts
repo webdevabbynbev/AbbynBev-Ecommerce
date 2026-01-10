@@ -14,6 +14,20 @@ import { UserRepository } from '#services/user/user_repository'
 
 export default class AuthSessionsController {
   private userRepo = new UserRepository()
+  private authCookieName = 'auth_token'
+  private authCookieOptions = {
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure: env.get('NODE_ENV') === 'production',
+    path: '/',
+  }
+
+  private setAuthCookie(response: HttpContext['response'], token: string, maxAgeSeconds: number) {
+    response.cookie(this.authCookieName, token, {
+      ...this.authCookieOptions,
+      maxAge: maxAgeSeconds,
+    })
+  }
 
   public async loginCashier({ request, response }: HttpContext) {
     try {
@@ -21,7 +35,15 @@ export default class AuthSessionsController {
       const result = await AuthLoginService.loginCashier(email, password)
 
       if (!result.ok) return badRequest(response, result.message)
-      return response.ok(result.payload)
+      const token = result.payload?.serve?.token
+      if (token) {
+        this.setAuthCookie(response, token, 60 * 60 * 24)
+      }
+      const payload = { ...result.payload, serve: { ...result.payload?.serve } }
+      if (payload.serve) {
+        delete payload.serve.token
+      }
+      return response.ok(payload)
     } catch (error) {
       return internalError(response, error)
     }
@@ -36,8 +58,15 @@ export default class AuthSessionsController {
         const fn = result.errorType === 'badRequest400' ? badRequest400 : badRequest
         return fn(response, result.message)
       }
-
-      return response.ok(result.payload)
+      const token = result.payload?.serve?.token
+      if (token) {
+        this.setAuthCookie(response, token, 60 * 60 * 24)
+      }
+      const payload = { ...result.payload, serve: { ...result.payload?.serve } }
+      if (payload.serve) {
+        delete payload.serve.token
+      }
+      return response.ok(payload)
     } catch (error) {
       return internalError(response, error)
     }
@@ -51,7 +80,16 @@ export default class AuthSessionsController {
       const result = await AuthLoginService.loginCustomer(email_or_phone, password, rememberMe)
       if (!result.ok) return badRequest(response, result.message)
 
-      return response.ok(result.payload)
+      const token = result.payload?.serve?.token
+      if (token) {
+        const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24
+        this.setAuthCookie(response, token, maxAge)
+      }
+      const payload = { ...result.payload, serve: { ...result.payload?.serve } }
+      if (payload.serve) {
+        delete payload.serve.token
+      }
+      return response.ok(payload)
     } catch (error) {
       console.error(error)
       return internalError(response, error)
@@ -72,6 +110,9 @@ export default class AuthSessionsController {
     const token = await user.currentAccessToken
     await User.accessTokens.delete(user, token.identifier)
 
+    response.clearCookie(this.authCookieName, {
+      ...this.authCookieOptions,
+    })
     return response.status(200).send({
       message: 'Logged out successfully.',
       serve: true,
@@ -226,8 +267,10 @@ export default class AuthSessionsController {
       }
 
       const tokenLogin = await this.generateToken(user)
-      const needsProfile = isNewUser ? true : this.needsProfileCompletion(user)
-
+      if (tokenLogin) {
+        this.setAuthCookie(response, tokenLogin, 60 * 60 * 24)
+      }
+      
       return response.ok({
         message: 'Ok',
         serve: {
@@ -247,9 +290,6 @@ export default class AuthSessionsController {
               'updatedAt',
             ],
           }),
-          token: tokenLogin,
-          is_new_user: isNewUser,
-          needs_profile_completion: needsProfile,
         },
       })
     } catch (e: any) {
