@@ -8,7 +8,8 @@ import { defineConfig } from '@adonisjs/cors'
  */
 const corsConfig = defineConfig({
   enabled: true,
-  origin: ['http://localhost:3000', 'http://localhost:5173'],
+  origin: ['http://localhost:5173',
+    'http://127.0.0.1:5173'],
   credentials: true,
   methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   headers: true,
