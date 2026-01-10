@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
-import { importProductCSV } from "../../services/api/product.services";
+import { importProductCSV } from '../../services/api/product.services'
 
 interface Props {
   open: boolean
@@ -17,6 +17,18 @@ export default function ProductCsvUpload({
 }: Props) {
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
+
+  // 👉 ref untuk input file
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  // 👉 auto open file picker saat modal dibuka
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => {
+        fileInputRef.current?.click()
+      }, 100)
+    }
+  }, [open])
 
   async function handleUpload() {
     if (!file) {
@@ -48,6 +60,7 @@ export default function ProductCsvUpload({
           </Dialog.Title>
 
           <input
+            ref={fileInputRef}
             type="file"
             accept=".csv"
             onChange={(e) => setFile(e.target.files?.[0] || null)}
@@ -59,6 +72,7 @@ export default function ProductCsvUpload({
               type="button"
               onClick={() => onOpenChange(false)}
               className="rounded border px-4 py-2"
+              disabled={loading}
             >
               Cancel
             </button>
