@@ -12,10 +12,15 @@ import {
   subMonths,
 } from "date-fns";
 import axios from "@/lib/axios";
-import { Wheel } from "react-custom-roulette";
+import dynamic from "next/dynamic";
+
 // Import Icon untuk Popup
 import { X, ShoppingBag, ChevronRight } from "lucide-react";
 
+const Wheel = dynamic(
+  () => import("react-custom-roulette").then((mod) => mod.Wheel),
+  { ssr: false }
+);
 // ... (Kode Data Produk & Spin Modal Tetap Sama) ...
 const RECOMMENDED_PRODUCTS = [
   { title: "Wardah Lightening Facial Wash", price: "Rp 35.000" },
@@ -23,30 +28,14 @@ const RECOMMENDED_PRODUCTS = [
   { title: "Somethinc Low pH Jelly Cleanser", price: "Rp 89.000" },
 ];
 
-const SPIN_DATA = [
-  {
-    option: "Voucher 50%",
-    style: { backgroundColor: "#F87171", textColor: "white" },
-  },
-  {
-    option: "Free Ongkir",
-    style: { backgroundColor: "#FBBF24", textColor: "black" },
-  },
-  {
-    option: "Produk Gratis",
-    style: { backgroundColor: "#34D399", textColor: "white" },
-  },
-  {
-    option: "Poin 10rb",
-    style: { backgroundColor: "#60A5FA", textColor: "white" },
-  },
-  { option: "Zonk", style: { backgroundColor: "#9CA3AF", textColor: "white" } },
-  {
-    option: "Diskon 20%",
-    style: { backgroundColor: "#A78BFA", textColor: "white" },
-  },
+const SPIN_COLORS = [
+  { backgroundColor: "#F87171", textColor: "white" },
+  { backgroundColor: "#FBBF24", textColor: "black" },
+  { backgroundColor: "#34D399", textColor: "white" },
+  { backgroundColor: "#60A5FA", textColor: "white" },
+  { backgroundColor: "#9CA3AF", textColor: "white" },
+  { backgroundColor: "#A78BFA", textColor: "white" },
 ];
-
 const TOTAL_DAYS = 30;
 const MAX_EXEMPT_DAYS = 21; // Batas maksimal tidak puasa
 const CHECKIN_QUOTES = [
@@ -167,20 +156,19 @@ const RecommendationList = () => (
   </div>
 );
 
-const SpinWheelModal = ({ open, onClose }) => {
+const SpinWheelModal = ({ open, onClose, prizes, tickets, onSpin }) => {
   const [mustSpin, setMustSpin] = useState(false);
   const [prizeNumber, setPrizeNumber] = useState(0);
   const [showResult, setShowResult] = useState(false);
+  const [spinLoading, setSpinLoading] = useState(false);
+  const [spinError, setSpinError] = useState("");
+  const [activePrize, setActivePrize] = useState(null);
 
   if (!open) return null;
-
-  const handleSpinClick = () => {
-    if (mustSpin) return;
-    const newPrizeNumber = Math.floor(Math.random() * SPIN_DATA.length);
-    setPrizeNumber(newPrizeNumber);
-    setMustSpin(true);
-    setShowResult(false);
-  };
+  const wheelData = (prizes || []).map((prize, index) => ({
+    option: prize.name,
+    style: SPIN_COLORS[index % SPIN_COLORS.length],
+  }));
 
   const handleStopSpinning = () => {
     setMustSpin(false);
@@ -191,6 +179,36 @@ const SpinWheelModal = ({ open, onClose }) => {
     setShowResult(false);
     setMustSpin(false);
     onClose();
+  };
+
+  const handleSpinClick = async () => {
+    if (mustSpin || spinLoading) return;
+    if (!tickets) {
+      setSpinError("Ticket spin belum tersedia.");
+      return;
+    }
+    if (!wheelData.length) {
+      setSpinError("Hadiah spin belum tersedia.");
+      return;
+    }
+    setSpinLoading(true);
+    setSpinError("");
+    try {
+      const prize = await onSpin();
+      if (!prize) {
+        setSpinError("Hadiah tidak tersedia.");
+        return;
+      }
+      const index = prizes.findIndex((item) => item.id === prize.id);
+      setActivePrize(prize);
+      setPrizeNumber(index >= 0 ? index : 0);
+      setMustSpin(true);
+      setShowResult(false);
+    } catch (error) {
+      setSpinError(error?.response?.data?.message || "Gagal melakukan spin.");
+    } finally {
+      setSpinLoading(false);
+    }
   };
 
   return (
@@ -208,7 +226,7 @@ const SpinWheelModal = ({ open, onClose }) => {
           <Wheel
             mustStartSpinning={mustSpin}
             prizeNumber={prizeNumber}
-            data={SPIN_DATA}
+            data={wheelData}
             onStopSpinning={handleStopSpinning}
             backgroundColors={["#3e3e3e", "#df3428"]}
             textColors={["#ffffff"]}
@@ -229,7 +247,7 @@ const SpinWheelModal = ({ open, onClose }) => {
             <h3 className="text-xl font-bold text-gray-800">Selamat!</h3>
             <p className="text-gray-600">Kamu mendapatkan:</p>
             <div className="my-4 p-4 bg-yellow-100 border-2 border-yellow-300 text-yellow-800 rounded-xl text-2xl font-bold shadow-sm">
-              {SPIN_DATA[prizeNumber].option}
+              {activePrize?.name || wheelData[prizeNumber]?.option}
             </div>
             <button
               onClick={resetAndClose}
@@ -239,13 +257,20 @@ const SpinWheelModal = ({ open, onClose }) => {
             </button>
           </div>
         ) : (
-          <button
-            onClick={handleSpinClick}
-            disabled={mustSpin}
-            className="w-full rounded-xl bg-linear-to-r from-pink-600 to-purple-600 px-4 py-3 text-white font-bold shadow-lg hover:scale-[1.02] transition disabled:opacity-70 disabled:cursor-not-allowed"
-          >
-            {mustSpin ? "Sedang Memutar..." : "PUTAR SEKARANG"}
-          </button>
+          <div className="w-full space-y-3">
+            {spinError && (
+              <div className="rounded-lg bg-red-50 text-red-600 text-xs px-3 py-2 border border-red-100">
+                {spinError}
+              </div>
+            )}
+            <button
+              onClick={handleSpinClick}
+              disabled={mustSpin || spinLoading}
+              className="w-full rounded-xl bg-linear-to-r from-pink-600 to-purple-600 px-4 py-3 text-white font-bold shadow-lg hover:scale-[1.02] transition disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {mustSpin || spinLoading ? "Sedang Memutar..." : "PUTAR SEKARANG"}
+            </button>
+          </div>
         )}
 
         {!mustSpin && !showResult && (
@@ -295,7 +320,7 @@ const OfferModal = ({ open, onClose }) => {
   );
 };
 
-export default function RamadanCheckinClient() {
+function RamadanCheckinClient() {
   const todayDate = new Date();
   const todayValue = format(todayDate, "yyyy-MM-dd");
 
@@ -318,7 +343,11 @@ export default function RamadanCheckinClient() {
     rewardEligible: false,
     totalDays: TOTAL_DAYS,
   });
-
+  const [spinStatus, setSpinStatus] = useState({
+    tickets: 0,
+    prizes: [],
+    fastingDays: 0,
+  });
   const [selectedReason, setSelectedReason] = useState("sakit");
   const [selectedDate, setSelectedDate] = useState(todayValue);
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(todayDate));
@@ -342,9 +371,6 @@ export default function RamadanCheckinClient() {
   );
   const isToday = selectedDate === todayValue;
 
-  // [LOGIC BARU] Helper untuk mengecek apakah exempt melebihi batas
-  const isExemptLimitReached = status.exemptCount >= MAX_EXEMPT_DAYS;
-
   const calendarDays = useMemo(() => {
     const start = startOfMonth(currentMonth);
     const end = endOfMonth(currentMonth);
@@ -357,8 +383,8 @@ export default function RamadanCheckinClient() {
     setLoading(true);
     setErrorMsg("");
     try {
-      const res = await axios.get("/ramadan/checkin/status");
-      const serve = res?.data?.serve || {};
+      const checkinRes = await axios.get("/ramadan/checkin/status");
+      const serve = checkinRes?.data?.serve || {};
 
       const rawCheckedData = serve.checked_data || [];
       const normalizedCheckedData =
@@ -377,11 +403,39 @@ export default function RamadanCheckinClient() {
         rewardEligible: Boolean(serve.reward_eligible),
         totalDays: serve.total_days || TOTAL_DAYS,
       });
+
+      // Load spin status separately to handle errors gracefully
+      try {
+        const spinRes = await axios.get("/ramadan/spin/status");
+        const spinServe = spinRes?.data?.serve || {};
+        setSpinStatus({
+          tickets: spinServe.tickets || 0,
+          prizes: spinServe.prizes || [],
+          fastingDays: spinServe.fasting_days || 0,
+        });
+      } catch (spinErr) {
+        console.log("Spin status tidak tersedia:", spinErr);
+        setSpinStatus({
+          tickets: 0,
+          prizes: [],
+          fastingDays: 0,
+        });
+      }
     } catch (err) {
       setErrorMsg("Gagal memuat status check-in.");
     } finally {
       setLoading(false);
     }
+  };
+  const handleSpin = async () => {
+    const res = await axios.post("/ramadan/spin");
+    const prize = res?.data?.serve?.prize;
+    setSpinStatus((prev) => ({
+      ...prev,
+      tickets:
+        res?.data?.serve?.remaining_tickets ?? Math.max(prev.tickets - 1, 0),
+    }));
+    return prize;
   };
 
   const handleCheckin = async () => {
@@ -397,8 +451,10 @@ export default function RamadanCheckinClient() {
     setInfoMsg("");
 
     try {
-      const res = await axios.post("/ramadan/checkin", { date: selectedDate });
-
+      const res = await axios.post("/ramadan/checkin", {
+        date: selectedDate,
+      });
+      await loadStatus();
       setInfoMsg("Check-in berhasil.");
       setSuccessModal({
         open: true,
@@ -451,6 +507,7 @@ export default function RamadanCheckinClient() {
         reason: selectedReason,
         date: selectedDate,
       });
+      await loadStatus();
 
       setInfoMsg("Status tersimpan.");
       setSuccessModal({
@@ -504,7 +561,13 @@ export default function RamadanCheckinClient() {
       {/* [BARU] Tambahkan PromoPopup */}
       <PromoPopup isOpen={showPromo} onClose={() => setShowPromo(false)} />
 
-      <SpinWheelModal open={showSpin} onClose={() => setShowSpin(false)} />
+      <SpinWheelModal
+        open={showSpin}
+        onClose={() => setShowSpin(false)}
+        prizes={spinStatus.prizes}
+        tickets={spinStatus.tickets}
+        onSpin={handleSpin}
+      />
       <OfferModal open={showOffer} onClose={() => setShowOffer(false)} />
 
       {/* MODAL SUCCESS WITH RECOMMENDATION */}
@@ -552,7 +615,7 @@ export default function RamadanCheckinClient() {
         </div>
 
         {/* Tombol Spin hanya muncul jika eligible */}
-        {status.rewardEligible ? (
+        {spinStatus.tickets ? (
           <button
             onClick={() => setShowSpin(true)}
             className="animate-bounce bg-linear-to-r from-purple-500 to-pink-500 text-white font-bold py-3 px-6 rounded-full shadow-lg border-2 border-white ring-2 ring-purple-200"
@@ -560,14 +623,9 @@ export default function RamadanCheckinClient() {
             🎟️ SPIN WHEEL TERSEDIA!
           </button>
         ) : (
-          // [BARU] Tampilkan pesan jika sudah melebihi batas exempt
-          isExemptLimitReached &&
-          status.checkedCount + status.exemptCount >= TOTAL_DAYS && (
-            <div className="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-xs font-medium border border-red-200 text-center max-w-50">
-              Maaf, kamu tidak memenuhi syarat Grand Prize (Tidak Puasa &gt; 21
-              hari).
-            </div>
-          )
+          <div className="text-xs text-gray-500 text-center max-w-60">
+            Selesaikan 23 hari puasa untuk mendapatkan 1 tiket spin.
+          </div>
         )}
       </div>
 
@@ -893,3 +951,5 @@ export default function RamadanCheckinClient() {
     </div>
   );
 }
+
+export default RamadanCheckinClient;
