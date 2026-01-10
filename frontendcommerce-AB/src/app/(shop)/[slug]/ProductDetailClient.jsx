@@ -536,12 +536,12 @@ const {user, logout} = useAuth();
           <div className="text-xl font-medium">Quantity</div>
 
           <div className="flex flex-row gap-4">
-            <div className="ContainerImage flex h-fit w-full items-start">
+            <div className="ContainerImage flex h-auto w-full items-start">
               <div className="imageOnly">
                 <img
                   src={activeImage || product?.image}
                   alt={product?.name}
-                  className="h-25 w-25"
+                  className="h-auto w-full"
                 />
               </div>
 
