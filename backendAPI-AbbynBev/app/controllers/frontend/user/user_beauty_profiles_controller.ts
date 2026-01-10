@@ -9,7 +9,7 @@ import {
 import {
   assertConcernOptionsExist,
   assertProfileOptionsExist,
-} from '../../utils/user_beauty_profile_helper.js'
+} from '../../../utils/user_beauty_profile_helper.js'
 
 export default class UserBeautyProfilesController {
   public async getUserSelections({ response, auth }: HttpContext) {

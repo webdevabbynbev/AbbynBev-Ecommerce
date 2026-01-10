@@ -28,10 +28,10 @@ export default class HomeController {
 
   private firstImageUrl(p: any): string | null {
     const medias = Array.isArray(p?.medias) ? p.medias : []
-    return medias.length ? medias[0]?.url ?? null : null
+    return medias.length ? (medias[0]?.url ?? null) : null
   }
 
-    private preloadPromoProducts(q: any, kind: PromoKind) {
+  private preloadPromoProducts(q: any, kind: PromoKind) {
     if (kind === 'flash') q.pivotColumns(['flash_price', 'stock'])
     else q.pivotColumns(['sale_price', 'stock'])
 
@@ -42,7 +42,6 @@ export default class HomeController {
         .where('po.is_active', 1)
     })
 
-    
     q.whereNull('products.deleted_at')
     q.preload('medias', (mq: any) => mq.orderBy('id', 'asc'))
     q.preload('brand', (bq: any) => bq.select(['id', 'name', 'slug']))
@@ -79,11 +78,15 @@ export default class HomeController {
   // =========================
   public async getBanner({ response }: HttpContext) {
     try {
-      const banners = await Banner.query().apply((s) => s.active()).orderBy('order', 'asc')
+      const banners = await Banner.query()
+        .apply((s) => s.active())
+        .orderBy('order', 'asc')
       return response.status(200).send({ message: 'Success', serve: banners })
     } catch (e: any) {
       console.error(e)
-      return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
+      return response
+        .status(500)
+        .send({ message: e.message || 'Internal Server Error', serve: null })
     }
   }
 
@@ -96,7 +99,9 @@ export default class HomeController {
 
       return response.status(200).send({ message: 'Success', serve: termAndCondition })
     } catch (e: any) {
-      return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
+      return response
+        .status(500)
+        .send({ message: e.message || 'Internal Server Error', serve: null })
     }
   }
 
@@ -109,7 +114,9 @@ export default class HomeController {
 
       return response.status(200).send({ message: 'Success', serve: returnPolicy })
     } catch (e: any) {
-      return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
+      return response
+        .status(500)
+        .send({ message: e.message || 'Internal Server Error', serve: null })
     }
   }
 
@@ -122,7 +129,9 @@ export default class HomeController {
 
       return response.status(200).send({ message: 'Success', serve: privacy })
     } catch (e: any) {
-      return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
+      return response
+        .status(500)
+        .send({ message: e.message || 'Internal Server Error', serve: null })
     }
   }
 
@@ -135,7 +144,9 @@ export default class HomeController {
 
       return response.status(200).send({ message: 'Success', serve: contact })
     } catch (e: any) {
-      return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
+      return response
+        .status(500)
+        .send({ message: e.message || 'Internal Server Error', serve: null })
     }
   }
 
@@ -147,7 +158,9 @@ export default class HomeController {
         serve: faqs.map((f) => ({ question: f.question, answer: f.answer })),
       })
     } catch (e: any) {
-      return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
+      return response
+        .status(500)
+        .send({ message: e.message || 'Internal Server Error', serve: null })
     }
   }
 
@@ -160,7 +173,9 @@ export default class HomeController {
 
       return response.status(200).send({ message: 'Success', serve: aboutUs })
     } catch (e: any) {
-      return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
+      return response
+        .status(500)
+        .send({ message: e.message || 'Internal Server Error', serve: null })
     }
   }
 
@@ -204,7 +219,9 @@ export default class HomeController {
       })
     } catch (e: any) {
       console.error(e)
-      return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
+      return response
+        .status(500)
+        .send({ message: e.message || 'Internal Server Error', serve: null })
     }
   }
 
@@ -251,7 +268,9 @@ export default class HomeController {
       })
     } catch (e: any) {
       console.error(e)
-      return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
+      return response
+        .status(500)
+        .send({ message: e.message || 'Internal Server Error', serve: null })
     }
   }
 
@@ -298,7 +317,9 @@ export default class HomeController {
       })
     } catch (e: any) {
       console.error(e)
-      return response.status(500).send({ message: e.message || 'Internal Server Error', serve: null })
+      return response
+        .status(500)
+        .send({ message: e.message || 'Internal Server Error', serve: null })
     }
   }
 }
