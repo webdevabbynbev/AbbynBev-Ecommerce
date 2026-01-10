@@ -1,5 +1,4 @@
 import api from "@/lib/axios";
-import { setToken, clearToken } from "@/services/authToken";
 
 function s(v) {
   return String(v ?? "").trim();
@@ -17,6 +16,7 @@ export async function updateProfile(payload) {
   try {
     const res = await api.put("/profile", payload, {
       headers: { "Content-Type": "application/json" },
+      withCredentials: true,
     });
     return res.data;
   } catch (err) {
@@ -28,7 +28,6 @@ export async function updateProfile(payload) {
 export async function getUser() {
   try {
     const res = await api.get("/profile", { withCredentials: true });
-
     const payload = res.data;
 
     const user =
@@ -54,6 +53,7 @@ export async function getAddressByQuery(userId) {
   try {
     const res = await api.get("/addresses", {
       params: { user_id: userId },
+      withCredentials: true,
     });
     return res.data?.serve ?? res.data?.data ?? [];
   } catch (err) {
@@ -92,7 +92,9 @@ export async function regis(
     if (![1, 2].includes(payload.gender)) throw new Error("Gender wajib dipilih");
     if (!payload.password) throw new Error("Password wajib diisi");
 
-    const res = await api.post("/auth/register", payload);
+    const res = await api.post("/auth/register", payload, {
+      withCredentials: true,
+    });
     return res.data;
   } catch (err) {
     const msg = err?.response?.data?.message || err?.message || "Register gagal";
@@ -123,13 +125,12 @@ export async function OtpRegis(
     if (!payload.email) throw new Error("Email wajib diisi");
     if (!payload.otp) throw new Error("OTP wajib diisi");
 
-    const res = await api.post("/auth/verify-register", payload);
+    // ✅ backend seharusnya set cookie ketika OTP verify success
+    const res = await api.post("/auth/verify-register", payload, {
+      withCredentials: true,
+    });
 
-    const data = res.data;
-    const token = data?.serve?.token;
-    if (token) setToken(token);
-
-    return data;
+    return res.data;
   } catch (err) {
     const msg = err?.response?.data?.message || err?.message || "OTP Salah";
     throw new Error(msg);
@@ -150,13 +151,12 @@ export async function loginUser(email_or_phone, password, remember_me = false) {
     if (!payload.email_or_phone) throw new Error("Email/Phone wajib diisi");
     if (!payload.password) throw new Error("Password wajib diisi");
 
-    const res = await api.post("/auth/login", payload);
+    // ✅ backend set cookie di sini
+    const res = await api.post("/auth/login", payload, {
+      withCredentials: true,
+    });
 
-    const data = res.data;
-    const token = data?.serve?.token;
-    if (token) setToken(token);
-
-    return data;
+    return res.data;
   } catch (err) {
     const msg = err?.response?.data?.message || err?.message || "Login gagal";
     throw new Error(msg);
@@ -175,50 +175,38 @@ export async function verifyOtp() {
  *  ========================= */
 export async function LoginGoogle(token, mode = "login") {
   try {
-    const endpoint =
-      mode === "register" ? "/auth/register-google" : "/auth/login-google";
+    const endpoint = mode === "register" ? "/auth/register-google" : "/auth/login-google";
 
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ token }),
-    });
+    // ✅ pakai axios instance (baseURL, interceptor, konsisten)
+    const res = await api.post(
+      endpoint,
+      { token },
+      { withCredentials: true }
+    );
 
-    let payload = null;
-    try {
-      payload = await res.json();
-    } catch {
-      payload = null;
-    }
-
-    if (!res.ok) {
-      throw new Error(payload?.message || `LoginGoogle gagal (HTTP ${res.status})`);
-    }
-
-    const accessToken = payload?.serve?.token;
-    if (accessToken) setToken(accessToken);
-
-    return payload;
+    return res.data;
   } catch (err) {
-    throw new Error(err?.message || "Login Google gagal");
+    const msg =
+      err?.response?.data?.message ||
+      err?.message ||
+      "Login Google gagal";
+    throw new Error(msg);
   }
 }
 
 /** =========================
  *  LOGOUT
  *  ========================= */
+// HttpOnly cookie mode: tidak ada token lokal yang perlu dibersihkan
 export function logoutLocal() {
-  clearToken();
+  // no-op
 }
 
 export async function logoutUser() {
   try {
-    await api.post("/auth/logout");
+    await api.post("/auth/logout", null, { withCredentials: true });
   } catch (err) {
     const msg = err?.response?.data?.message || err?.message || "Logout failed";
     throw new Error(msg);
-  } finally {
-    clearToken();
   }
 }

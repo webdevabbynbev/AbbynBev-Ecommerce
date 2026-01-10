@@ -71,8 +71,9 @@ export function LoginRegisModalForm() {
 
       const user = data?.serve?.data;
 
-      if (token && user) {
-        login({ user, token });
+      if (user) {
+        // ✅ HttpOnly cookie => tidak butuh token di FE
+        login({ user });
         router.push("/");
         return;
       }
@@ -129,7 +130,8 @@ export function LoginRegisModalForm() {
       const user = data?.serve?.data;
 
       if (user) {
-        login({ user, token: null });
+        // ✅ HttpOnly cookie => tidak butuh token di FE
+        login({ user });
         router.push("/account/profile");
         return;
       }
@@ -142,26 +144,30 @@ export function LoginRegisModalForm() {
     }
   };
 
+  /**
+   * mode:
+   * - "login"    => existing only
+   * - "register" => boleh create
+   */
   const handleSuccessGoogle = async (credentialResponse, mode = "login") => {
     setLoading(true);
     setMessage("");
     try {
-      const token = credentialResponse?.credential;
-      if (!token) {
+      const credentialToken = credentialResponse?.credential;
+      if (!credentialToken) {
         setMessage("Login Google gagal (token kosong).");
         return;
       }
 
-      // IMPORTANT: service LoginGoogle WAJIB pakai mode ini untuk pilih endpoint
-      const data = await LoginGoogle(token, mode);
+      const data = await LoginGoogle(credentialToken, mode);
 
       const user = data?.serve?.data;
-
       const isNewUser = !!data?.serve?.is_new_user;
       const needsProfile = !!data?.serve?.needs_profile_completion;
 
-      if (user && accessToken) {
-        login({ user, token: accessToken });
+      if (user) {
+        // ✅ HttpOnly cookie => tidak butuh token di FE
+        login({ user });
 
         if (isNewUser || needsProfile) router.push("/account/profile");
         else router.push("/");
