@@ -1,7 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Banner from '#models/banner'
 import Setting from '#models/setting'
-import { SettingType } from '../../enums/setting_types.js'
+import { SettingType } from '../../../enums/setting_types.js'
 import Faq from '#models/faq'
 import FlashSale from '#models/flashsale'
 import Sale from '#models/sale'
