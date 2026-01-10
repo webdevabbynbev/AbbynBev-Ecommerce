@@ -5,7 +5,7 @@ export async function importProductCSV(file: File) {
   formData.append("file", file);
 
   const response = await http.post(
-    "/admin/product/import-csv",
+    "/api/v1/admin/product/import-csv",
     formData,
     {
       headers: {
