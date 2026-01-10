@@ -1,5 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import Helpers from '../../utils/helpers.js'
+import Helpers from '#utils/helpers'
 import Brand from '#models/brand'
 import { createBrandValidator, updateBrandValidator } from '#validators/brand'
 import emitter from '@adonisjs/core/services/emitter'

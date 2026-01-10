@@ -1,5 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import RecommendationService from '../../services/recommendation_user_product_service.js'
+import RecommendationService from '#services/recommendation_user_product_service'
 
 export default class ProductRecommendationsController {
   public async getProductRecommendations({ response, request, auth }: HttpContext) {

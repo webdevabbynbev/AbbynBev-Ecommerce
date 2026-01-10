@@ -66,7 +66,7 @@ export class BiteshipTrackingService {
 
     let tracking: any
     try {
-      tracking = await BiteshipService.retrievePublicTracking(waybillId, courierCode)
+      tracking = await BiteshipService.getTrackingByWaybill(String(waybillId), courierCode)
     } catch (e: any) {
       console.log('Biteship tracking error:', e?.response?.data || e?.message || e)
       return

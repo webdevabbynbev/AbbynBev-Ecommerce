@@ -49,7 +49,7 @@ if (!g.__AUTO_COMPLETE_ORDERS_TIMER__) {
         if (!courierCode) continue
 
         try {
-          const track = await BiteshipService.retrievePublicTracking(String(sh.resiNumber), courierCode)
+          const track = await BiteshipService.getTrackingByWaybill(String(sh.resiNumber), courierCode)
           const st = track?.status || ''
 
           if (isDeliveredStatus(st)) {

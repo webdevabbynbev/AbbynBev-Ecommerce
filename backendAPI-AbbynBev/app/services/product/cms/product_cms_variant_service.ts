@@ -32,7 +32,7 @@ export class ProductCmsVariantService {
         variant.useTransaction(trx)
         variant.barcode = v.barcode
         variant.sku = await this.sku.generateVariantSku(masterSku, v.barcode, trx)
-        variant.price = String(v.price)
+        variant.price = Number(v.price)
         variant.stock = Number(v.stock)
         await variant.save()
 
@@ -49,7 +49,7 @@ export class ProductCmsVariantService {
         newVariant.productId = product.id
         newVariant.sku = sku
         newVariant.barcode = v.barcode
-        newVariant.price = String(v.price)
+        newVariant.price = Number(v.price)
         newVariant.stock = Number(v.stock)
         await newVariant.save()
 

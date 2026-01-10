@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import ConcernOption from '#models/concern_option'
-import Helpers from '../../utils/helpers.js'
+import Helpers from '#utils/helpers'
 import {
   createConcernOptionValidator,
   updateConcernOptionValidator,

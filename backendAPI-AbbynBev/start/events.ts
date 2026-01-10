@@ -5,11 +5,12 @@ emitter.on('set_activity_log', async (payload) => {
   try {
     const activityLog = new ActivityLog()
 
-    activityLog.roleName = payload.roleName
-    activityLog.userName = payload.userName
-    activityLog.activity = payload.activity
-    activityLog.menu = payload.menu
-    activityLog.data = payload.data
+    activityLog.roleName = payload.roleName ?? ''
+    activityLog.userName = payload.userName ?? ''
+    activityLog.activity = payload.activity ?? ''
+    activityLog.menu = payload.menu ?? ''
+    activityLog.data = payload.data ?? null
+
 
     await activityLog.save()
   } catch (error) {

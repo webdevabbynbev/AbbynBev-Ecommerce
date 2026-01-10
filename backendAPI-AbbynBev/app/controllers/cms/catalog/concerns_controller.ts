@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Concern from '#models/concern'
-import Helpers from '../../utils/helpers.js'
+import Helpers from '#utils/helpers'
 import { createConcernValidator, updateConcernValidator } from '#validators/concern'
 import emitter from '@adonisjs/core/services/emitter'
 

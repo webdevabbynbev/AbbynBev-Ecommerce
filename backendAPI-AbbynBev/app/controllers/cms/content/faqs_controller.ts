@@ -44,8 +44,8 @@ export default class FaqsController {
 
       const faq: Faq = await Faq.create({
         ...payload,
-        createdBy: auth.user?.userId,
-        updatedBy: auth.user?.userId,
+        createdBy: auth.user?.id,
+        updatedBy: auth.user?.id,
       })
 
       // @ts-ignore

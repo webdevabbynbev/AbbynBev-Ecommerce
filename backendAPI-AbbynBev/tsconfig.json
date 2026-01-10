@@ -3,7 +3,10 @@
   "compilerOptions": {
     "rootDir": "./",
     "outDir": "./build",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
   },
-  "include": ["**/*.ts", "contracts/**/*.d.ts"]
+  "include": ["**/*.ts", "contracts/**/*.d.ts"],
+  "exclude": ["app/controllers/cms/_legacy/**"]
 }

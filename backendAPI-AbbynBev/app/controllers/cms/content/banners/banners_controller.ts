@@ -1,5 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import FileUploadService from '../../../utils/upload_file_service.js'
+import FileUploadService from '#utils/upload_file_service'
 import Banner from '#models/banner'
 import { createBanner, updateBanner } from '#validators/banner'
 import { ActivityLogService } from '#services/activity_log_service'
