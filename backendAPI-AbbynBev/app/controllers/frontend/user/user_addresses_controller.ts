@@ -1,11 +1,11 @@
 // app/controllers/frontend/user_addresses_controller.ts
 import type { HttpContext } from '@adonisjs/core/http'
 
-import HttpHelper from '../../utils/http.js'
-import PostalHelper from '../../utils/postal.js'
+import HttpHelper from '../../../utils/http.js'
+import PostalHelper from '../../../utils/postal.js'
 
-import { UserAddressService } from '../../services/address/user_address_service.js'
-import { BiteshipClient } from '../../services/address/biteship_client.js'
+import { UserAddressService } from '#services/address/user_address_service'
+import { BiteshipClient } from '#services/address/biteship_client'
 
 import env from '#start/env'
 import UserAddress from '#models/user_address'
