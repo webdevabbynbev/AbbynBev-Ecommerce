@@ -30,13 +30,8 @@ import TableFlashSale from "../components/Tables/FlashSale/TableFlashSale";
 import TableSale from "../components/Tables/Sale/TableSale";
 
 import TableProduct from "../components/Tables/Product/TableProduct";
-
 import TableTransaction from "../components/Transaction/TableTransaction";
-
 import TableRamadanEvent from "../components/Tables/Ramadan/TableRamadanEvent";
-import TableRamadanRecommendation from "../components/Tables/Ramadan/TableRamadanEvent";
-import TableSale from "../components/Tables/Sale/TableSale";
-
 export default function MasterPage(): React.ReactElement {
   return (
     <MainLayout>

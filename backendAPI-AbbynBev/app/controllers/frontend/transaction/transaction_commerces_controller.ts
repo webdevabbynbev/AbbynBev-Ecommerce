@@ -1,8 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 
-import { EcommerceCheckoutService } from '../../services/ecommerce/ecommerce_checkout_service.js'
-import { EcommerceOrderService } from '../../services/ecommerce/ecommerce_order_service.js'
-import { EcommerceWebhookService } from '../../services/ecommerce/ecommerce_webhook_service.js'
+import { EcommerceCheckoutService } from '../../../services/ecommerce/ecommerce_checkout_service.js'
+import { EcommerceOrderService } from '../../../services/ecommerce/ecommerce_order_service.js'
+import { EcommerceWebhookService } from '../../../services/ecommerce/ecommerce_webhook_service.js'
 
 export default class TransactionEcommerceController {
   private checkout = new EcommerceCheckoutService()

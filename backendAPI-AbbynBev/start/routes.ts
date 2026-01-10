@@ -57,24 +57,24 @@ const CmsRamadanRecommendationsController = () => import('#controllers/cms/ramad
 // FRONTEND CONTROLLERS
 // =========================
 
-const FeCategoryTypesController = () => import('#controllers/frontend/category_types_controller')
-const FeVoucherController = () => import('#controllers/frontend/vouchers_controller')
-const FeProductController = () => import('#controllers/frontend/products_controller')
-const FeReviewController = () => import('#controllers/frontend/reviews_controller')
-const FeWishlist = () => import('#controllers/frontend/wishlists_controller')
-const FeSupportTicketController = () => import('#controllers/frontend/support_tickets_controller')
-const UserAddressesController = () => import('#controllers/frontend/user_addresses_controller')
-const FeHomeController = () => import('#controllers/frontend/home_controller')
-const FeBrandController = () => import('#controllers/frontend/brands_controller')
-const FePersonaController = () => import('#controllers/frontend/personas_controller')
-const FeConcernController = () => import('#controllers/frontend/concerns_controller')
-const FeTransactionCartController = () =>import('#controllers/frontend/transaction_carts_controller')
-const FeTagsController = () => import('#controllers/frontend/tags_controller')
-const FeUserBeautyProfilesController = () => import('#controllers/frontend/user_beauty_profiles_controller')
-const FeProductRecommendationsController = () => import('#controllers/frontend/product_recommendations_controller')
-const FeTransactionEcommerceController = () => import('#controllers/frontend/transaction_commerces_controller')
-const FeRamadanCheckinsController = () => import('#controllers/frontend/ramadan_checkins_controller')
-const OrdersController = () => import('#controllers/frontend/orders_controller')
+const FeCategoryTypesController = () => import('#controllers/frontend/category/category_types_controller')
+const FeVoucherController = () => import('#controllers/frontend/vouchers/vouchers_controller')
+const FeProductController = () => import('#controllers/frontend/products/products_controller')
+const FeReviewController = () => import('#controllers/frontend/reviews/reviews_controller')
+const FeWishlist = () => import('#controllers/frontend/wishlist/wishlists_controller')
+const FeSupportTicketController = () => import('#controllers/frontend/support/support_tickets_controller')
+const UserAddressesController = () => import('#controllers/frontend/user/user_addresses_controller')
+const FeHomeController = () => import('#controllers/frontend/home/home_controller')
+const FeBrandController = () => import('#controllers/frontend/brands/brands_controller')
+const FePersonaController = () => import('#controllers/frontend/personas/personas_controller')
+const FeConcernController = () => import('#controllers/frontend/concerns/concerns_controller')
+const FeTransactionCartController = () =>import('#controllers/frontend/transaction/transaction_carts_controller')
+const FeTagsController = () => import('#controllers/frontend/tags/tags_controller')
+const FeUserBeautyProfilesController = () => import('#controllers/frontend/user/user_beauty_profiles_controller')
+const FeProductRecommendationsController = () => import('#controllers/frontend/products/products_recommendations_controller')
+const FeTransactionEcommerceController = () => import('#controllers/frontend/transaction/transaction_commerces_controller')
+const FeRamadanCheckinsController = () => import('#controllers/frontend/ramadan/ramadan_checkins_controller')
+const OrdersController = () => import('#controllers/frontend/orders/orders_controller')
 
 // =========================
 // POS CONTROLLERS
@@ -85,7 +85,7 @@ const PosTransactionPosController = () => import('#controllers/pos/transaction_p
 // =========================
 // AUTH & UPLOAD CONTROLLERS
 // =========================
-const UploadsController = () => import('#controllers/upload_controller')
+const UploadsController = () => import('#controllers/frontend/upload/upload_controller')
 const AuthSessionsController = () => import('#controllers/auth/auth_sessions_controller')
 const AuthRegistrationController = () => import('#controllers/auth/auth_registration_controller')
 const AuthPasswordResetController = () => import('#controllers/auth/auth_password_reset_controller')
