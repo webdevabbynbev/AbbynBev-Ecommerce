@@ -14,7 +14,10 @@ import { UserRepository } from '#services/user/user_repository'
 
 export default class AuthSessionsController {
   private userRepo = new UserRepository()
+
+  // ✅ cookie name harus konsisten sama middleware nanti
   private authCookieName = 'auth_token'
+
   private authCookieOptions = {
     httpOnly: true,
     sameSite: 'lax' as const,
@@ -29,21 +32,32 @@ export default class AuthSessionsController {
     })
   }
 
+  private clearAuthCookie(response: HttpContext['response']) {
+    response.clearCookie(this.authCookieName, {
+      ...this.authCookieOptions,
+    })
+  }
+
+  /**
+   * helper: hapus serve.token dari payload supaya token tidak muncul di response body
+   */
+  private stripTokenFromPayload(payload: any) {
+    const cloned = { ...payload, serve: { ...(payload?.serve ?? {}) } }
+    if (cloned?.serve) delete cloned.serve.token
+    return cloned
+  }
+
   public async loginCashier({ request, response }: HttpContext) {
     try {
       const { email, password } = request.only(['email', 'password'])
       const result = await AuthLoginService.loginCashier(email, password)
 
       if (!result.ok) return badRequest(response, result.message)
+
       const token = result.payload?.serve?.token
-      if (token) {
-        this.setAuthCookie(response, token, 60 * 60 * 24)
-      }
-      const payload = { ...result.payload, serve: { ...result.payload?.serve } }
-      if (payload.serve) {
-        delete payload.serve.token
-      }
-      return response.ok(payload)
+      if (token) this.setAuthCookie(response, token, 60 * 60 * 24)
+
+      return response.ok(this.stripTokenFromPayload(result.payload))
     } catch (error) {
       return internalError(response, error)
     }
@@ -58,15 +72,11 @@ export default class AuthSessionsController {
         const fn = result.errorType === 'badRequest400' ? badRequest400 : badRequest
         return fn(response, result.message)
       }
+
       const token = result.payload?.serve?.token
-      if (token) {
-        this.setAuthCookie(response, token, 60 * 60 * 24)
-      }
-      const payload = { ...result.payload, serve: { ...result.payload?.serve } }
-      if (payload.serve) {
-        delete payload.serve.token
-      }
-      return response.ok(payload)
+      if (token) this.setAuthCookie(response, token, 60 * 60 * 24)
+
+      return response.ok(this.stripTokenFromPayload(result.payload))
     } catch (error) {
       return internalError(response, error)
     }
@@ -85,11 +95,8 @@ export default class AuthSessionsController {
         const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24
         this.setAuthCookie(response, token, maxAge)
       }
-      const payload = { ...result.payload, serve: { ...result.payload?.serve } }
-      if (payload.serve) {
-        delete payload.serve.token
-      }
-      return response.ok(payload)
+
+      return response.ok(this.stripTokenFromPayload(result.payload))
     } catch (error) {
       console.error(error)
       return internalError(response, error)
@@ -104,19 +111,26 @@ export default class AuthSessionsController {
   }
 
   public async logout({ auth, response }: HttpContext) {
-    const user = auth.user
-    if (!user) return response.status(401).send('Unauthorized')
+    try {
+      const user = auth.user
+      if (user) {
+        const token = await user.currentAccessToken
+        if (token) {
+          await User.accessTokens.delete(user, token.identifier)
+        }
+      }
 
-    const token = await user.currentAccessToken
-    await User.accessTokens.delete(user, token.identifier)
+      this.clearAuthCookie(response)
 
-    response.clearCookie(this.authCookieName, {
-      ...this.authCookieOptions,
-    })
-    return response.status(200).send({
-      message: 'Logged out successfully.',
-      serve: true,
-    })
+      return response.status(200).send({
+        message: 'Logged out successfully.',
+        serve: true,
+      })
+    } catch (error) {
+      // tetap lihat best-effort: clear cookie
+      this.clearAuthCookie(response)
+      return internalError(response, error)
+    }
   }
 
   private needsProfileCompletion(user: User): boolean {
@@ -149,6 +163,10 @@ export default class AuthSessionsController {
     return { email, firstName, lastName, googleId }
   }
 
+  /**
+   * ✅ LOGIN GOOGLE (existing only)
+   * Kalau user belum ada => error "Akun belum terdaftar..."
+   */
   public async loginGoogle({ response, request }: HttpContext) {
     const validator = vine.compile(
       vine.object({
@@ -165,11 +183,11 @@ export default class AuthSessionsController {
       const { email, googleId } = identity
 
       const user = await this.userRepo.findActiveByEmail(email)
-
       if (!user) {
         return badRequest(response, 'Akun belum terdaftar. Silakan daftar terlebih dahulu.')
       }
 
+      // anti takeover
       if (user.googleId && user.googleId !== googleId) {
         return badRequest(response, 'Google account mismatch')
       }
@@ -184,6 +202,9 @@ export default class AuthSessionsController {
       }
 
       const tokenLogin = await this.generateToken(user)
+
+      // ✅ SET COOKIE + HIDE TOKEN BODY
+      this.setAuthCookie(response, tokenLogin, 60 * 60 * 24 * 30)
 
       return response.ok({
         message: 'Ok',
@@ -204,8 +225,8 @@ export default class AuthSessionsController {
               'updatedAt',
             ],
           }),
-          token: tokenLogin,
 
+          // FE redirect: existing => home
           is_new_user: false,
           needs_profile_completion: false,
         },
@@ -215,6 +236,11 @@ export default class AuthSessionsController {
     }
   }
 
+  /**
+   * ✅ REGISTER GOOGLE (boleh create)
+   * new => profile
+   * existing => home (link googleId kalau belum ada)
+   */
   public async registerGoogle({ response, request }: HttpContext) {
     const validator = vine.compile(
       vine.object({
@@ -229,7 +255,6 @@ export default class AuthSessionsController {
       if (!identity) return badRequest(response, 'Bad Request')
 
       const { email, firstName, lastName, googleId } = identity
-
 
       let user = await User.query().where('email', email).first()
       let isNewUser = false
@@ -248,7 +273,6 @@ export default class AuthSessionsController {
           password: randomPass,
         })
       } else {
-
         if (user.isActive !== 1) {
           return badRequest(response, 'Account suspended')
         }
@@ -257,20 +281,19 @@ export default class AuthSessionsController {
           return badRequest(response, 'Google account mismatch')
         }
 
-        // kalau belum ada googleId, isi
         if (!user.googleId) user.googleId = googleId
-
         if (!user.firstName) user.firstName = firstName
         if (!user.lastName) user.lastName = lastName
-
         await user.save()
       }
 
       const tokenLogin = await this.generateToken(user)
-      if (tokenLogin) {
-        this.setAuthCookie(response, tokenLogin, 60 * 60 * 24)
-      }
-      
+      this.setAuthCookie(response, tokenLogin, 60 * 60 * 24 * 30)
+
+      // sesuai rule kamu: yang “register” => ke profile
+      const needsProfile = isNewUser ? true : false
+      // (kalau mau lebih strict, bisa: isNewUser || this.needsProfileCompletion(user))
+
       return response.ok({
         message: 'Ok',
         serve: {
@@ -290,6 +313,9 @@ export default class AuthSessionsController {
               'updatedAt',
             ],
           }),
+
+          is_new_user: isNewUser,
+          needs_profile_completion: needsProfile,
         },
       })
     } catch (e: any) {

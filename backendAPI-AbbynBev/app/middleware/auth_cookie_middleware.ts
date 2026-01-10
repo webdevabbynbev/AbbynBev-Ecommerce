@@ -9,10 +9,10 @@ export default class AuthCookieMiddleware {
     if (!existing) {
       const token = request.cookie(AUTH_COOKIE_NAME)
       if (token) {
-        request.request.headers.authorization = `Bearer ${token}`
+        ;(request.request.headers as any)['authorization'] = `Bearer ${token}`
       }
     }
 
-    return next()
+    await next()
   }
 }
