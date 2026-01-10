@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",
+    "@radix-ui/react-dialog": "^1.1.15",
     "@react-pdf/renderer": "^4.3.0",
     "@tiptap/extension-link": "^3.6.5",
     "@tiptap/extension-placeholder": "^3.6.5",

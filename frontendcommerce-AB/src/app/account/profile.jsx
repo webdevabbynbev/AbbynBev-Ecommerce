@@ -31,7 +31,7 @@ export function Profilepage() {
     })();
   }, []);
 
-  if (loading) return <ProfileSkeleton />;
+  if (loading) return <ProfileSkeleton />
   if (error) return <div className="p-4 text-red-500">Error: {error}</div>;
 
   const currentUser = profile?.user ?? null;
@@ -46,9 +46,7 @@ export function Profilepage() {
     : "/default-avatar.png";
 
   const handleProfileUpdated = async (updated) => {
-    // Optimistic update
     if (updated) setProfile((prev) => ({ ...(prev || {}), user: updated }));
-    // Optional: refetch sekali biar 100% sinkron
     try {
       const { user: fresh } = await getUser();
       if (fresh) setProfile({ user: fresh });
@@ -56,7 +54,7 @@ export function Profilepage() {
   };
 
   return (
-    <div className="bg-transparent w-full justify-center h-auto space-y-4">
+    <div className="bg-transparent w-full lg:max-w-7xl xl:max-w-6xl justify-center h-auto space-y-4">
       {/* Header + avatar */}
       <div className="title px-4 text-neutral-500">
         <h1 className="font-bold text-neutral-950 text-xl">Profile</h1>

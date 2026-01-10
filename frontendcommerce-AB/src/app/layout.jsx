@@ -24,17 +24,33 @@ const damion = Damion({
 
 /* ✅ GLOBAL SEO (DEFAULT) */
 export const metadata = {
+  metadataBase: new URL("https://abbynbev.com"),
+
   title: {
     default:
       "Abby n Bev | Situs Belanja Online Makeup dan Skincare Terbaik Di Indonesia",
     template: "%s | Abby n Bev",
   },
+
   description:
     "Lebih dari sekedar Beauty Store atau Toko Kosmetik, di Abby n Bev kamu bisa konsultasi gratis bersama AI Beauty Advisor buat tahu jenis kulit, skintone, undertone, biar belanja makeup dan skincare nggak salah pilih",
+
   openGraph: {
     siteName: "Abby n Bev",
     type: "website",
   },
+
+  keywords: [
+    "beauty store",
+    "toko kosmetik",
+    "beauty advisor",
+    "jenis kulit",
+    "abby n bev",
+    "skintone",
+    "undertone",
+    "belanja makeup",
+    "belanja skincare",
+  ],
 };
 
 export default function RootLayout({ children }) {

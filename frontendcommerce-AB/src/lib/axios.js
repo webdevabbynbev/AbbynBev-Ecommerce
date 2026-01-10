@@ -1,5 +1,5 @@
 import axios from "axios";
-import { getToken, refreshTokenTtl, clearToken } from "@/services/authToken";
+import { clearToken } from "@/services/authToken";
 
 const baseURL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
 
@@ -9,17 +9,12 @@ if (!baseURL) {
 
 const api = axios.create({
   baseURL,
-  withCredentials: false,
+  withCredentials: true,
 });
 
 api.interceptors.request.use((config) => {
   config.headers = config.headers || {};
   config.headers.Accept = "application/json";
-
-  const token = getToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
 
   const isFormData =
     typeof FormData !== "undefined" && config.data instanceof FormData;
@@ -33,7 +28,6 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (res) => {
-    refreshTokenTtl(); // 🔄 sliding expiration
     return res;
   },
   (err) => {

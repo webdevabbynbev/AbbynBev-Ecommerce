@@ -111,7 +111,7 @@ const FormFlashSale: React.FC<Props> = ({ data, handleClose }) => {
         const keyword = (q ?? "").trim();
 
         const qs = new URLSearchParams();
-        if (keyword) qs.set("name", keyword); // ✅ backend pakai name
+        if (keyword) qs.set("q", keyword); // ✅ backend pakai name
         qs.set("page", "1");
         qs.set("per_page", String(PRODUCT_PAGE_SIZE));
 

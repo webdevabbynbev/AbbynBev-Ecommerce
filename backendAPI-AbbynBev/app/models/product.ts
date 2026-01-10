@@ -54,8 +54,13 @@ export default class Product extends BaseModel {
   @column()
   declare weight: number
 
-  @column()
-  declare isFlashsale: boolean
+  // ✅ FIX: hanya satu kolom, parsing aman untuk 0/1 string/number
+  @column({
+    columnName: 'is_flash_sale',
+    consume: (v) => Boolean(Number(v)),
+    prepare: (v) => (v ? 1 : 0),
+  })
+  declare isFlashSale: boolean
 
   @column()
   declare status: 'normal' | 'war' | 'draft'

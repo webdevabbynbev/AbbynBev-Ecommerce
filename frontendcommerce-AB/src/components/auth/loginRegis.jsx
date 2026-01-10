@@ -56,8 +56,8 @@ export function LoginRegisModalForm() {
   function validateRegisterPassword(pw, cpw) {
     if (!pw || !cpw) return "";
     if (pw.length < 8) return "Password minimal 8 karakter";
-    // wajib ada simbol termasuk underscore (match backend)
-    if (!/[^A-Za-z0-9\s]/.test(pw)) return "Password wajib mengandung minimal 1 simbol (contoh: ! @ _)";
+    if (!/[^A-Za-z0-9\s]/.test(pw))
+      return "Password wajib mengandung minimal 1 simbol (contoh: ! @ _)";
     if (pw !== cpw) return "Password dan konfirmasi tidak sama";
     return "";
   }
@@ -69,12 +69,11 @@ export function LoginRegisModalForm() {
     try {
       const data = await loginUser(loginId, loginPassword);
 
-      const token = data?.serve?.token;
       const user = data?.serve?.data;
 
       if (token && user) {
         login({ user, token });
-        router.push("/account/profile");
+        router.push("/");
         return;
       }
 
@@ -127,11 +126,10 @@ export function LoginRegisModalForm() {
         otp
       );
 
-      const token = data?.serve?.token;
       const user = data?.serve?.data;
 
-      if (token && user) {
-        login({ user, token });
+      if (user) {
+        login({ user, token: null });
         router.push("/account/profile");
         return;
       }
@@ -144,25 +142,38 @@ export function LoginRegisModalForm() {
     }
   };
 
-  const handleSuccessGoogle = async (credentialResponse) => {
+  const handleSuccessGoogle = async (credentialResponse, mode = "login") => {
+    setLoading(true);
+    setMessage("");
     try {
-      setMessage("");
       const token = credentialResponse?.credential;
-      if (!token) return setMessage("Login Google gagal (token kosong).");
+      if (!token) {
+        setMessage("Login Google gagal (token kosong).");
+        return;
+      }
 
-      const data = await LoginGoogle(token);
+      // IMPORTANT: service LoginGoogle WAJIB pakai mode ini untuk pilih endpoint
+      const data = await LoginGoogle(token, mode);
+
       const user = data?.serve?.data;
-      const accessToken = data?.serve?.token;
+
+      const isNewUser = !!data?.serve?.is_new_user;
+      const needsProfile = !!data?.serve?.needs_profile_completion;
 
       if (user && accessToken) {
         login({ user, token: accessToken });
-        router.push("/account/profile");
+
+        if (isNewUser || needsProfile) router.push("/account/profile");
+        else router.push("/");
+
         return;
       }
 
       setMessage(data?.message || "Login Google gagal.");
     } catch (err) {
       setMessage(err?.message || "Login Google gagal.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -188,6 +199,7 @@ export function LoginRegisModalForm() {
             setMessage("");
             setLoading(false);
 
+            // reset step kalau masuk signup
             if (v === "signup") {
               setSignupStep("regis");
               setOtp("");
@@ -229,7 +241,7 @@ export function LoginRegisModalForm() {
                     <span className="font-damion px-2 text-2xl text-primary-700 font-normal">
                       Abeauties
                     </span>
-                    Welcome back! 
+                    Welcome back!
                   </div>
                   <div className="text-sm text-neutral-500">
                     Log in to unlock your personalized beauty space.
@@ -278,9 +290,12 @@ export function LoginRegisModalForm() {
                 </Button>
 
                 <div className="w-full flex justify-center text-sm">Or</div>
+
+                {/* ✅ Google LOGIN (existing only) */}
                 <div className="flex flex-col gap-4">
                   <GoogleLogin
-                    onSuccess={handleSuccessGoogle}
+                    text="signin_with"
+                    onSuccess={(cred) => handleSuccessGoogle(cred, "login")}
                     onError={() => setMessage("Login Google gagal")}
                   />
                 </div>
@@ -345,7 +360,6 @@ export function LoginRegisModalForm() {
                     />
                   </div>
 
-                  {/*  EMAIL REGISTER (bukan email_or_phone) */}
                   <TxtField
                     type="email"
                     autoComplete="email"
@@ -431,8 +445,26 @@ export function LoginRegisModalForm() {
                   className="w-full"
                   disabled={loading || (signupStep === "regis" && !!pwError)}
                 >
-                  {loading ? "Loading..." : signupStep === "regis" ? "Sign Up" : "Verify OTP"}
+                  {loading
+                    ? "Loading..."
+                    : signupStep === "regis"
+                    ? "Sign Up"
+                    : "Verify OTP"}
                 </Button>
+
+                {/* ✅ Google REGISTER di bawah form */}
+                {signupStep === "regis" && (
+                  <>
+                    <div className="w-full flex justify-center text-sm">Or</div>
+                    <div className="flex flex-col gap-4">
+                      <GoogleLogin
+                        text="signup_with"
+                        onSuccess={(cred) => handleSuccessGoogle(cred, "register")}
+                        onError={() => setMessage("Login Google gagal")}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
 
               {message && (

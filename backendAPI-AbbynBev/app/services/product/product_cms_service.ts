@@ -1,3 +1,4 @@
+// app/services/product/product_cms_service.ts
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 
@@ -15,6 +16,8 @@ import { ProductCmsVariantService } from '#services/product/cms/product_cms_vari
 import { ProductCmsRelationService } from '#services/product/cms/product_cms_relation_service'
 import type { CmsProductUpsertPayload } from '#services/product/cms/cms_product_types'
 
+import { PromoFlagService } from '#services/promo/promo_flag_service'
+
 export type { CmsProductUpsertPayload } from './cms/cms_product_types.js'
 
 export class ProductCmsService {
@@ -27,6 +30,8 @@ export class ProductCmsService {
   private variant = new ProductCmsVariantService(this.sku)
   private relations = new ProductCmsRelationService()
 
+  private promoFlag = new PromoFlagService()
+
   async create(payload: CmsProductUpsertPayload) {
     return db.transaction(async (trx) => {
       const product = new Product()
@@ -38,7 +43,6 @@ export class ProductCmsService {
       product.weight = payload.weight || 0
       product.basePrice = payload.base_price
       product.status = payload.status || 'draft'
-      product.isFlashsale = this.meta.normalizeIsFlashsale(product.status, payload.is_flashsale)
 
       if (payload.category_type_id) product.categoryTypeId = payload.category_type_id
       if (payload.brand_id) product.brandId = payload.brand_id
@@ -76,12 +80,12 @@ export class ProductCmsService {
       product.weight = payload.weight || 0
       product.basePrice = payload.base_price
       product.status = (payload.status || product.status) as any
-      product.isFlashsale = this.meta.normalizeIsFlashsale(product.status, payload.is_flashsale)
 
       if (payload.category_type_id) product.categoryTypeId = payload.category_type_id
       if (payload.brand_id) product.brandId = payload.brand_id
       if (payload.persona_id) product.personaId = payload.persona_id
       product.masterSku = payload.master_sku || product.masterSku
+
       product.path = await this.meta.buildProductPath(payload.category_type_id, product.slug, trx)
       await this.meta.applyMeta(product, payload)
 
@@ -89,6 +93,7 @@ export class ProductCmsService {
 
       await this.relations.sync(product, payload)
 
+      // NOTE: lo sebelumnya cuma upsert variant saat update, gue biarin sama kayak punya lo.
       await this.variant.upsert(product, payload, trx, { isUpdate: true })
 
       return product
@@ -131,6 +136,9 @@ export class ProductCmsService {
         )
       }
 
+      // ✅ penting: begitu publish, baru "berbuah" flag is_flash_sale (kalau produk masuk flash sale yg published & belum expired)
+      await this.promoFlag.syncFlashSaleFlags([product.id], trx)
+
       return { product, online: published, reason: 'OK' as const }
     })
   }
@@ -143,6 +151,10 @@ export class ProductCmsService {
       productOnline.useTransaction(trx)
       productOnline.isActive = false
       await productOnline.save()
+
+      // ✅ penting: kalau unpublish, matiin lagi (rule service akan set 0)
+      await this.promoFlag.syncFlashSaleFlags([productId], trx)
+
       return productOnline
     })
   }
@@ -159,9 +171,7 @@ export class ProductCmsService {
       let hasMore = true
 
       while (hasMore) {
-        const products = await Product.query({ client: trx })
-          .orderBy('position', 'asc')
-          .paginate(page, batchSize)
+        const products = await Product.query({ client: trx }).orderBy('position', 'asc').paginate(page, batchSize)
 
         if (products.all().length === 0) {
           hasMore = false
