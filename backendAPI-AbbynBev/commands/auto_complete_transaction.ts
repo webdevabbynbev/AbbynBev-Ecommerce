@@ -62,7 +62,7 @@ export default class AutoCompleteTransaction extends BaseCommand {
 
       let track: any
       try {
-        track = await BiteshipService.retrievePublicTracking(String(sh.resiNumber), courierCode)
+        track = await BiteshipService.getTrackingByWaybill(String(sh.resiNumber), courierCode)
       } catch {
         continue
       }

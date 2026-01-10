@@ -6,6 +6,8 @@ import drive from '@adonisjs/drive/services/main'
 import env from '#start/env'
 import { CustomBaseModel } from '#services/custom_base_model'
 import ProductVariant from './product_variant.js'
+import { cloudinaryImageUrl } from '#utils/cloudinary_url'
+
 
 export default class ProductMedia extends CustomBaseModel {
   @column({ isPrimary: true })
@@ -39,6 +41,15 @@ export default class ProductMedia extends CustomBaseModel {
 
   @column.dateTime()
   declare deletedAt: DateTime | null
+
+  @column()
+  declare barcode: string
+
+@column({
+consume: (v) => Number(v),
+prepare: (v) => String(v),
+})
+declare price: number
 
   @belongsTo(() => Product)
   declare product: BelongsTo<typeof Product>

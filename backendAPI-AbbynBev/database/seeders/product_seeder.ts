@@ -11,8 +11,7 @@ import CategoryType from '#models/category_type'
 import Brand from '#models/brand'
 import Persona from '#models/persona'
 import User from '#models/user'
-
-import { generateSlug } from '../../app/utils/helpers.js'
+import Helpers from '../../app/utils/helpers.js'
 
 export default class ProductSeeder extends BaseSeeder {
   public async run() {
@@ -84,7 +83,7 @@ export default class ProductSeeder extends BaseSeeder {
       const brand = brandMap[item.brandSlug] ?? brands[0]
       const persona = personaMap[item.personaSlug] ?? personas[0]
 
-      const slug = await generateSlug(item.name)
+     const slug = await Helpers.generateSlug(item.name) 
       const path = `${category.slug}/${slug}`
       const masterSku = `AB-${String(i + 1).padStart(4, '0')}`
 
@@ -97,7 +96,7 @@ export default class ProductSeeder extends BaseSeeder {
           description: item.description,
           basePrice: item.basePrice,
           weight: item.weight ?? 0,
-          isFlashsale: false,
+          isFlashSale: false,
           status: 'normal',
           categoryTypeId: category.id,
           brandId: brand.id,
@@ -127,7 +126,7 @@ export default class ProductSeeder extends BaseSeeder {
         {
           sku,
           barcode,
-          price: String(item.basePrice),
+          price: Number(item.basePrice),
           stock: item.stock ?? 0,
           productId: product.id,
           width: null,
