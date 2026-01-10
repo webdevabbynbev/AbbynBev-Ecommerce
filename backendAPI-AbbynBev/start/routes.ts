@@ -111,6 +111,7 @@ router.post('/auth/verify-login', [AuthSessionsController, 'verifyLoginOtp'])
 router.post('/auth/login-admin', [AuthSessionsController, 'loginAdmin'])
 router.post('/auth/login-cashier', [AuthSessionsController, 'loginCashier'])
 router.post('/auth/forgot', [AuthPasswordResetController, 'requestForgotPassword'])
+
 router
   .get('/auth/forgot-password/:email/verify', [
     AuthPasswordResetController,
