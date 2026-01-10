@@ -40,11 +40,6 @@ export class ProductService {
         })
         .on('end', async () => {
           try {
-            /**
-             * NOTE:
-             * Di sini BELUM insert ke DB
-             * Fokus utama: baca & parsing CSV dulu
-             */
 
             resolve(rows)
           } catch (error) {

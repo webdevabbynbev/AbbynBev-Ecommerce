@@ -3,6 +3,7 @@ import User from '#models/user'
 import env from '#start/env'
 import vine from '@vinejs/vine'
 import { OAuth2Client } from 'google-auth-library'
+import { randomBytes } from 'node:crypto'
 
 import { Role } from '../../enums/role.js'
 import { badRequest, badRequest400, internalError } from '../../utils/response.js'
@@ -11,9 +12,7 @@ import AuthLoginService from '#services/auth/auth_login_service'
 import { login as loginValidator } from '#validators/auth'
 import { UserRepository } from '#services/user/user_repository'
 
-
 export default class AuthSessionsController {
-
   private userRepo = new UserRepository()
   private authCookieName = 'auth_token'
   private authCookieOptions = {
@@ -120,6 +119,36 @@ export default class AuthSessionsController {
     })
   }
 
+  private needsProfileCompletion(user: User): boolean {
+    const firstNameOk = !!user.firstName && String(user.firstName).trim().length > 0
+    const lastNameOk = !!user.lastName && String(user.lastName).trim().length > 0
+    const phoneOk = !!user.phoneNumber && String(user.phoneNumber).trim().length > 0
+    const addressOk = !!(user as any).address
+    return !(firstNameOk && lastNameOk && phoneOk && addressOk)
+  }
+
+  private async getGoogleIdentity(idToken: string) {
+    const googleClient = new OAuth2Client()
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: env.get('GOOGLE_CLIENT_ID'),
+    })
+
+    const p = ticket.getPayload()
+    const email = p?.email?.toLowerCase()
+    const name = p?.name
+    const googleId = p?.sub
+
+    if (!email || !name || !googleId) return null
+
+    const parts = String(name).trim().split(/\s+/)
+    const firstName = parts[0] || ''
+    const lastName = parts.slice(1).join(' ') || ''
+
+    return { email, firstName, lastName, googleId }
+  }
+
   public async loginGoogle({ response, request }: HttpContext) {
     const validator = vine.compile(
       vine.object({
@@ -127,32 +156,88 @@ export default class AuthSessionsController {
       })
     )
 
-    const googleClient = new OAuth2Client()
+    try {
+      const { token } = await request.validateUsing(validator)
+
+      const identity = await this.getGoogleIdentity(token)
+      if (!identity) return badRequest(response, 'Bad Request')
+
+      const { email, googleId } = identity
+
+      const user = await this.userRepo.findActiveByEmail(email)
+
+      if (!user) {
+        return badRequest(response, 'Akun belum terdaftar. Silakan daftar terlebih dahulu.')
+      }
+
+      if (user.googleId && user.googleId !== googleId) {
+        return badRequest(response, 'Google account mismatch')
+      }
+
+      if (!user.googleId) {
+        user.googleId = googleId
+        await user.save()
+      }
+
+      if (user.isActive !== 1) {
+        return badRequest(response, 'Account suspended')
+      }
+
+      const tokenLogin = await this.generateToken(user)
+
+      return response.ok({
+        message: 'Ok',
+        serve: {
+          data: user.serialize({
+            fields: [
+              'id',
+              'firstName',
+              'lastName',
+              'email',
+              'gender',
+              'address',
+              'phoneNumber',
+              'dob',
+              'photoProfile',
+              'role',
+              'createdAt',
+              'updatedAt',
+            ],
+          }),
+          token: tokenLogin,
+
+          is_new_user: false,
+          needs_profile_completion: false,
+        },
+      })
+    } catch (e: any) {
+      return internalError(response, e)
+    }
+  }
+
+  public async registerGoogle({ response, request }: HttpContext) {
+    const validator = vine.compile(
+      vine.object({
+        token: vine.string(),
+      })
+    )
 
     try {
       const { token } = await request.validateUsing(validator)
 
-      const ticket = await googleClient.verifyIdToken({
-        idToken: token,
-        audience: env.get('GOOGLE_CLIENT_ID'),
-      })
+      const identity = await this.getGoogleIdentity(token)
+      if (!identity) return badRequest(response, 'Bad Request')
 
-      const googlePayload = ticket.getPayload()
-      const email = googlePayload?.email?.toLowerCase()
-      const name = googlePayload?.name
-      const googleId = googlePayload?.sub
+      const { email, firstName, lastName, googleId } = identity
 
-      if (!email || !name || !googleId) {
-        return response.badRequest({ message: 'Bad Request', serve: null })
-      }
 
-      const firstName = name.split(' ')[0] || ''
-      const lastName = name.split(' ').slice(1).join(' ') || ''
-
-      let user = await this.userRepo.findActiveByEmail(email)
-
+      let user = await User.query().where('email', email).first()
+      let isNewUser = false
 
       if (!user) {
+        isNewUser = true
+        const randomPass = randomBytes(24).toString('hex')
+
         user = await User.create({
           email,
           firstName,
@@ -160,17 +245,25 @@ export default class AuthSessionsController {
           googleId,
           isActive: 1,
           role: Role.GUEST,
-          password: 'randomPassword',
+          password: randomPass,
         })
-      }
+      } else {
 
-      if (user) {
+        if (user.isActive !== 1) {
+          return badRequest(response, 'Account suspended')
+        }
+
+        if (user.googleId && user.googleId !== googleId) {
+          return badRequest(response, 'Google account mismatch')
+        }
+
+        // kalau belum ada googleId, isi
         if (!user.googleId) user.googleId = googleId
-        await user.save()
-      }
 
-      if (user.isActive !== 1) {
-        return response.badRequest({ message: 'Account suspended', serve: null })
+        if (!user.firstName) user.firstName = firstName
+        if (!user.lastName) user.lastName = lastName
+
+        await user.save()
       }
 
       const tokenLogin = await this.generateToken(user)
@@ -200,10 +293,7 @@ export default class AuthSessionsController {
         },
       })
     } catch (e: any) {
-      return response.internalServerError({
-        message: e.message || 'Internal Server Error',
-        serve: null,
-      })
+      return internalError(response, e)
     }
   }
 

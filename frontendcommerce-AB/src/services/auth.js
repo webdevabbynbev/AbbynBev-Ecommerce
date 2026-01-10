@@ -163,27 +163,27 @@ export async function loginUser(email_or_phone, password, remember_me = false) {
   }
 }
 
-/**
- * ❌ OTP login sudah dimatikan di backend.
- */
 export async function verifyOtp() {
   throw new Error("OTP login is disabled. Use loginUser() instead.");
 }
 
 /** =========================
- *  GOOGLE LOGIN
+ *  GOOGLE LOGIN / REGISTER
+ *  mode:
+ *   - "login"    => /auth/login-google     (existing only)
+ *   - "register" => /auth/register-google  (boleh create)
  *  ========================= */
-export async function LoginGoogle(token) {
+export async function LoginGoogle(token, mode = "login") {
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/auth/login-google`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ token }),
-      }
-    );
+    const endpoint =
+      mode === "register" ? "/auth/register-google" : "/auth/login-google";
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ token }),
+    });
 
     let payload = null;
     try {
