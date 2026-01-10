@@ -8,7 +8,6 @@ import type { CmsProductUpsertPayload } from '#services/product/product_cms_serv
 
 import ProductMedia from '#models/product_media'
 
-// NOTE: kamu bilang mau tetap pakai utils
 import FileUploadService from '../../../utils/upload_file_service.js'
 
 export default class ProductsController {
@@ -17,26 +16,31 @@ export default class ProductsController {
 
   public async get({ response, request }: HttpContext) {
     try {
-      // ✅ UPDATE: Tambahkan 'q' untuk menangkap parameter pencarian
-      const { name = '', isFlashsale, status, page: p, per_page: pp, q = '' } = request.qs()
-      const page = Number(p) > 0 ? Number(p) : 1
-      const per_page = Number(pp) > 0 ? Number(pp) : 10
+      const qs = request.qs()
+      const keyword = String(qs.q || qs.name || '').trim()
+
+      const isFlashsale = qs.isFlashsale
+      const status = qs.status
+
+      const page = Number(qs.page) > 0 ? Number(qs.page) : 1
+      const per_page = Number(qs.per_page) > 0 ? Number(qs.per_page) : 10
 
       const dataProduct = await this.productService
         .query()
         .apply((scopes) => scopes.active())
-        // ✅ UPDATE: Logika pencarian gabungan (Nama OR SKU) jika ada parameter 'q'
-        .if(q, (query) => {
+        .if(keyword, (query) => {
           query.where((subQuery) => {
             subQuery
-              .where('products.name', 'like', `%${q}%`)
-              .orWhere('products.slug', 'like', `%${q}%`)
-              // Tambahkan kondisi lain jika perlu, misal SKU di tabel variants
-              .orWhere('products.master_sku', 'like', `%${q}%`)
+              .where('products.name', 'like', `%${keyword}%`)
+              .orWhere('products.slug', 'like', `%${keyword}%`)
+              .orWhere('products.master_sku', 'like', `%${keyword}%`)
+              .orWhereHas('variants', (vq) => {
+                vq.where('sku', 'like', `%${keyword}%`)
+              .orWhere('porducts.barand','like','%{ketword}%')
+              .orWhere('porducts.barcode','like','%{ketword}%')
+              })
           })
         })
-        // -----------------------------------------------------
-        .if(name, (q) => q.where('products.name', 'like', `%${name}%`))
         .if(isFlashsale !== undefined && isFlashsale !== '', (q) =>
           q.where('products.is_flashsale', Boolean(Number(isFlashsale)))
         )
@@ -55,7 +59,10 @@ export default class ProductsController {
         .preload('tags')
         .preload('concernOptions')
         .preload('profileOptions')
+
         .orderByRaw('products.position IS NULL, products.position ASC')
+        .orderBy('products.name', 'asc')
+        .orderBy('products.id', 'asc')
         .paginate(page, per_page)
 
       const { meta, data } = dataProduct.toJSON()
@@ -251,20 +258,14 @@ export default class ProductsController {
         }
       }
 
-      // slot otomatis 1..N (tanpa startSlot)
       const folder = `products/${productId}/variant-${variantId}`
       const created: ProductMedia[] = []
 
       for (let i = 0; i < files.length; i++) {
         const slot = String(i + 1)
 
-        const url = await (FileUploadService as any).uploadFile(
-          files[i],
-          { folder },
-          { publicId: slot }
-        )
+        const url = await (FileUploadService as any).uploadFile(files[i], { folder }, { publicId: slot })
 
-        // ✅ penting: hanya isi variantId, JANGAN isi productId
         const media = await ProductMedia.create({
           variantId,
           url,
