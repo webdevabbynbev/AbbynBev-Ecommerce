@@ -215,7 +215,7 @@ export default class ProductsController {
       }
 
       const folder = `products/${productId}`
-      const url = await (FileUploadService as any).uploadFile(file, { folder }, { publicId: slot })
+      const url = await (FileUploadService as any).uploadFile(file, { folder })
 
       const media = await ProductMedia.create({
         variantId,
@@ -264,7 +264,7 @@ export default class ProductsController {
       for (let i = 0; i < files.length; i++) {
         const slot = String(i + 1)
 
-        const url = await (FileUploadService as any).uploadFile(files[i], { folder }, { publicId: slot })
+        const url = await (FileUploadService as any).uploadFile(files[i], { folder })
 
         const media = await ProductMedia.create({
           variantId,

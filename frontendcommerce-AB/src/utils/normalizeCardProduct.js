@@ -7,6 +7,13 @@ export function normalizeCardProduct(raw) {
   if (!raw) return null;
 
   const source = raw.product ?? raw;
+  const variants = Array.isArray(source.variants) ? source.variants : [];
+  const variantPrices = variants
+    .map((variant) => Number(variant?.price))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  const lowestVariantPrice = variantPrices.length
+    ? Math.min(...variantPrices)
+    : null;
 
   const name =
     source.name ?? source.productName ?? source.title ?? "Unnamed Product";
@@ -44,8 +51,8 @@ export function normalizeCardProduct(raw) {
     id: source.id ?? source._id ?? crypto.randomUUID(),
     name,
     price: Number(
-      source.price ??
-        source.base_price ??
+      lowestVariantPrice ??
+        source.price ??
         source.basePrice ??
         source.realprice ??
         source.salePrice ??

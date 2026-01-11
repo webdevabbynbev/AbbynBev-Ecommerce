@@ -43,6 +43,11 @@ export default class ProductsController {
             .preload('discounts', (query) =>
               query.where('start_date', '<=', dateString).where('end_date', '>=', dateString)
             )
+            .preload('variants', (variantLoader) => {
+              variantLoader
+                .select(['id', 'price', 'stock', 'product_id'])
+                .whereNull('product_variants.deleted_at')
+            })
             // NOTE: untuk listing, biarkan ini dulu.
             // kalau kamu mau listing pakai image dari variant, baru preload variants.medias (lebih berat)
             .preload('medias')

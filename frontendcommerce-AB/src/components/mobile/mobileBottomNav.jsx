@@ -167,7 +167,7 @@ export function MobileBottomNav({ className = "" }) {
                 </button>
               </SheetTrigger>
 
-              <SheetContent side="bottom" className="rounded-full">
+              <SheetContent side="bottom" className="rounded-xl">
                 <SheetHeader>
                   <SheetTitle className="text-primary-700">Shop</SheetTitle>
                 </SheetHeader>
