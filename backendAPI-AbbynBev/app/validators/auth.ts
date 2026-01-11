@@ -20,6 +20,7 @@ export const register = vine.compile(
           .first()
         return !exists
       }),
+
     phone_number: vine
       .string()
       .regex(/^(?:\+62|62|0)[0-9]{9,14}$/)
@@ -31,12 +32,14 @@ export const register = vine.compile(
           .first()
         return !exists
       }),
+
     first_name: vine.string().trim(),
     last_name: vine.string().trim(),
     gender: vine.number().in([1, 2]),
     password: passwordWithSymbol,
 
-    // ✅ pilih pengiriman OTP
+    accept_privacy_policy: vine.boolean(),
+
     send_via: vine.enum(['email', 'whatsapp']).optional(),
   })
 )
@@ -47,7 +50,6 @@ export const login = vine.compile(
       .string()
       .regex(/^(?:\+62|62|0)[0-9]{9,14}$|^[^\s@]+@[^\s@]+\.[^\s@]+$/),
 
-    // ✅ login juga min 8 + wajib simbol (underscore dihitung)
     password: passwordWithSymbol,
   })
 )
@@ -67,9 +69,11 @@ export const verifyRegisterOtp = vine.compile(
     phone_number: vine.string().regex(/^(?:\+62|62|0)[0-9]{9,14}$/),
     first_name: vine.string().trim(),
     last_name: vine.string().trim(),
-    otp: vine.string(),
+    otp: vine.string().minLength(4).maxLength(6),
     gender: vine.number().in([1, 2]),
     password: passwordWithSymbol,
+    
+    accept_privacy_policy: vine.boolean(),
   })
 )
 
