@@ -9,7 +9,8 @@
 
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
-import { Role } from '../app/enums/role.js'
+import { Role } from '#enums/role'
+
 
 // =========================
 // CMS / ADMIN CONTROLLERS (DECLARE ONCE ONLY)
