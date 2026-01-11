@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import api from "@/lib/axios";
 import { getAddressByQuery, getUser } from "@/services/auth";
 import { AddressCard } from ".";
+import { useLocationNames } from "@/app/hooks/useLocationNames";
 
 const toNum = (v) => {
   const n = Number(v);
@@ -17,10 +18,7 @@ export function AddressList() {
 
   const [saving, setSaving] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
-
-  // maps id -> name
-  const [provinceMap, setProvinceMap] = useState({});
-  const [cityMap, setCityMap] = useState({});
+  const { provinceMap, cityMap } = useLocationNames(list); 
 
   // ---- load addresses
   useEffect(() => {
@@ -41,8 +39,6 @@ export function AddressList() {
         const main = data.find((x) => Number(x.isActive) === 2);
         setSelectedId(main ? main.id : data[0]?.id ?? null);
 
-        // setelah ada list, hydrate nama lokasi
-        hydrateLocationNames(data);
       } catch (e) {
         if (alive) setErr(e?.message || "Gagal memuat alamat");
       } finally {
@@ -55,46 +51,6 @@ export function AddressList() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // ---- hydrate province/city names so UI doesn't show numeric IDs
-  const hydrateLocationNames = async (data) => {
-    try {
-      const provinceIds = Array.from(
-        new Set(
-          data
-            .map((a) => a?.province)
-            .filter((p) => isNumericLike(p))
-            .map((p) => Number(p))
-        )
-      );
-
-      // 1) provinces map
-      const provRes = await api.get("/province"); // /api/v1/province
-      const provList = provRes.data?.serve || provRes.data?.data || [];
-      const provMapNext = {};
-      (Array.isArray(provList) ? provList : []).forEach((p) => {
-        provMapNext[String(p.id)] = p.name;
-      });
-      setProvinceMap(provMapNext);
-
-      // 2) cities map per province
-      // city list harus query per provinceId (karena endpoint kamu /city?province=ID)
-      const cityMapNext = {};
-      await Promise.all(
-        provinceIds.map(async (pid) => {
-          const res = await api.get("/city", { params: { province: pid } });
-          const cityList = res.data?.serve || res.data?.data || [];
-          (Array.isArray(cityList) ? cityList : []).forEach((c) => {
-            cityMapNext[String(c.id)] = c.name;
-          });
-        })
-      );
-      setCityMap(cityMapNext);
-    } catch (e) {
-      // kalau gagal mapping, UI tetap jalan (cuma tampil ID)
-      console.warn("Hydrate location names failed:", e?.response?.data || e);
-    }
-  };
 
   // ---- handle select main address
   const handleSelect = async (id) => {
@@ -163,7 +119,6 @@ export function AddressList() {
           label={a.picLabel || ""}
           line={a.address || ""}
 
-          // ✅ tampilkan nama, bukan ID
           city={a._cityName || ""}
           province={a._provinceName || ""}
 

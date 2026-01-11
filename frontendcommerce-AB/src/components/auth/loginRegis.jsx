@@ -52,6 +52,8 @@ export function LoginRegisModalForm() {
   const [confirm_password, setConfirmPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [pwError, setPwError] = useState("");
+  
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
 
   function validateRegisterPassword(pw, cpw) {
     if (!pw || !cpw) return "";
@@ -72,7 +74,6 @@ export function LoginRegisModalForm() {
       const user = data?.serve?.data;
 
       if (user) {
-        // ✅ HttpOnly cookie => tidak butuh token di FE
         login({ user });
         router.push("/");
         return;
@@ -87,6 +88,11 @@ export function LoginRegisModalForm() {
   };
 
   const handleRegis = async () => {
+    if (!acceptPrivacy) {
+      setMessage("Wajib menyetujui Privacy Policy sebelum mendaftar.");
+      return;
+    }
+
     setLoading(true);
     setMessage("");
     try {
@@ -96,7 +102,9 @@ export function LoginRegisModalForm() {
         first_name,
         last_name,
         gender,
-        regPassword
+        regPassword,
+        "whatsapp",
+        acceptPrivacy
       );
 
       if (data?.serve) {
@@ -114,6 +122,11 @@ export function LoginRegisModalForm() {
   };
 
   const handleOtpRegis = async () => {
+    if (!acceptPrivacy) {
+      setMessage("Wajib menyetujui Privacy Policy sebelum mendaftar.");
+      return;
+    }
+
     setLoading(true);
     setMessage("");
     try {
@@ -124,13 +137,13 @@ export function LoginRegisModalForm() {
         last_name,
         gender,
         regPassword,
-        otp
+        otp,
+        acceptPrivacy
       );
 
       const user = data?.serve?.data;
 
       if (user) {
-        // ✅ HttpOnly cookie => tidak butuh token di FE
         login({ user });
         router.push("/account/profile");
         return;
@@ -144,12 +157,13 @@ export function LoginRegisModalForm() {
     }
   };
 
-  /**
-   * mode:
-   * - "login"    => existing only
-   * - "register" => boleh create
-   */
   const handleSuccessGoogle = async (credentialResponse, mode = "login") => {
+
+    if (mode === "register" && !acceptPrivacy) {
+      setMessage("Centang Privacy Policy dulu untuk daftar dengan Google.");
+      return;
+    }
+
     setLoading(true);
     setMessage("");
     try {
@@ -159,14 +173,13 @@ export function LoginRegisModalForm() {
         return;
       }
 
-      const data = await LoginGoogle(credentialToken, mode);
+      const data = await LoginGoogle(credentialToken, mode, acceptPrivacy);
 
       const user = data?.serve?.data;
       const isNewUser = !!data?.serve?.is_new_user;
       const needsProfile = !!data?.serve?.needs_profile_completion;
 
       if (user) {
-        // ✅ HttpOnly cookie => tidak butuh token di FE
         login({ user });
 
         if (isNewUser || needsProfile) router.push("/account/profile");
@@ -210,6 +223,7 @@ export function LoginRegisModalForm() {
               setSignupStep("regis");
               setOtp("");
               setPwError("");
+              setAcceptPrivacy(false); 
             }
           }}
         >
@@ -429,6 +443,30 @@ export function LoginRegisModalForm() {
                   />
 
                   {pwError && <p className="text-sm text-red-600">{pwError}</p>}
+
+                  {/* ✅ Privacy Policy checkbox */}
+                  <div className="flex items-start gap-2 pt-1">
+                  <input
+                    id="accept_privacy_policy"
+                    type="checkbox"
+                    className="mt-1 h-4 w-4"
+                    checked={acceptPrivacy}
+                    onChange={(e) => setAcceptPrivacy(e.target.checked)}
+                  />
+                  <label
+                    htmlFor="accept_privacy_policy"
+                    className="text-xs text-neutral-600 leading-5"
+                  >
+                    Saya setuju{" "}
+                    <Link
+                      href="/privacy-policy"
+                      target="_blank"
+                      className="text-xs font-normal text-neutral-600 underline underline-offset-2"
+                    >
+                      Privacy Policy
+                    </Link>
+                  </label>
+                </div>
                 </div>
               )}
 
@@ -449,7 +487,12 @@ export function LoginRegisModalForm() {
                   variant="primary"
                   size="sm"
                   className="w-full"
-                  disabled={loading || (signupStep === "regis" && !!pwError)}
+                  disabled={
+                    loading ||
+                    !!pwError ||
+                    (signupStep === "regis" && !acceptPrivacy) ||
+                    (signupStep === "otpregis" && !acceptPrivacy)
+                  }
                 >
                   {loading
                     ? "Loading..."
@@ -462,10 +505,25 @@ export function LoginRegisModalForm() {
                 {signupStep === "regis" && (
                   <>
                     <div className="w-full flex justify-center text-sm">Or</div>
-                    <div className="flex flex-col gap-4">
+
+                    {!acceptPrivacy && (
+                      <p className="text-xs text-center text-neutral-500">
+                        Centang Privacy Policy untuk daftar dengan Google.
+                      </p>
+                    )}
+
+                    <div
+                      className={
+                        acceptPrivacy
+                          ? "flex flex-col gap-4"
+                          : "flex flex-col gap-4 opacity-50 pointer-events-none"
+                      }
+                    >
                       <GoogleLogin
                         text="signup_with"
-                        onSuccess={(cred) => handleSuccessGoogle(cred, "register")}
+                        onSuccess={(cred) =>
+                          handleSuccessGoogle(cred, "register")
+                        }
                         onError={() => setMessage("Login Google gagal")}
                       />
                     </div>

@@ -72,7 +72,8 @@ export async function regis(
   last_name,
   gender,
   password,
-  send_via = "whatsapp"
+  send_via = "whatsapp",
+  accept_privacy_policy = false
 ) {
   try {
     const payload = {
@@ -83,6 +84,8 @@ export async function regis(
       gender: n(gender),
       password: String(password ?? ""),
       send_via: s(send_via) || "whatsapp",
+
+      accept_privacy_policy: Boolean(accept_privacy_policy),
     };
 
     if (!payload.email) throw new Error("Email wajib diisi");
@@ -91,6 +94,8 @@ export async function regis(
     if (!payload.last_name) throw new Error("Last name wajib diisi");
     if (![1, 2].includes(payload.gender)) throw new Error("Gender wajib dipilih");
     if (!payload.password) throw new Error("Password wajib diisi");
+    if (!payload.accept_privacy_policy)
+      throw new Error("Wajib menyetujui Privacy Policy sebelum mendaftar");
 
     const res = await api.post("/auth/register", payload, {
       withCredentials: true,
@@ -109,7 +114,8 @@ export async function OtpRegis(
   last_name,
   gender,
   password,
-  otp
+  otp,
+  accept_privacy_policy = false
 ) {
   try {
     const payload = {
@@ -120,12 +126,15 @@ export async function OtpRegis(
       gender: n(gender),
       password: String(password ?? ""),
       otp: s(otp),
+
+      accept_privacy_policy: Boolean(accept_privacy_policy),
     };
 
     if (!payload.email) throw new Error("Email wajib diisi");
     if (!payload.otp) throw new Error("OTP wajib diisi");
+    if (!payload.accept_privacy_policy)
+      throw new Error("Wajib menyetujui Privacy Policy sebelum mendaftar");
 
-    // ✅ backend seharusnya set cookie ketika OTP verify success
     const res = await api.post("/auth/verify-register", payload, {
       withCredentials: true,
     });
@@ -151,7 +160,6 @@ export async function loginUser(email_or_phone, password, remember_me = false) {
     if (!payload.email_or_phone) throw new Error("Email/Phone wajib diisi");
     if (!payload.password) throw new Error("Password wajib diisi");
 
-    // ✅ backend set cookie di sini
     const res = await api.post("/auth/login", payload, {
       withCredentials: true,
     });
@@ -169,27 +177,21 @@ export async function verifyOtp() {
 
 /** =========================
  *  GOOGLE LOGIN / REGISTER
- *  mode:
- *   - "login"    => /auth/login-google     (existing only)
- *   - "register" => /auth/register-google  (boleh create)
  *  ========================= */
-export async function LoginGoogle(token, mode = "login") {
+export async function LoginGoogle(token, mode = "login", accept_privacy_policy = false) {
   try {
     const endpoint = mode === "register" ? "/auth/register-google" : "/auth/login-google";
 
-    // ✅ pakai axios instance (baseURL, interceptor, konsisten)
-    const res = await api.post(
-      endpoint,
-      { token },
-      { withCredentials: true }
-    );
+    const body =
+      mode === "register"
+        ? { token, accept_privacy_policy: Boolean(accept_privacy_policy) }
+        : { token };
+
+    const res = await api.post(endpoint, body, { withCredentials: true });
 
     return res.data;
   } catch (err) {
-    const msg =
-      err?.response?.data?.message ||
-      err?.message ||
-      "Login Google gagal";
+    const msg = err?.response?.data?.message || err?.message || "Login Google gagal";
     throw new Error(msg);
   }
 }

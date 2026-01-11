@@ -9,7 +9,8 @@
 
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
-import { Role } from '../app/enums/role.js'
+import { Role } from '#enums/role'
+
 
 // =========================
 // CMS / ADMIN CONTROLLERS (DECLARE ONCE ONLY)
@@ -510,7 +511,6 @@ router
         router.put('/profile/picture', [AuthAccountController, 'updateProfilePicture'])
         router.put('/profile/password', [AuthAccountController, 'updatePassword'])
         router.post('/profile/deactivate', [AuthAccountController, 'deactivateAccount'])
-        router.post('/vouchers/validate', [FeVoucherController, 'validate'])
         router.get('/wishlists', [FeWishlist, 'get'])
         router.get('/wishlists/list', [FeWishlist, 'list'])
         router.post('/wishlists', [FeWishlist, 'create'])
@@ -523,6 +523,12 @@ router
         router.post('/get-cost', [UserAddressesController, 'getCost'])
         router.get('/beauty', [FeUserBeautyProfilesController, 'getUserSelections'])
         router.post('/beauty/concerns', [FeUserBeautyProfilesController, 'saveConcerns'])
+        router.post('/vouchers/validate', [FeVoucherController, 'validate'])
+
+        router.get('/vouchers/available', [FeVoucherController, 'available'])
+        router.get('/vouchers/my', [FeVoucherController, 'my'])
+        router.post('/vouchers/:id/claim', [FeVoucherController, 'claim'])
+
         router.post('/beauty/profiles', [FeUserBeautyProfilesController, 'saveProfiles'])
         router.get('/recommendations', [
           FeProductRecommendationsController,

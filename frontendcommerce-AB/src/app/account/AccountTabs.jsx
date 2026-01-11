@@ -8,8 +8,10 @@ export default function AccountTabs({ slug }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const INTERNAL_TABS = ["profile", "wishlist"];
   const activeSlug = pathname.includes("order-history") ? null : slug;
+
+  const isOrder = pathname.includes("/account/order-history");
+  const isVouchers = pathname.startsWith("/vouchers");
 
   return (
     <Tabs
@@ -21,28 +23,25 @@ export default function AccountTabs({ slug }) {
       {/* SIDEBAR */}
       <TabsList
         className="
-          flex flex-row lg:flex-col 
-          h-fit w-[220px] 
-          items-start 
-          rounded-xl border p-4 space-y-2 
+          flex flex-row lg:flex-col
+          h-fit w-[220px]
+          items-start
+          rounded-xl border p-4 space-y-2
           bg-white shadow-sm
         "
       >
         {/* ========== PROFILE ========== */}
-        <TabsTrigger
-          value="profile"
-          className="w-full justify-start text-left"
-        >
+        <TabsTrigger value="profile" className="w-full justify-start text-left">
           Profile
         </TabsTrigger>
 
-        {/* ========== MY ORDER (Halaman terpisah, bukan tabs) ========== */}
+        {/* ========== MY ORDER (Halaman terpisah) ========== */}
         <button
           onClick={() => router.push("/account/order-history")}
           className={`
             w-full text-left px-3 py-2 rounded-md text-sm transition
             ${
-              pathname.includes("order-history")
+              isOrder
                 ? "bg-pink-600 text-white shadow"
                 : "text-gray-700 hover:bg-gray-100"
             }
@@ -51,11 +50,23 @@ export default function AccountTabs({ slug }) {
           My Order
         </button>
 
-        {/* ========== WISHLIST ========== */}
-        <TabsTrigger
-          value="wishlist"
-          className="w-full justify-start text-left"
+        {/* ========== VOUCHER (Halaman terpisah) ========== */}
+        <button
+          onClick={() => router.push("/vouchers")}
+          className={`
+            w-full text-left px-3 py-2 rounded-md text-sm transition
+            ${
+              isVouchers
+                ? "bg-pink-600 text-white shadow"
+                : "text-gray-700 hover:bg-gray-100"
+            }
+          `}
         >
+          Voucher
+        </button>
+
+        {/* ========== WISHLIST ========== */}
+        <TabsTrigger value="wishlist" className="w-full justify-start text-left">
           Wishlist
         </TabsTrigger>
       </TabsList>
@@ -66,11 +77,9 @@ export default function AccountTabs({ slug }) {
           <Profilepage />
         </TabsContent>
 
-        <TabsContent value="wishlist">
-          Halaman Wishlist
-        </TabsContent>
+        <TabsContent value="wishlist">Halaman Wishlist</TabsContent>
 
-        {/* Order history tidak dirender di sini — dibuka di halaman terpisah */}
+        {/* Order history & voucher tidak dirender di sini — halaman terpisah */}
       </div>
     </Tabs>
   );

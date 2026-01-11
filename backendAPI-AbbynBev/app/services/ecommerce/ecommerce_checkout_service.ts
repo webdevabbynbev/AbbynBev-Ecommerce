@@ -13,6 +13,10 @@ import { VoucherCalculator } from './voucher_calculator.js'
 import { StockService } from './stock_service.js'
 import { MidtransService } from './midtrans_service.js'
 
+import { DateTime } from 'luxon'
+import Voucher from '#models/voucher'
+import VoucherClaim, { VoucherClaimStatus } from '#models/voucher_claim'
+
 function normalizeInt(v: any, fallback = 0) {
   const n = NumberUtils.toNumber(v, fallback)
   return Math.max(0, Math.round(n))
@@ -38,10 +42,11 @@ export class EcommerceCheckoutService {
     return db.transaction(async (trx) => {
       const rawCartIds = payload.cart_ids ?? []
       const cartIds: number[] = Array.isArray(rawCartIds)
-       ? rawCartIds.map((x: any) => NumberUtils.toNumber(x)).filter((x) => x > 0)
+        ? rawCartIds.map((x: any) => NumberUtils.toNumber(x)).filter((x) => x > 0)
         : []
 
-      const voucher = payload.voucher
+      const voucherId = NumberUtils.toNumber(payload.voucher_id || payload.voucher?.id, 0)
+
       const userAddressId = NumberUtils.toNumber(payload.user_address_id, 0)
 
       const courierName = String(payload.shipping_service_type || '').trim()
@@ -93,6 +98,7 @@ export class EcommerceCheckoutService {
           .where('is_active', true)
           .preload('product')
           .first()
+
         if (!po || !po.product) {
           const err: any = new Error('Product not available online')
           err.httpStatus = 400
@@ -128,9 +134,49 @@ export class EcommerceCheckoutService {
       const totalWeight = Math.max(1, weightFromReq || weightFromCart || 1)
       const shippingPrice = shippingPriceInput
 
+      let voucher: Voucher | null = null
+      let claim: VoucherClaim | null = null
+
+      if (voucherId) {
+        const dateString = DateTime.now().setZone('Asia/Jakarta').toFormat('yyyy-LL-dd HH:mm:ss')
+
+        voucher = await Voucher.query({ client: trx })
+          .apply((q) => q.active())
+          .where('id', voucherId)
+          .where('is_active', 1)
+          .where((q) => q.whereNull('started_at').orWhere('started_at', '<=', dateString))
+          .where((q) => q.whereNull('expired_at').orWhere('expired_at', '>=', dateString))
+          .first()
+
+        if (!voucher) {
+          const err: any = new Error('Voucher tidak tersedia / sudah expired.')
+          err.httpStatus = 400
+          throw err
+        }
+
+        claim = await VoucherClaim.query({ client: trx })
+          .where('voucher_id', voucherId)
+          .where('user_id', user.id)
+          .forUpdate()
+          .first()
+
+        if (!claim) {
+          const err: any = new Error('Voucher belum kamu claim.')
+          err.httpStatus = 400
+          throw err
+        }
+
+        if (NumberUtils.toNumber(claim.status) !== VoucherClaimStatus.CLAIMED) {
+          const err: any = new Error('Voucher sedang dipakai / sudah terpakai.')
+          err.httpStatus = 400
+          throw err
+        }
+      }
+
       const discount = this.voucherCalc.calculateVoucher(voucher, subTotal, shippingPrice)
       const grandTotal =
-        this.voucherCalc.generateGrandTotal(voucher, subTotal, shippingPrice) + (isProtected ? protectionFee : 0)
+        this.voucherCalc.generateGrandTotal(voucher, subTotal, shippingPrice) +
+        (isProtected ? protectionFee : 0)
 
       const transaction = new Transaction()
       transaction.userId = user.id
@@ -144,11 +190,15 @@ export class EcommerceCheckoutService {
       transaction.channel = 'ecommerce'
       await transaction.useTransaction(trx).save()
 
-      const snap = await this.midtrans.createSnapTransaction(transaction.transactionNumber, transaction.grandTotal, user)
+      const snap = await this.midtrans.createSnapTransaction(
+        transaction.transactionNumber,
+        transaction.grandTotal,
+        user
+      )
 
       const transactionEcommerce = new TransactionEcommerce()
       transactionEcommerce.transactionId = transaction.id
-      transactionEcommerce.voucherId = voucher?.id ?? null
+      transactionEcommerce.voucherId = voucherId || null // ✅ NEW
       transactionEcommerce.tokenMidtrans = snap.token
       transactionEcommerce.redirectUrl = snap.redirect_url
       transactionEcommerce.userId = user.id
@@ -158,15 +208,15 @@ export class EcommerceCheckoutService {
       transactionEcommerce.courierService = courierService
       await transactionEcommerce.useTransaction(trx).save()
 
-      // 3) voucher reduce
-      if (voucher?.id) {
-        await this.voucherCalc.decrementVoucher(trx, voucher.id)
+      if (claim && voucherId) {
+        claim.status = VoucherClaimStatus.RESERVED
+        claim.transactionId = transaction.id
+        claim.reservedAt = DateTime.now().setZone('Asia/Jakarta')
+        await claim.useTransaction(trx).save()
       }
 
-      // 4) stock reduce + create details + delete cart
       await this.stock.reduceFromCarts(trx, carts, transaction.id)
 
-      // 5) shipment
       const areaName = String((userAddress as any).biteshipAreaName || '').trim()
       const postal = String(userAddress.postalCode || '').trim()
       const addrText = [userAddress.address, areaName, postal].filter(Boolean).join(', ')
