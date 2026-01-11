@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon'
 import RamadanCheckin from '#models/ramadan_checkin'
 import RamadanCheckinExemption from '#models/ramadan_checkin_exemption'
+import RamadanSpinTicket from '#models/ramadan_spin_ticket'
 import env from '#start/env'
 
 const TOTAL_DAYS = 30
