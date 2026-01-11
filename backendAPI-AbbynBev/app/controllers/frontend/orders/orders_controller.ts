@@ -1,7 +1,7 @@
 // app/controllers/frontend/orders_controller.ts
 import type { HttpContext } from '@adonisjs/core/http'
-import { EcommerceOrderService } from '../../services/ecommerce/ecommerce_order_service.js'
-import NumberUtils from '../../utils/number.js'
+import { EcommerceOrderService } from '#services/ecommerce/ecommerce_order_service'
+import NumberUtils from '#utils/number'
 
 export default class OrdersController {
   private service = new EcommerceOrderService()

@@ -180,6 +180,14 @@ const MenuAdmin = (level: RoleEnumType): MenuProps["items"] => {
           icon: <StarOutlined />,
           label: "Rekomendasi Product",
         },
+        helper.hasAnyPermission(level, [
+          helper.RoleEnum.ADMINISTRATOR,
+          helper.RoleEnum.GUDANG,
+        ]) && {
+          key: "/ramadan-spin",
+          icon: <WarningOutlined />,
+          label: "Input Roulette Check-in",
+        },
         // 3. Potongan Harga
         helper.hasAnyPermission(level, [
           helper.RoleEnum.ADMINISTRATOR,

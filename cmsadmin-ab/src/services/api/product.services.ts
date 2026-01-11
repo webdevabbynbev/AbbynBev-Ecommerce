@@ -1,18 +1,26 @@
-import http from "../../api/http";
+import http from '../../api/http'
 
-export async function importProductCSV(file: File) {
-  const formData = new FormData();
-  formData.append("file", file);
+/**
+ * Upload CSV product
+ * @param file File CSV
+ * @param onProgress callback progress (0 - 100)
+ */
+export function importProductCSV(
+  file: File,
+  onProgress?: (percent: number) => void
+) {
+  const formData = new FormData()
+  formData.append('file', file)
 
-  const response = await http.post(
-    "/api/v1/admin/product/import-csv",
-    formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    }
-  );
+  return http.post('/api/v1/admin/product/import-csv', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    onUploadProgress: (event) => {
+      if (!event.total) return
 
-  return response.data;
+      const percent = Math.round((event.loaded * 100) / event.total)
+      onProgress?.(percent)
+    },
+  })
 }

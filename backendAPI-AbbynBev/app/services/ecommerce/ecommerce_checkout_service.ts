@@ -185,7 +185,7 @@ export class EcommerceCheckoutService {
 
       shipment.postalCode = postal || ''
       shipment.pic = userAddress.picName || ''
-      shipment.pic_phone = userAddress.picPhone || ''
+      shipment.picPhone = userAddress.picPhone || ''
 
       shipment.estimationArrival = etd
       ;(shipment as any).isProtected = isProtected ? 1 : 0

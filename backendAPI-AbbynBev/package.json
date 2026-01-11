@@ -77,7 +77,17 @@
     "#config/*": {
       "types": "./config/*.ts",
       "default": "./config/*.js"
+    },
+    "#utils/*": {
+      "types": "./app/utils/*.ts",
+      "default": "./app/utils/*.js"
+    },
+    "#enums/*": {
+      "types": "./app/enums/*.ts",
+      "default": "./app/enums/*.js"
     }
+
+    
   },
   "devDependencies": {
     "@adonisjs/assembler": "^7.8.2",

@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "../layout/MainLayout";
 
 import TableRamadanRecommendation from "../components/Tables/Ramadan/TableRamadanRecommendation";
+import TableRamadanSpinPrize from "../components/Tables/Ramadan/TableRamadanSpinPrize";
 import TableAdmin from "../components/Tables/Admin/TableAdmin";
 import TableCustomer from "../components/Tables/Customer/TableCustomer";
 import TableTag from "../components/Tables/Tag/TableTag";
@@ -39,39 +40,40 @@ export default function MasterPage(): React.ReactElement {
       <Routes>
         <Route path="/admin" element={<TableAdmin />} />
         <Route path="/customers" element={<TableCustomer />} />
-
         <Route path="/tag-product" element={<TableTag />} />
         <Route path="/persona-product" element={<TablePersona />} />
         <Route path="/banners" element={<TableBanner />} />
-
         <Route path="/master-product" element={<TableProduct />} />
-
         <Route path="/activity-logs" element={<TableActivityLog />} />
         <Route path="/faqs" element={<TableFaq />} />
         <Route path="/voucher" element={<TableVoucher />} />
-
         <Route path="/privacy-policy" element={<FormPrivacyPolicy />} />
         <Route path="/tnc" element={<FormTermNConditions />} />
         <Route path="/return-policy" element={<FormReturnPolicy />} />
         <Route path="/about-us" element={<FormAboutUs />} />
         <Route path="/contact-us" element={<FormContactUs />} />
-
         <Route path="/settings" element={<TableSetting />} />
         <Route path="/brand-product" element={<TableBrand />} />
         <Route path="/category-types" element={<TableCategoryType />} />
         <Route path="/concern" element={<TableConcern />} />
         <Route path="/concern-option" element={<TableConcernOption />} />
-        <Route path="/profile-category-filter" element={<TableProfileCategory />} />
-        <Route path="/profile-category-option" element={<TableProfileCategoryOption />} />
-
+        <Route
+          path="/profile-category-filter"
+          element={<TableProfileCategory />}
+        />
+        <Route
+          path="/profile-category-option"
+          element={<TableProfileCategoryOption />}
+        />
         <Route path="/flash-sale" element={<TableFlashSale />} />
         <Route path="/sale-products" element={<TableSale />} />
-
         <Route path="/transactions" element={<TableTransaction />} />
-
         <Route path="/ramadan-event" element={<TableRamadanEvent />} />
-        <Route path="/ramadan-recommendation" element={<TableRamadanRecommendation />} />
-
+        <Route
+          path="/ramadan-recommendation"
+          element={<TableRamadanRecommendation />}
+        />{" "}
+        <Route path="/ramadan-spin" element={<TableRamadanSpinPrize />} />
         {/* Redirect default */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
