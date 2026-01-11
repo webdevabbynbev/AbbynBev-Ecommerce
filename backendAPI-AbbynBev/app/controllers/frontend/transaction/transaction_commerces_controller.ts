@@ -35,7 +35,7 @@ export default class TransactionEcommerceController {
 
       const result = await this.checkout.createCheckout(user, {
         cart_ids: request.input('cart_ids'),
-        voucher: request.input('voucher'),
+        voucher_id: request.input('voucher_id'),
         user_address_id: request.input('user_address_id'),
         shipping_service_type: request.input('shipping_service_type'),
         shipping_service: request.input('shipping_service'),
