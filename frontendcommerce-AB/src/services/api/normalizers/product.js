@@ -18,6 +18,13 @@ export function normalizeProduct(raw) {
       }));
     })
     .filter((media) => Boolean(media.url));
+
+      const sortedVariants = [...variants].sort((a, b) => {
+    const priceDiff = Number(a?.price || 0) - Number(b?.price || 0);
+    if (priceDiff !== 0) return priceDiff;
+    return Number(a?.id || 0) - Number(b?.id || 0);
+  });
+
   const mediaList = [...medias, ...variantMediaList]
     .map((media) => ({
       url: media?.url,
@@ -49,8 +56,17 @@ export function normalizeProduct(raw) {
     item.brand ??
     item.brandname ??
     "";
+
   const brandSlug = item.brand?.slug ?? item.brand_slug ?? item.brandSlug ?? "";
-  const variantItems = variants
+
+  const variantPrices = sortedVariants
+    .map((variant) => Number(variant?.price))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  const lowestVariantPrice = variantPrices.length
+    ? Math.min(...variantPrices)
+    : null;
+
+  const variantItems = sortedVariants
     .map((variant) => {
       if (!variant) return null;
       const attrs = Array.isArray(variant.attributes) ? variant.attributes : [];
@@ -65,8 +81,10 @@ export function normalizeProduct(raw) {
         )
         .filter(Boolean)
         .join(" / ");
+
       const fallbackLabel =
         variant?.name || variant?.sku || variant?.code || "";
+
       const variantImages = uniqueUrls(
         mediaList
           .filter((media) => String(media.variantId) === String(variant.id))
@@ -75,7 +93,7 @@ export function normalizeProduct(raw) {
       return {
         id: variant.id,
         label: attrLabel || fallbackLabel || `Varian ${variant.id}`,
-        price: Number(variant.price || item.base_price || item.price || 0),
+        price: Number(variant.price || 0),
         stock: Number(variant.stock ?? 0),
         images: variantImages,
       };
@@ -87,7 +105,8 @@ export function normalizeProduct(raw) {
     id: raw.id || item.id,
     name: item.name || "Unnamed Product",
     price: Number(
-      item.base_price ??
+      lowestVariantPrice ??
+        item.base_price ??
         item.basePrice ??
         item.price ??
         item.salePrice ??

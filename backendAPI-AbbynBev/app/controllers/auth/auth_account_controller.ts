@@ -52,7 +52,7 @@ export default class AuthAccountController {
       const payload = await request.validateUsing(updateProfilePicture)
       const user: User = auth.user as User
 
-      const image = await FileUploadService.uploadFile(payload.image, { folder: 'profile', type: 'image' })
+      const image = await FileUploadService.uploadFile(payload.image, { folder: 'avatar', type: 'image' })
       user.photoProfile = image
       await user.save()
 
@@ -82,7 +82,7 @@ export default class AuthAccountController {
 
       if ((payload as any).image) {
         const image = await FileUploadService.uploadFile(request.file('image'), {
-          folder: 'profile',
+          folder: 'avatar',
           type: 'image',
         })
         Object.assign(payload, { photoProfile: image })
