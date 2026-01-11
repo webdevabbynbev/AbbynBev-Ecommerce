@@ -47,30 +47,8 @@ const formatToRupiah = (number) =>
   }).format(number);
 
 // --- DATA (tetap boleh kamu ganti) ---
-const RECOMMENDED_PRODUCTS = [
-  {
-    id: 1,
-    name: "Wardah Lightening Facial Wash",
-    price: 35000,
-    compareAt: 45000,
-    brand: "Wardah",
-    category: "Skincare",
-    image:
-      "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png",
-    slug: "wardah-lightening-facial-wash",
-  },
-  {
-    id: 2,
-    name: "Skintific 5X Ceramide Moisturizer",
-    price: 129000,
-    compareAt: 159000,
-    brand: "Skintific",
-    category: "Moisturizer",
-    image:
-      "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png",
-    slug: "skintific-5x-ceramide",
-  },
-];
+const DEFAULT_RECOMMENDATION_IMAGE =
+  "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
 
 const SPIN_COLORS = [
   { backgroundColor: "#AE2D68", textColor: "white" },
@@ -141,7 +119,7 @@ const RecommendationCard = ({ data }) => {
   );
 };
 
-const RecommendationList = () => (
+const RecommendationList = ({ products, loading }) => (
   <div className="mt-6 w-full animate-slide-up">
     <div className="flex items-center justify-center gap-2 mb-4 opacity-80">
       <Sparkles size={14} className="text-[#AE2D68]" />
@@ -150,11 +128,26 @@ const RecommendationList = () => (
       </p>
       <Sparkles size={14} className="text-[#AE2D68]" />
     </div>
-    <div className="grid grid-cols-2 gap-3">
-      {RECOMMENDED_PRODUCTS.map((product) => (
-        <RecommendationCard key={product.id} data={product} />
-      ))}
-    </div>
+    {loading ? (
+      <div className="grid grid-cols-2 gap-3">
+        {Array.from({ length: 2 }).map((_, index) => (
+          <div
+            key={`recommendation-skeleton-${index}`}
+            className="h-48 rounded-2xl bg-[#FDF5FA] border border-[#FCE9F3] animate-pulse"
+          />
+        ))}
+      </div>
+    ) : products.length ? (
+      <div className="grid grid-cols-2 gap-3">
+        {products.map((product) => (
+          <RecommendationCard key={product.id} data={product} />
+        ))}
+      </div>
+    ) : (
+      <div className="rounded-2xl border border-dashed border-[#FCE9F3] bg-white p-4 text-center text-xs font-bold text-[#AE2D68]/70">
+        Belum ada rekomendasi Ramadan untuk hari ini.
+      </div>
+    )}
   </div>
 );
 
@@ -302,7 +295,7 @@ const SpinWheelModal = ({ open, onClose, prizes, tickets, onSpin }) => {
 };
 
 // --- OFFER MODAL (isi: rekomendasi spesial) ---
-const OfferModal = ({ open, onClose }) => {
+const OfferModal = ({ open, onClose, recommendations, loading }) => {
   if (!open) return null;
 
   return (
@@ -328,7 +321,7 @@ const OfferModal = ({ open, onClose }) => {
         </p>
 
         <div className="rounded-2xl bg-gradient-to-br from-[#FDF5FA] to-[#F9EAF4] border-2 border-[#FCE9F3] p-4">
-          <RecommendationList />
+          <RecommendationList products={recommendations} loading={loading} />
         </div>
 
         <button
@@ -385,7 +378,8 @@ export default function RamadanCheckinClient() {
 
   const [showSpin, setShowSpin] = useState(false);
   const [showOffer, setShowOffer] = useState(false);
-
+  const [recommendations, setRecommendations] = useState([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(true);
   const checkinDetail = status.checkedData.find((d) => d.date === selectedDate);
   const isSelectedChecked = status.checkedDates.includes(selectedDate);
   const isSelectedExempt = status.exemptDates.some(
@@ -401,6 +395,45 @@ export default function RamadanCheckinClient() {
     const leadingEmpty = Array.from({ length: getDay(start) });
     return { days, leadingEmpty };
   }, [currentMonth]);
+  const buildRecommendationProducts = (items) =>
+    (items || [])
+      .map((item) => {
+        const product = item?.product;
+        if (!product) return null;
+        const media = product.medias?.[0];
+        return {
+          id: product.id ?? item.id,
+          name: product.name ?? "Produk Ramadan",
+          price: Number(product.basePrice ?? 0),
+          compareAt: null,
+          brand: product.brand?.name ?? "AbbynBev",
+          category: product.categoryType?.name ?? "",
+          image: media?.url || DEFAULT_RECOMMENDATION_IMAGE,
+          slug: product.slug ?? "",
+        };
+      })
+      .filter(Boolean);
+
+  const loadRecommendations = async (date) => {
+    setRecommendationsLoading(true);
+    try {
+      const response = await axios.get("/admin/ramadan-recommendations", {
+        params: { date, per_page: 4 },
+      });
+      let items = response?.data?.data || [];
+      if (!items.length && date) {
+        const fallback = await axios.get("/admin/ramadan-recommendations", {
+          params: { per_page: 4 },
+        });
+        items = fallback?.data?.data || [];
+      }
+      setRecommendations(buildRecommendationProducts(items));
+    } catch (error) {
+      setRecommendations([]);
+    } finally {
+      setRecommendationsLoading(false);
+    }
+  };
 
   const loadStatus = async () => {
     setLoading(true);
@@ -585,6 +618,7 @@ export default function RamadanCheckinClient() {
   // ✅ UPDATED: tidak ada popup otomatis lagi
   useEffect(() => {
     loadStatus();
+    loadRecommendations(todayValue);
   }, []);
 
   useEffect(() => {
@@ -602,7 +636,12 @@ export default function RamadanCheckinClient() {
           tickets={spinStatus.tickets}
           onSpin={handleSpin}
         />
-        <OfferModal open={showOffer} onClose={() => setShowOffer(false)} />
+        <OfferModal
+          open={showOffer}
+          onClose={() => setShowOffer(false)}
+          recommendations={recommendations}
+          loading={recommendationsLoading}
+        />
 
         {/* SUCCESS MODAL */}
         {successModal.open && (
@@ -636,7 +675,10 @@ export default function RamadanCheckinClient() {
               </div>
 
               <div className="mb-6">
-                <RecommendationList />
+                <RecommendationList
+                  products={recommendations}
+                  loading={recommendationsLoading}
+                />
               </div>
 
               <div className="flex flex-col gap-3">

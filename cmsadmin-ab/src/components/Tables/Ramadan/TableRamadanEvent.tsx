@@ -51,11 +51,11 @@ type ColumnsCtx = {
 
 const columns = (props: ColumnsCtx): ColumnsType<RamadanParticipantRecord> => [
   {
-    title: "Name",
-    dataIndex: "name",
+    title: "Email",
+    dataIndex: "email",
     render: (val, record) => (
       <div className="flex flex-col">
-        <span className="font-semibold">{val}</span>
+        {" "}
         <span className="text-xs text-gray-400">{record.email}</span>
       </div>
     ),
