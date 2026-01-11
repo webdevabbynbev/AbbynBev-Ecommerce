@@ -23,7 +23,13 @@ export default class HomeController {
   }
 
   private basePrice(p: any): number {
-    return Number(p?.basePrice ?? p?.base_price ?? p?.price ?? 0)
+    const variants = Array.isArray(p?.variants) ? p.variants : []
+    const variantPrices = variants
+      .map((variant: any) => Number(variant?.price))
+      .filter((value: number) => Number.isFinite(value) && value > 0)
+    const minVariantPrice = variantPrices.length ? Math.min(...variantPrices) : null
+
+    return Number(minVariantPrice ?? p?.basePrice ?? p?.base_price ?? p?.price ?? 0)
   }
 
   private firstImageUrl(p: any): string | null {
@@ -44,6 +50,11 @@ export default class HomeController {
 
     q.whereNull('products.deleted_at')
     q.preload('medias', (mq: any) => mq.orderBy('id', 'asc'))
+    q.preload('variants', (variantQuery: any) => {
+      variantQuery
+        .select(['id', 'price', 'stock', 'product_id'])
+        .whereNull('product_variants.deleted_at')
+    })
     q.preload('brand', (bq: any) => bq.select(['id', 'name', 'slug']))
     q.preload('categoryType', (cq: any) => cq.select(['id', 'name']))
   }
