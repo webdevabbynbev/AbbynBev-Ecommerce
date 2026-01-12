@@ -22,20 +22,28 @@ export async function getApiServer(path, options = {}) {
     : new URL(cleanPath, BASE).toString();
 
   try {
+    const body =
+      options.body &&
+      typeof options.body === "object" &&
+      !(options.body instanceof FormData)
+        ? JSON.stringify(options.body)
+        : options.body;
+
     const res = await fetch(url, {
       method: options.method || "GET",
       cache: "no-store",
       ...options,
+      body,
       headers: {
         Accept: "application/json",
-        "Content-Type": "application/json",
-        // Minimal headers untuk server-to-server calls
+        ...(options.method && options.method !== "GET"
+          ? { "Content-Type": "application/json" }
+          : {}),
         "User-Agent": "NextJS-Frontend/1.0",
         ...(options.headers || {}),
       },
     });
 
-    // Explicit handle different content types
     const contentType = res.headers.get("content-type") || "";
     let data;
 

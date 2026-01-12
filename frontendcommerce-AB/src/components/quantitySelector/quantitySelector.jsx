@@ -24,11 +24,11 @@ export function QuantityInput({
   const handleIncrease = () => !disabled && qty < max && onChange?.(qty + 1);
 
   return (
-    <div className="flex items-center border transition-all ring-1 ring-neutral-200 focus-within:ring-2 focus-within:ring-neutral-300 rounded-full p-2 w-fit h-10 space-x-2">
+    <div className="flex items-center border transition-all ring-1 ring-neutral-200 focus-within:ring-2 focus-within:ring-neutral-300 rounded-full p-1 w-fit h-auto">
       <BtnIcon
         iconName="Minus"
         variant="tertiary"
-        size="sm"
+        size="xs"
         onClick={handleDecrease}
         disabled={disabled || qty <= min}
       />
@@ -46,10 +46,10 @@ export function QuantityInput({
       <BtnIcon
         iconName="Plus"
         variant="tertiary"
-        size="sm"
+        size="xs"
         onClick={handleIncrease}
         disabled={disabled || qty >= max}
       />
     </div>
   );
-}
+}s
