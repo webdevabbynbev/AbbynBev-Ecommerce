@@ -48,7 +48,44 @@ export default class RamadanSpinController {
       },
     })
   }
+  public async claimTicket({ auth, response }: HttpContext) {
+    const user = auth.user
+    if (!user) return response.unauthorized({ message: 'Unauthorized', serve: null })
 
+    const ticketInfo = await this.getTicketCount(user.id)
+    if (ticketInfo.fastingCount < FASTING_TICKET_THRESHOLD) {
+      return response.badRequest({
+        message: 'Minimal puasa 23 hari untuk klaim tiket spin.',
+        serve: null,
+      })
+    }
+
+    if (ticketInfo.earnedTickets >= 1) {
+      return response.badRequest({
+        message: 'Ticket spin sudah diklaim.',
+        serve: null,
+      })
+    }
+
+    await RamadanSpinTicket.updateOrCreate(
+      { userId: user.id },
+      {
+        userId: user.id,
+        tickets: 1,
+      }
+    )
+
+    const updated = await this.getTicketCount(user.id)
+
+    return response.ok({
+      message: 'Ticket spin berhasil diklaim.',
+      serve: {
+        tickets: updated.remainingTickets,
+        remaining_tickets: updated.remainingTickets,
+        fasting_days: updated.fastingCount,
+      },
+    })
+  }
   private pickPrize(prizes: RamadanSpinPrize[]) {
     const weighted = prizes.filter((prize) => Number(prize.weight) > 0)
     const totalWeight = weighted.reduce((sum, prize) => sum + Number(prize.weight), 0)
