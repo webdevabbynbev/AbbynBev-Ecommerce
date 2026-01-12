@@ -1,11 +1,13 @@
-import { use } from "react";
-import AccountTabs from "../AccountTabs"; // pastikan export-nya benar
+import { Profilepage } from "../profile";
 
-export default function page({ params }) {
-  const { slug } = use(params); 
-  return (
-    <div className="flex mx-auto w-full justify-center py-6 px-10">
-      <AccountTabs slug={slug} />
-    </div>
-  );
+
+export default function Page({ params }) {
+  const { slug } = params;
+
+  switch (slug) {
+    case "profile":
+      return <Profilepage />;
+    default:
+      return <div>Page not found</div>;
+  }
 }

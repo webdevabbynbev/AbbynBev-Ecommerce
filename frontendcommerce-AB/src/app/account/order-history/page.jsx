@@ -6,13 +6,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { n } from "@/utils/number";
 
-// ===== Config =====
-const ACCOUNT_NAV = [
-  { href: "/account", label: "Profile management" },
-  { href: "/account/wishlist", label: "Wishlist" },
-  { href: "/account/order-history", label: "Order History", active: true },
-];
-
 const FILTER_TABS = [
   { key: "all", label: "All" },
   { key: "ongoing", label: "Ongoing" },
@@ -114,8 +107,7 @@ const normalizeOrders = (rows) => {
       return {
         id:
           d?.id ??
-          `${trx?.transactionNumber || trx?.id || "trx"}-${
-            d?.productId || "item"
+          `${trx?.transactionNumber || trx?.id || "trx"}-${d?.productId || "item"
           }`,
         product: {
           name: p?.name || p?.title || "-",
@@ -200,29 +192,8 @@ export default function OrderHistoryPage() {
   const getStatusInfo = (status) => STATUS_UI[status] || STATUS_UI.unknown;
 
   return (
-    <div className="max-w-7xl mx-auto py-8 px-4">
+    <div className="mx-auto w-full max-w-7xl px-4 space-y-4 pb-28">
       <div className="flex gap-8">
-        {/* Sidebar */}
-        <div className="w-64 shrink-0">
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="space-y-1">
-              {ACCOUNT_NAV.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm rounded-lg transition-colors ${
-                    item.active
-                      ? "text-pink-600 bg-pink-50 font-medium"
-                      : "text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  <span>{item.label}</span>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </div>
-
         {/* Main Content */}
         <div className="flex-1">
           <h2 className="text-2xl font-bold mb-6 text-gray-900">
@@ -230,29 +201,42 @@ export default function OrderHistoryPage() {
           </h2>
 
           {/* Filter Tabs */}
-          <div className="flex gap-3 mb-6">
+          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:flex lg:items-center">
             {FILTER_TABS.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setFilter(tab.key)}
-                className={`px-6 py-2 text-sm font-medium rounded-full transition-all ${
-                  filter === tab.key
+                className={`px-4 py-2 text-sm font-medium rounded-full transition-all text-center ${filter === tab.key
                     ? "bg-pink-600 text-white"
                     : "bg-white text-gray-600 border border-gray-200 hover:border-pink-300"
-                }`}
+                  }`}
               >
                 {tab.label}
               </button>
             ))}
 
+            {/* Refresh button */}
             <button
               onClick={loadOrders}
-              className="ml-auto px-4 py-2 text-sm font-medium rounded-full border border-gray-200 hover:border-pink-300 bg-white text-gray-600"
               disabled={loading}
+              className="
+      col-span-2
+      sm:col-span-3
+      lg:col-span-1
+      lg:ml-auto
+      px-4 py-2
+      text-sm font-medium
+      rounded-full
+      border border-gray-200
+      hover:border-pink-300
+      bg-white
+      text-gray-600
+    "
             >
               {loading ? "Loading..." : "Refresh"}
             </button>
           </div>
+
 
           {errorMsg && (
             <div className="mb-4 border border-red-200 bg-red-50 text-red-700 rounded-lg p-3 text-sm">
