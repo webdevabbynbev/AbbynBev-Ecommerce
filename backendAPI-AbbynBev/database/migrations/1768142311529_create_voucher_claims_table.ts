@@ -42,8 +42,9 @@ export default class extends BaseSchema {
       table.dateTime('reserved_at').nullable()
       table.dateTime('used_at').nullable()
 
-      table.timestamp('created_at').notNullable()
-      table.timestamp('updated_at').notNullable()
+      // ✅ FIX: kasih default CURRENT_TIMESTAMP supaya MySQL tidak error
+      table.timestamp('created_at').notNullable().defaultTo(this.now())
+      table.timestamp('updated_at').notNullable().defaultTo(this.now())
 
       // user cuma boleh claim 1x untuk voucher yang sama
       table.unique(['voucher_id', 'user_id'])

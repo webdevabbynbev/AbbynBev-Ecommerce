@@ -16,6 +16,14 @@ export default class RamadanSpinPrize extends BaseModel {
 
   @column({ columnName: 'is_active' })
   declare isActive: boolean
+  @column({ columnName: 'daily_quota' })
+  declare dailyQuota: number | null
+
+  @column({ columnName: 'voucher_id' })
+  declare voucherId: number | null
+
+  @column({ columnName: 'voucher_qty' })
+  declare voucherQty: number
 
   @column.dateTime({ autoCreate: true, autoUpdate: true, columnName: 'created_at' })
   declare createdAt: DateTime

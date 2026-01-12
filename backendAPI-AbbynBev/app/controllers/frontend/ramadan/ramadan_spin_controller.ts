@@ -1,11 +1,12 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import db from '@adonisjs/lucid/services/db'
+import { DateTime } from 'luxon'
 import RamadanCheckin from '#models/ramadan_checkin'
 import RamadanSpinPrize from '#models/ramadan_spin_prize'
 import RamadanSpinTransaction from '#models/ramadan_spin_transaction'
 import RamadanSpinTicket from '#models/ramadan_spin_ticket'
 
 const FASTING_TICKET_THRESHOLD = 23
-const GRAND_PRIZE_LIMIT = 10
 
 export default class RamadanSpinController {
   private async getTicketCount(userId: number) {
@@ -115,25 +116,34 @@ export default class RamadanSpinController {
       return response.badRequest({ message: 'Hadiah spin belum tersedia.' })
     }
 
-    const grandPrizeCountResult = await RamadanSpinTransaction.query()
-      .whereHas('prize', (query) => {
-        query.where('is_grand', true)
-      })
+    const startOfDay = DateTime.now().setZone('Asia/Jakarta').startOf('day').toSQL()
+    const endOfDay = DateTime.now().setZone('Asia/Jakarta').endOf('day').toSQL()
+
+    const prizeIds = prizes.map((prize) => prize.id)
+    const dailyCounts = await db
+      .from('ramadan_spin_transactions')
+      .whereBetween('created_at', [startOfDay, endOfDay])
+      .whereIn('prize_id', prizeIds)
+      .groupBy('prize_id')
+      .select('prize_id')
       .count('* as total')
 
-    const grandPrizeCount = Number(grandPrizeCountResult[0]?.$extras?.total || 0)
+    const dailyMap = new Map<number, number>()
+    dailyCounts.forEach((row) => {
+      dailyMap.set(Number(row.prize_id), Number(row.total || 0))
+    })
 
-    let chosen = this.pickPrize(prizes)
-    if (!chosen) return response.badRequest({ message: 'Hadiah tidak tersedia.' })
+    const availablePrizes = prizes.filter((prize) => {
+      if (prize.dailyQuota === null || prize.dailyQuota === undefined) return true
+      const used = dailyMap.get(prize.id) ?? 0
+      return used < Number(prize.dailyQuota)
+    })
 
-    if (chosen.isGrand && grandPrizeCount >= GRAND_PRIZE_LIMIT) {
-      const nonGrand = prizes.filter((prize) => !prize.isGrand)
-      chosen = this.pickPrize(nonGrand)
-      if (!chosen) {
-        return response.badRequest({ message: 'Hadiah utama sudah habis.' })
-      }
+    if (availablePrizes.length === 0) {
+      return response.badRequest({ message: 'Hadiah tidak tersedia.' })
     }
-
+    const chosen = this.pickPrize(availablePrizes)
+    if (!chosen) return response.badRequest({ message: 'Hadiah tidak tersedia.' })
     const transaction = await RamadanSpinTransaction.create({
       userId: user.id,
       prizeId: chosen.id,

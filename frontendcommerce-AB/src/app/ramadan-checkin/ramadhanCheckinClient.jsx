@@ -58,6 +58,30 @@ const SPIN_COLORS = [
   { backgroundColor: "#9CA3AF", textColor: "white" },
   { backgroundColor: "#BE185D", textColor: "white" },
 ];
+const SPIN_STORAGE_KEY = "ramadan_spin_prizes";
+
+const saveSpinPrize = (prize) => {
+  if (!prize?.name) return;
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(SPIN_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    const list = Array.isArray(parsed) ? parsed : [];
+    const exists = list.some(
+      (item) => item?.id === prize?.id || item?.name === prize?.name
+    );
+    if (exists) return;
+    const next = [
+      ...list,
+      {
+        id: prize?.id ?? null,
+        name: prize?.name,
+        wonAt: new Date().toISOString(),
+      },
+    ];
+    window.localStorage.setItem(SPIN_STORAGE_KEY, JSON.stringify(next));
+  } catch {}
+};
 
 const TOTAL_DAYS = 30;
 const MAX_EXEMPT_DAYS = 7;
@@ -538,6 +562,8 @@ export default function RamadanCheckinClient() {
   const handleSpin = async () => {
     const res = await axios.post("/ramadan/spin");
     const prize = res?.data?.serve?.prize;
+    saveSpinPrize(prize);
+    saveSpinPrize(prize);
     setSpinStatus((prev) => ({
       ...prev,
       tickets:

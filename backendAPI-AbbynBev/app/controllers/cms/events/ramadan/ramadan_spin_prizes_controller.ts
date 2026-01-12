@@ -1,5 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import db from '@adonisjs/lucid/services/db'
 import RamadanSpinPrize from '#models/ramadan_spin_prize'
+import Voucher from '#models/voucher'
 
 export default class RamadanSpinPrizesController {
   public async index({ request, response }: HttpContext) {
@@ -13,21 +15,81 @@ export default class RamadanSpinPrizesController {
   }
 
   public async store({ request, response }: HttpContext) {
-    const payload = request.only(['name', 'weight', 'is_grand', 'is_active'])
+    const payload = request.only([
+      'name',
+      'weight',
+      'is_grand',
+      'is_active',
+      'daily_quota',
+      'voucher_id',
+      'voucher_qty',
+    ])
     const name = String(payload.name || '').trim()
 
     if (!name) {
       return response.badRequest({ message: 'Nama hadiah wajib diisi.' })
     }
 
-    const prize = await RamadanSpinPrize.create({
-      name,
-      weight: Number(payload.weight ?? 1),
-      isGrand: Boolean(payload.is_grand),
-      isActive: payload.is_active === undefined ? true : Boolean(payload.is_active),
-    })
+    const voucherId = payload.voucher_id !== undefined ? Number(payload.voucher_id) : null
+    const voucherQty = Number(payload.voucher_qty ?? 0)
+    const dailyQuota =
+      payload.daily_quota === null ||
+      payload.daily_quota === undefined ||
+      payload.daily_quota === ''
+        ? null
+        : Number(payload.daily_quota)
 
-    return response.created({ message: 'Hadiah ditambahkan.', data: prize })
+    if (voucherId && voucherQty < 1) {
+      return response.badRequest({ message: 'Jumlah voucher wajib diisi.' })
+    }
+    if (!voucherId && voucherQty > 0) {
+      return response.badRequest({ message: 'Voucher belum dipilih.' })
+    }
+
+    try {
+      const prize = await db.transaction(async (trx) => {
+        if (voucherId) {
+          const voucher = await Voucher.query({ client: trx })
+            .where('id', voucherId)
+            .forUpdate()
+            .first()
+          if (!voucher) {
+            const error: any = new Error('Voucher tidak ditemukan.')
+            error.httpStatus = 400
+            throw error
+          }
+
+          if (Number(voucher.qty || 0) < voucherQty) {
+            const error: any = new Error('Stok voucher tidak mencukupi.')
+            error.httpStatus = 400
+            throw error
+          }
+
+          voucher.qty = Math.max(0, Number(voucher.qty || 0) - voucherQty)
+          await voucher.useTransaction(trx).save()
+        }
+
+        return RamadanSpinPrize.create(
+          {
+            name,
+            weight: Number(payload.weight ?? 1),
+            isGrand: Boolean(payload.is_grand),
+            isActive: payload.is_active === undefined ? true : Boolean(payload.is_active),
+            dailyQuota,
+            voucherId: voucherId || null,
+            voucherQty,
+          },
+          { client: trx }
+        )
+      })
+
+      return response.created({ message: 'Hadiah ditambahkan.', data: prize })
+    } catch (error: any) {
+      const status = error?.httpStatus || 500
+      return response
+        .status(status)
+        .send({ message: error?.message || 'Gagal menambahkan hadiah.' })
+    }
   }
 
   public async update({ request, response, params }: HttpContext) {
@@ -37,14 +99,85 @@ export default class RamadanSpinPrizesController {
     const payload = request.only(['name', 'weight', 'is_grand', 'is_active'])
     const name = payload.name !== undefined ? String(payload.name).trim() : prize.name
 
-    prize.name = name
-    if (payload.weight !== undefined) prize.weight = Number(payload.weight)
-    if (payload.is_grand !== undefined) prize.isGrand = Boolean(payload.is_grand)
-    if (payload.is_active !== undefined) prize.isActive = Boolean(payload.is_active)
+    const voucherId =
+      payload.voucher_id !== undefined ? Number(payload.voucher_id) : prize.voucherId
+    const voucherQty =
+      payload.voucher_qty !== undefined ? Number(payload.voucher_qty) : prize.voucherQty
+    const dailyQuota =
+      payload.daily_quota === null ||
+      payload.daily_quota === undefined ||
+      payload.daily_quota === ''
+        ? null
+        : Number(payload.daily_quota)
 
-    await prize.save()
+    if (voucherId && voucherQty < 1) {
+      return response.badRequest({ message: 'Jumlah voucher wajib diisi.' })
+    }
+    if (!voucherId && voucherQty > 0) {
+      return response.badRequest({ message: 'Voucher belum dipilih.' })
+    }
 
-    return response.ok({ message: 'Hadiah diperbarui.', data: prize })
+    try {
+      await db.transaction(async (trx) => {
+        if (prize.voucherId) {
+          const prevVoucher = await Voucher.query({ client: trx })
+            .where('id', prize.voucherId)
+            .forUpdate()
+            .first()
+          if (prevVoucher) {
+            const shouldReturn = prize.voucherId !== voucherId || voucherQty < prize.voucherQty
+            if (shouldReturn) {
+              const diff =
+                prize.voucherId !== voucherId ? prize.voucherQty : prize.voucherQty - voucherQty
+              if (diff > 0) {
+                prevVoucher.qty = Number(prevVoucher.qty || 0) + diff
+                await prevVoucher.useTransaction(trx).save()
+              }
+            }
+          }
+        }
+
+        if (voucherId) {
+          const nextVoucher = await Voucher.query({ client: trx })
+            .where('id', voucherId)
+            .forUpdate()
+            .first()
+          if (!nextVoucher) {
+            const error: any = new Error('Voucher tidak ditemukan.')
+            error.httpStatus = 400
+            throw error
+          }
+
+          const diff = prize.voucherId === voucherId ? voucherQty - prize.voucherQty : voucherQty
+          if (diff > 0) {
+            if (Number(nextVoucher.qty || 0) < diff) {
+              const error: any = new Error('Stok voucher tidak mencukupi.')
+              error.httpStatus = 400
+              throw error
+            }
+            nextVoucher.qty = Math.max(0, Number(nextVoucher.qty || 0) - diff)
+            await nextVoucher.useTransaction(trx).save()
+          }
+        }
+
+        prize.name = name
+        if (payload.weight !== undefined) prize.weight = Number(payload.weight)
+        if (payload.is_grand !== undefined) prize.isGrand = Boolean(payload.is_grand)
+        if (payload.is_active !== undefined) prize.isActive = Boolean(payload.is_active)
+        prize.dailyQuota = dailyQuota
+        prize.voucherId = voucherId || null
+        prize.voucherQty = voucherId ? voucherQty : 0
+
+        await prize.useTransaction(trx).save()
+      })
+
+      return response.ok({ message: 'Hadiah diperbarui.', data: prize })
+    } catch (error: any) {
+      const status = error?.httpStatus || 500
+      return response
+        .status(status)
+        .send({ message: error?.message || 'Gagal memperbarui hadiah.' })
+    }
   }
 
   public async destroy({ params, response }: HttpContext) {
