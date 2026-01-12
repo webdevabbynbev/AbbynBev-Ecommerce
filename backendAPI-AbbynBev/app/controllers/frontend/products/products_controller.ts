@@ -2,23 +2,6 @@ import ProductOnline from '#models/product_online'
 import type { HttpContext } from '@adonisjs/core/http'
 
 export default class ProductsController {
-  private normalizeVariant(variant: any) {
-    return {
-      ...variant,
-      price: Number(variant?.price || 0),
-      stock: Number(variant?.stock || 0),
-    }
-  }
-
-  private normalizeProduct(product: any) {
-    if (!product) return product
-    const variants = Array.isArray(product?.variants) ? product.variants : []
-    return {
-      ...product,
-      variants: variants.map((variant: any) => this.normalizeVariant(variant)),
-    }
-  }
-
   public async get({ response, request }: HttpContext) {
     try {
       const queryString = request.qs()
@@ -79,14 +62,10 @@ export default class ProductsController {
         .paginate(page, perPage)
 
       const { meta, data } = productsQuery.toJSON()
-      const normalizedData = data.map((item: any) => ({
-        ...item,
-        product: this.normalizeProduct(item.product),
-      }))
 
       return response.status(200).send({
         message: 'success',
-        serve: { data: normalizedData, ...meta },
+        serve: { data, ...meta },
       })
     } catch (error: any) {
       return response.status(500).send({
@@ -168,7 +147,7 @@ export default class ProductsController {
       }
 
       // ✅ FIX 2: bikin field variantItems supaya FE kamu gampang ambil images per variant
-      const p = this.normalizeProduct(productOnline.product.toJSON())
+      const p = productOnline.product.toJSON()
       const variants = Array.isArray(p?.variants) ? p.variants : []
 
       const variantItems = variants.map((v: any) => {
@@ -178,8 +157,8 @@ export default class ProductsController {
         return {
           id: v.id,
           label: v.sku || `VAR-${v.id}`,
-          price: v.price,
-          stock: v.stock,
+          price: Number(v.price || 0),
+          stock: Number(v.stock || 0),
           images,
           image: images[0] || p.image, // thumbnail utama variant
         }
