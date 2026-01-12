@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import RamadanCheckin from '#models/ramadan_checkin'
 import RamadanSpinPrize from '#models/ramadan_spin_prize'
 import RamadanSpinTransaction from '#models/ramadan_spin_transaction'
+import RamadanSpinTicket from '#models/ramadan_spin_ticket'
 
 const FASTING_TICKET_THRESHOLD = 23
 const GRAND_PRIZE_LIMIT = 10
@@ -13,12 +14,13 @@ export default class RamadanSpinController {
       .count('* as total')
 
     const fastingCount = Number(fastingCountResult[0]?.$extras?.total || 0)
+    const ticketRecord = await RamadanSpinTicket.query().where('user_id', userId).first()
+    const earnedTickets = Number(ticketRecord?.tickets || 0)
     const usedSpinResult = await RamadanSpinTransaction.query()
       .where('user_id', userId)
       .count('* as total')
 
     const usedSpins = Number(usedSpinResult[0]?.$extras?.total || 0)
-    const earnedTickets = fastingCount >= FASTING_TICKET_THRESHOLD ? 1 : 0
 
     return {
       fastingCount,
