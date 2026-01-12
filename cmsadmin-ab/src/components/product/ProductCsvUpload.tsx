@@ -28,6 +28,9 @@ export default function ProductCsvUpload({
   const [rowErrors, setRowErrors] = useState<string[]>([])
   const [headerError, setHeaderError] = useState<string | null>(null)
 
+  // 🔥 ERROR DARI BACKEND
+  const [backendErrors, setBackendErrors] = useState<any[]>([])
+
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(0)
 
@@ -48,6 +51,7 @@ export default function ProductCsvUpload({
     setHeaders([])
     setRowErrors([])
     setHeaderError(null)
+    setBackendErrors([])
     setProgress(0)
     setLoading(false)
   }
@@ -63,7 +67,7 @@ export default function ProductCsvUpload({
   }
 
   /* ======================
-   * ROW VALIDATION
+   * ROW VALIDATION (FRONTEND)
    * ====================== */
   function validateRows(rows: CsvRow[]) {
     const errors: string[] = []
@@ -104,6 +108,7 @@ export default function ProductCsvUpload({
    * ====================== */
   function handleFileChange(file: File) {
     setFile(file)
+    setBackendErrors([])
 
     Papa.parse<CsvRow>(file, {
       header: true,
@@ -123,34 +128,52 @@ export default function ProductCsvUpload({
         setPreview(result.data)
         setRowErrors(validateRows(result.data))
       },
-      error: () => alert('Gagal membaca file CSV'),
+      error: (err) => {
+        console.error('CSV PARSE ERROR:', err)
+        alert('Gagal membaca file CSV')
+      },
     })
   }
 
   /* ======================
-   * UPLOAD
+   * UPLOAD (TRY–CATCH FIX)
    * ====================== */
   async function handleUpload() {
-    if (!file || headerError || rowErrors.length > 0) {
-      alert('Masih ada error pada data CSV')
+  if (!file || headerError || rowErrors.length > 0) {
+    alert('Masih ada error pada data CSV')
+    return
+  }
+
+  try {
+    setLoading(true)
+    setProgress(0)
+    setBackendErrors([])
+
+    const result = await importProductCSV(file, setProgress)
+
+    if (result?.data?.errors?.length) {
+      setBackendErrors(result.data.errors)
+      alert('Import selesai, namun ada data yang gagal')
       return
     }
 
-    try {
-      setLoading(true)
-      setProgress(0)
+    alert('Upload CSV berhasil')
+    onSuccess?.()
+    onOpenChange(false)
+  } catch (err: any) {
+    console.error('CSV UPLOAD ERROR:', err)
 
-      await importProductCSV(file, setProgress)
+    const message =
+      err?.response?.data?.message ||
+      err?.message ||
+      'Upload CSV gagal'
 
-      alert('Upload CSV berhasil')
-      onSuccess?.()
-      onOpenChange(false)
-    } catch (err: any) {
-      alert(err?.message || 'Upload CSV gagal')
-    } finally {
-      setLoading(false)
-    }
+    setBackendErrors(err?.response?.data?.errors || [])
+    alert(message)
+  } finally {
+    setLoading(false)
   }
+}
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -158,13 +181,14 @@ export default function ProductCsvUpload({
         <Dialog.Overlay className="fixed inset-0 bg-black/40" />
 
         <Dialog.Content
-  onOpenAutoFocus={(e) => e.preventDefault()}
-  className="fixed top-1/2 left-1/2 w-[90vw] max-w-5xl max-h-[85vh]
-    -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-6 shadow overflow-y-auto"
->
-  <Dialog.Description className="sr-only">
-    Form upload CSV produk dengan validasi dan preview data
-  </Dialog.Description>
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          className="fixed top-1/2 left-1/2 w-[90vw] max-w-5xl max-h-[85vh]
+          -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-6 shadow overflow-y-auto"
+        >
+          <Dialog.Description className="sr-only">
+            Form upload CSV produk dengan validasi dan preview data
+          </Dialog.Description>
+
           <Dialog.Title className="mb-4 text-lg font-semibold">
             Upload Product CSV
           </Dialog.Title>
@@ -186,12 +210,26 @@ export default function ProductCsvUpload({
             </div>
           )}
 
-          {/* ROW ERRORS */}
+          {/* FRONTEND ROW ERRORS */}
           {rowErrors.length > 0 && (
             <div className="mb-3 rounded bg-yellow-100 p-3 text-sm text-yellow-800">
               <ul className="list-disc pl-5">
                 {rowErrors.slice(0, 10).map((e, i) => (
                   <li key={i}>{e}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* BACKEND ERRORS 🔥 */}
+          {backendErrors.length > 0 && (
+            <div className="mb-3 rounded bg-red-100 p-3 text-sm text-red-700">
+              <p className="font-semibold mb-1">Error dari server:</p>
+              <ul className="list-disc pl-5">
+                {backendErrors.slice(0, 10).map((e, i) => (
+                  <li key={i}>
+                    Baris {e.row}: {e.message}
+                  </li>
                 ))}
               </ul>
             </div>
