@@ -67,14 +67,16 @@ export function Profilepage() {
     try {
       const { user: fresh } = await getUser();
       if (fresh) setProfile({ user: fresh });
-    } catch {}
+    } catch { }
   };
 
   return (
-    <div className="bg-transparent w-full lg:max-w-7xl xl:max-w-6xl justify-center h-auto space-y-4">
+    <div className="mx-auto w-full max-w-7xl px-4 space-y-4">
       {/* Header + avatar */}
       <div className="title px-4 text-neutral-500">
-        <h1 className="font-bold text-neutral-950 text-xl">Profile</h1>
+        <h1 className="text-2xl font-bold mb-6 text-gray-900">
+          Profile
+        </h1>
       </div>
 
       <div className="rounded-4xl bg-white px-6 py-10 space-y-10 w-full">
@@ -99,9 +101,8 @@ export function Profilepage() {
             <div className="items-center">
               <div className="name flex md:flex-row sm:flex-col text-lg font-medium gap-2 py-4">
                 <h2 className="items-start space-y-2" value="name">
-                  {`${currentUser.firstName || ""} ${
-                    currentUser.lastName || ""
-                  }`.trim() || "—"}
+                  {`${currentUser.firstName || ""} ${currentUser.lastName || ""
+                    }`.trim() || "—"}
                 </h2>
                 <div className="items-center justify-center">
                   {genderNum === 1 ? (

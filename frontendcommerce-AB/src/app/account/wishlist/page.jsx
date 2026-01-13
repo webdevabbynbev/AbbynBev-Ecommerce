@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 
+const ACCOUNT_NAV = [
+  { href: "/account/profile", label: "Profile management" },
+  { href: "/account/wishlist", label: "Wishlist", active: true },
+  { href: "/account/order-history", label: "Order History" },
+];
 
 const wishlistItems = [
   {
@@ -123,27 +129,8 @@ function HeartToggle({ initial = true }) {
 
 export default function WishlistPage() {
   return (
-    <div className="max-w-7xl mx-auto py-8 px-4">
+    <div className="mx-auto w-full max-w-7xl px-4 space-y-4">
       <div className="flex gap-8">
-        {/* Sidebar */}
-        <div className="w-64 shrink-0">
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="space-y-1">
-              <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
-                <span>Profile management</span>
-              </button>
-
-              <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-pink-600 bg-pink-50 rounded-lg font-medium">
-                <span>Wishlist</span>
-              </button>
-
-              <button className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
-                <span>Order History</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
         {/* Main content */}
         <div className="flex-1">
           <h2 className="text-2xl font-bold mb-6 text-gray-900">Wishlist</h2>
@@ -157,12 +144,15 @@ export default function WishlistPage() {
               >
                 {/* Image + badges */}
                 <div className="relative mb-3">
-                  <div className="relative w-full aspect-3/4 rounded-lg overflow-hidden bg-gray-50">
-                    <Image
+                  <div className="relative w-full rounded-lg overflow-hidden bg-gray-50">
+                    <img
                       src={item.image}
                       alt={item.name}
-                      fill
-                      className="object-cover"
+                      className="w-full h-auto object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src =
+                          "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
+                      }}
                     />
                   </div>
 
