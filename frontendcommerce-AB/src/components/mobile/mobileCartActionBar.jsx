@@ -1,6 +1,8 @@
 "use client";
 
 import { Button } from "@/components";
+import { FaTicket } from "react-icons/fa6";
+import { Checkbox } from "@/components";
 
 export function MobileCartActionBar({
   allSelected,
@@ -17,7 +19,7 @@ export function MobileCartActionBar({
           <div className="flex items-center justify-between text-sm text-neutral-700">
             <span className="flex items-center gap-2">
               <span aria-hidden className="text-lg">
-                ⚙️
+                <FaTicket className="bg-primary-700" />
               </span>
               Promo
             </span>
@@ -29,16 +31,17 @@ export function MobileCartActionBar({
           <div className="mt-3 flex items-center gap-3">
             <div className="flex flex-col gap-1">
               <label className="flex items-center gap-2 text-sm text-neutral-700">
-                <input
-                  type="checkbox"
-                  className="w-5 h-5 accent-pink-600 cursor-pointer"
+                <Checkbox
+                  className="w-5 h-5 cursor-pointer"
                   checked={allSelected}
                   disabled={loadingCheckout}
-                  onChange={(e) => onToggleSelectAll?.(e.target.checked)}
+                  onCheckedChange={(checked) =>
+                    onToggleSelectAll?.(checked === true)
+                  }
                 />
                 Semua
               </label>
-              <div className="pl-7 text-xs text-neutral-500">
+              <div className="pl-0 text-xs text-neutral-500">
                 Subtotal
                 <span className="ml-2 text-base font-semibold text-primary-700">
                   Rp {subtotal.toLocaleString("id-ID")}

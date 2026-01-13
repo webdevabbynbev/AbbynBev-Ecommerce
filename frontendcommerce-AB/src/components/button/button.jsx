@@ -27,6 +27,9 @@ export function Button({
       "bg-transparent border border-transparent font-bold text-primary-700 hover:bg-secondary-100 transition-all duration-200 cursor-pointer",
     error:
       "bg-transparent border border-transparent font-bold text-error-700 hover:bg-error-50 transition-all duration-200 cursor-pointer",
+    outline:
+      "bg-transparent border border-primary-700 text-primary-700 " +
+      "hover:bg-primary-50 focus:bg-primary-100 transition-all duration-200 cursor-pointer",
   };
 
   const sizes = {
@@ -39,7 +42,10 @@ export function Button({
     primary: "text-white",
     secondary: "text-primary-700",
     tertiary: "text-primary-700",
+    outline: "text-primary-700",
+    error: "text-error-700",
   };
+
   // const [hover, setHover] = useState(false);
 
   const CurrentIcon = FaIcons[`FaReg${iconName}`] || FaIcons[`Fa${iconName}`];

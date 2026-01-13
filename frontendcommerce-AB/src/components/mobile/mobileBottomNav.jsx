@@ -29,6 +29,7 @@ export function MobileBottomNav({ className = "" }) {
     "/beauty-and-tips",
     "/checkout",
     "/ramadan-checkin",
+    "/vouchers"
   ]);
   const isSingleSegment =
     pathnameSafe && pathnameSafe !== "/" && /^\/[^/]+$/.test(pathnameSafe);
@@ -58,6 +59,19 @@ export function MobileBottomNav({ className = "" }) {
 
   const shopActive = mounted && shopLinks.some((l) => isActive(l.href));
 
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  const profileLinks = [
+    { href: "/account/profile", label: "Profile" },
+    { href: "/account/wishlist", label: "Wishlist" },
+    { href: "/account/order-history", label: "Order history" },
+    { href: "/vouchers", label: "Voucher" },
+  ];
+
+  const profileActive =
+    mounted && pathnameSafe.startsWith("/account");
+
+
   if (shouldHideNav) {
     return null;
   }
@@ -73,31 +87,61 @@ export function MobileBottomNav({ className = "" }) {
       <div className="mx-auto w-full  max-w-130 px-4 pb-4">
         <div className="rounded-2xl border border-primary-500 bg-white">
           <nav className="grid grid-cols-4 items-center px-2 py-2">
-            {/* PROFILE */}
-            <Link
-              href="/account/profile"
-              aria-label="Profile"
-              className={navItemBase}
-            >
-              <div
-                className={clsx(
-                  pillBase,
-                  isActive("/account/profile") ? "bg-primary-100" : null
-                )}
-              >
-                <BtnIcon iconName="User" variant="tertiary" size="sm" />
-              </div>
-              <span
-                className={clsx(
-                  "text-[10px] leading-none",
-                  isActive("/account/profile")
-                    ? "text-primary-700 font-bold"
-                    : "text-primary-700 font-normal"
-                )}
-              >
-                Profile
-              </span>
-            </Link>
+            {/* PROFILE (opens sheet) */}
+            <Sheet open={profileOpen} onOpenChange={setProfileOpen}>
+              <SheetTrigger asChild>
+                <button type="button" aria-label="Profile" className={navItemBase}>
+                  <div
+                    className={clsx(
+                      pillBase,
+                      profileActive ? "bg-primary-100" : null
+                    )}
+                  >
+                    <BtnIcon iconName="User" variant="tertiary" size="sm" />
+                  </div>
+                  <span
+                    className={clsx(
+                      "text-[10px] leading-none",
+                      profileActive
+                        ? "text-primary-700 font-bold"
+                        : "text-primary-700 font-normal"
+                    )}
+                  >
+                    Profile
+                  </span>
+                </button>
+              </SheetTrigger>
+
+              <SheetContent side="bottom" className="rounded-xl">
+                <SheetHeader>
+                  <SheetTitle className="text-primary-700">
+                    Account
+                  </SheetTitle>
+                </SheetHeader>
+
+                <div className="py-4 space-y-2">
+                  {profileLinks.map((l) => {
+                    const active = isActive(l.href);
+                    return (
+                      <Link
+                        key={l.href}
+                        href={l.href}
+                        onClick={() => setProfileOpen(false)}
+                        className={clsx(
+                          "block rounded-xl px-4 py-3 font-medium transition-colors",
+                          active
+                            ? "bg-primary-100 text-primary-700"
+                            : "hover:bg-primary-50"
+                        )}
+                      >
+                        {l.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </SheetContent>
+            </Sheet>
+
 
             {/* HOME */}
             <Link href="/" aria-label="Home" className={navItemBase}>

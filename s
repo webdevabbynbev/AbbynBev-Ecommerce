@@ -1,4 +1,0 @@
-[35msrc/app/account/popup/editProfile.jsx[m[36m:[m[32m28[m[36m:[mexport function [1;31mEditProfile[m({ onProfileUpdated }) {
-[35msrc/app/account/popup/index.js[m[36m:[m[32m1[m[36m:[mexport { [1;31mEditProfile[m } from "./editProfile";
-[35msrc/app/account/profile.jsx[m[36m:[m[32m5[m[36m:[mimport { [1;31mEditProfile[m, NewAddress } from "./popup";
-[35msrc/app/account/profile.jsx[m[36m:[m[32m133[m[36m:[m            <[1;31mEditProfile[m onProfileUpdated={handleProfileUpdated} />

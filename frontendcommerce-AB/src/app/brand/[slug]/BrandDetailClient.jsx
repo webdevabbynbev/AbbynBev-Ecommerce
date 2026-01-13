@@ -64,8 +64,8 @@ export default function BrandDetailClient({ brandData }) {
             />
           </div>
           <div className="flex flex-col space-y-3 w-full">
-            <div className="text-lg font-bold">{brandData.brandname}</div>
-            <div className="text-sm">{brandData.profile}</div>
+            <h1 className="text-lg font-bold">{brandData.brandname}</h1>
+            <h2 className="text-sm">{brandData.profile}</h2>
           </div>
         </div>
 
@@ -114,11 +114,10 @@ export default function BrandDetailClient({ brandData }) {
                     <button
                       key={i}
                       onClick={() => setCurrentPage(i + 1)}
-                      className={`px-4 py-2 rounded-full ${
-                        currentPage === i + 1
-                          ? "bg-primary-700 text-white"
-                          : "bg-secondary-50 text-primary-700 hover:outline-1 outline-primary-700 hover:text-primary-700 transition-all"
-                      }`}
+                      className={`px-4 py-2 rounded-full ${currentPage === i + 1
+                        ? "bg-primary-700 text-white"
+                        : "bg-secondary-50 text-primary-700 hover:outline-1 outline-primary-700 hover:text-primary-700 transition-all"
+                        }`}
                     >
                       {i + 1}
                     </button>

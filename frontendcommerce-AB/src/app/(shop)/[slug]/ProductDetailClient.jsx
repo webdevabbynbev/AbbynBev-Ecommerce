@@ -42,7 +42,7 @@ const RATING_OPTIONS = [
 
 export default function ProductDetailClient({ product }) {
   const router = useRouter();
-const {user, logout} = useAuth();
+  const { user, logout } = useAuth();
 
   // Prevent hydration mismatch for relative time
   const [mounted, setMounted] = useState(false);
@@ -534,7 +534,6 @@ const {user, logout} = useAuth();
         {/* Sticky Sidebar */}
         <div className="hidden sticky top-25.75 p-6 space-y-4 outline-1 outline-neutral-100 rounded-3xl bottom-32 items-start w-full max-w-75 h-fit bg-white lg:block">
           <div className="text-xl font-medium">Quantity</div>
-
           <div className="flex flex-row gap-4">
             <div className="ContainerImage flex h-auto w-full items-start">
               <div className="imageOnly">
@@ -569,10 +568,10 @@ const {user, logout} = useAuth();
             </div>
           </div>
 
-          <div className="flex w-full items-center space-x-3">
+          <div className="flex w-full items-center">
             <QuantityInput min={1} max={stock} value={qty} onChange={setQty} />
             <div className="text-sm font-normal text-neutral-600">
-              Stock :{" "}
+              Stock :
               <span className="font-medium text-neutral-950">{stock}</span>
             </div>
           </div>

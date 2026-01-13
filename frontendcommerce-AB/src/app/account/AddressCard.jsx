@@ -2,6 +2,8 @@
 import { useState } from "react";
 import { FaBriefcase } from "react-icons/fa6";
 import { Button, Chip } from "../../components";
+import { EditAddress } from "./popup/editAddress";
+import { DeleteAddress } from "./popup/deleteAddress";
 
 
 export function AddressCard({
@@ -29,42 +31,6 @@ export function AddressCard({
     onSelect?.(id);
   };
 
-  // const handleToggle = async () => {
-  //   if (loading) return;
-  //   const newPressed = !pressed;
-  //   const newValue = newPressed ? 2 : 1;
-
-  //   setPressed(newPressed);
-  //   setLoading(true);
-  //   try {
-  //     const body = {
-  //       id,
-  //       is_active: newValue,
-  //       province,
-  //       city,
-  //       district,
-  //       subdistrict,
-  //       postal_code: postalCode,
-  //     };
-  //     console.log("[PUT] /addresses payload =", body);
-
-  //     await api.put("/addresses", body);
-
-  //     if (newValue === 2 && onUpdated) onUpdated(id);
-  //   } catch (err) {
-  //     console.log("AXIOS ERROR SNAPSHOT >>>", {
-  //       status: err?.response?.status,
-  //       data: err?.response?.data,
-  //       url: err?.config?.url,
-  //       baseURL: err?.config?.baseURL,
-  //       sent: err?.config?.data,
-  //     });
-  //     setPressed(!newPressed);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
   return (
     <div className="bg-white rounded-xl space-y-4 p-4 w-full">
       <div className="flex justify-between">
@@ -76,8 +42,8 @@ export function AddressCard({
           {loading
             ? "Updating…"
             : selected
-            ? "Main address"
-            : "Set as main address"}
+              ? "Main address"
+              : "Set as main address"}
         </Chip>
       </div>
 
@@ -96,12 +62,30 @@ export function AddressCard({
       </div>
 
       <div className="flex gap-4">
-        <Button variant="tertiary" size="sm">
-          Edit address
-        </Button>
-        <Button variant="tertiary" size="sm">
-          Delete
-        </Button>
+        <EditAddress
+          address={{
+            id,
+            pic_name: name,
+            pic_phone: phone,
+            address: line,
+            area_id: district,
+            area_name: `${subdistrict}, ${city}`,
+            postal_code: postalCode,
+            benchmark,
+            pic_label: label,
+          }}
+          onSuccess={onUpdated}
+        />
+        <DeleteAddress
+          address={{
+            id,
+            pic_label: label,
+            address: line,
+            area_name: `${subdistrict}, ${city}`,
+            postal_code: postalCode,
+          }}
+          onSuccess={onUpdated}
+        />
       </div>
     </div>
   );
