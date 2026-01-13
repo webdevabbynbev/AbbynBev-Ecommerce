@@ -261,6 +261,14 @@ const MenuAdmin = (level: RoleEnumType): MenuProps["items"] => {
       icon: <SettingOutlined />,
       label: "Settings",
     },
+
+    // --- MENU DISKON ---
+helper.hasAnyPermission(level, [helper.RoleEnum.GUDANG]) && {
+  key: "/discounts",
+  icon: <PercentageOutlined />,
+  label: "Diskon",
+},
+
   ].filter(Boolean) as MenuProps["items"];
 };
 
