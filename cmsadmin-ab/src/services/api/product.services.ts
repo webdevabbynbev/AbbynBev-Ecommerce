@@ -14,33 +14,39 @@ export async function importProductCSV(
     formData.append('file', file)
 
     const response = await http.post(
-      '/api/v1/admin/product/import-csv',
+      // ✅ jangan dobel /api/v1, karena baseURL biasanya sudah .../api/v1
+      '/admin/product/import-csv',
       formData,
       {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
         onUploadProgress: (event) => {
-          if (!event.total) return
-          const percent = Math.round(
-            (event.loaded * 100) / event.total
-          )
+          const total = event.total ?? 0
+          if (!total) return
+          const percent = Math.round((event.loaded * 100) / total)
           onProgress?.(percent)
         },
       }
     )
 
-    // ⬅️ PENTING: return data saja, bukan AxiosResponse
     return response.data
   } catch (error: any) {
     console.error('IMPORT CSV SERVICE ERROR:', error)
 
-    // lempar error terstruktur ke UI
+    // ✅ jangan throw object "baru" doang, simpan juga status/message asli biar UI gampang debug
+    const message =
+      error?.response?.data?.message ||
+      error?.message ||
+      'Gagal upload CSV'
+
+    const errors = error?.response?.data?.errors || []
+
     throw {
-      message:
-        error?.response?.data?.message ||
-        'Gagal upload CSV',
-      errors: error?.response?.data?.errors || [],
+      message,
+      errors,
+      status: error?.response?.status,
+      raw: error?.response?.data,
     }
   }
 }
