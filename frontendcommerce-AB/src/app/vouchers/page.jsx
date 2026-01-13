@@ -12,11 +12,30 @@ import {
   claimVoucher,
 } from "@/services/checkout/voucher";
 
-function formatDateId(dt) {
-  if (!dt) return null;
-  const d = new Date(dt);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+const SPIN_STORAGE_KEY = "ramadan_spin_prizes";
+
+const readSpinPrizes = () => {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = window.localStorage.getItem(SPIN_STORAGE_KEY);
+    const parsed = stored ? JSON.parse(stored) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+// ✅ FIX: formatDateId sebelumnya dipakai tapi tidak ada
+function formatDateId(input) {
+  if (!input) return "";
+  const d = new Date(input);
+  if (Number.isNaN(d.getTime())) return "";
+  // format sederhana ID: dd/mm/yyyy
+  return d.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
 function voucherTypeLabel(v) {
@@ -63,7 +82,11 @@ function VoucherCard({ v, rightSlot }) {
         </div>
 
         <div className="text-xs text-gray-500 mt-2 space-x-3">
-          {!!v?.code && <span>Kode: <b>{v.code}</b></span>}
+          {!!v?.code && (
+            <span>
+              Kode: <b>{v.code}</b>
+            </span>
+          )}
           {expired && <span>Exp: {expired}</span>}
           {typeof v?.qty !== "undefined" && <span>Stok: {n(v.qty, 0)}</span>}
         </div>
@@ -84,15 +107,26 @@ export default function VouchersPage() {
   const [loading, setLoading] = useState(false);
   const [available, setAvailable] = useState([]);
   const [mine, setMine] = useState([]);
+  const [spinPrizes, setSpinPrizes] = useState(() => readSpinPrizes());
   const [err, setErr] = useState("");
 
-  const mineIds = useMemo(() => new Set(mine.map((x) => x?.id).filter(Boolean)), [mine]);
+  const mineIds = useMemo(
+    () => new Set(mine.map((x) => x?.id).filter(Boolean)),
+    [mine]
+  );
+  const spinPrizeNames = useMemo(
+    () => new Set(spinPrizes.map((item) => item?.name).filter(Boolean)),
+    [spinPrizes]
+  );
 
   const loadAll = async () => {
     setLoading(true);
     setErr("");
     try {
-      const [a, m] = await Promise.all([fetchAvailableVouchers(), fetchMyVouchers()]);
+      const [a, m] = await Promise.all([
+        fetchAvailableVouchers(),
+        fetchMyVouchers(),
+      ]);
       setAvailable(Array.isArray(a) ? a : []);
       setMine(Array.isArray(m) ? m : []);
     } catch (e) {
@@ -107,6 +141,7 @@ export default function VouchersPage() {
       router.push("/sign-in");
       return;
     }
+    setSpinPrizes(readSpinPrizes());
     loadAll();
   }, [user]);
 
@@ -129,14 +164,28 @@ export default function VouchersPage() {
     router.push("/checkout");
   };
 
+  const spinVoucherCards = useMemo(() => {
+    if (!spinPrizes.length) return [];
+    return spinPrizes.map((spinPrize) => {
+      const matched =
+        available.find((v) => v?.name === spinPrize?.name) ||
+        mine.find((v) => v?.name === spinPrize?.name);
+      const isClaimed = matched?.id ? mineIds.has(matched.id) : false;
+      return {
+        key: `${spinPrize?.id ?? spinPrize?.name ?? "spin"}`,
+        spinPrize,
+        voucher: matched ?? { name: spinPrize?.name },
+        isClaimed,
+      };
+    });
+  }, [available, mine, mineIds, spinPrizes]);
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-5">
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="text-2xl font-semibold">Voucher</div>
-          <div className="text-sm text-gray-600">
-            Claim voucher dulu.
-          </div>
+          <div className="text-sm text-gray-600">Claim voucher dulu.</div>
         </div>
 
         <button
@@ -161,10 +210,52 @@ export default function VouchersPage() {
         </TabsList>
 
         <TabsContent value="available" className="space-y-3 mt-4">
-          {available.length === 0 && !loading ? (
-            <div className="text-gray-500 italic">Tidak ada voucher tersedia.</div>
+          {" "}
+          {spinVoucherCards.length ? (
+            <div className="space-y-3">
+              <div className="text-sm font-semibold text-gray-700">
+                Hadiah Spin Ramadan
+              </div>
+              {spinVoucherCards.map(
+                ({ key, spinPrize, voucher, isClaimed }) => {
+                  const canClaim = voucher?.id && !isClaimed;
+                  return (
+                    <VoucherCard
+                      key={key}
+                      v={voucher}
+                      rightSlot={
+                        <div className="flex flex-col gap-2 items-end">
+                          <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-700">
+                            Hadiah Spin
+                          </span>
+                          {canClaim ? (
+                            <button
+                              onClick={() => onClaim(voucher.id)}
+                              className="shrink-0 px-4 py-2 rounded-full bg-pink-600 text-white"
+                            >
+                              Claim
+                            </button>
+                          ) : (
+                            <button
+                              disabled
+                              className="shrink-0 px-4 py-2 rounded-full border border-gray-300 text-gray-400"
+                            >
+                              {isClaimed ? "Claimed" : "Menunggu Voucher"}
+                            </button>
+                          )}
+                        </div>
+                      }
+                    />
+                  );
+                }
+              )}
+            </div>
           ) : null}
-
+          {available.length === 0 && !loading ? (
+            <div className="text-gray-500 italic">
+              Tidak ada voucher tersedia.
+            </div>
+          ) : null}
           {available.map((v) => {
             const outOfStock = n(v?.qty, 0) <= 0;
             const alreadyMine = mineIds.has(v?.id);
@@ -189,23 +280,35 @@ export default function VouchersPage() {
 
         <TabsContent value="my" className="space-y-3 mt-4">
           {mine.length === 0 && !loading ? (
-            <div className="text-gray-500 italic">Kamu belum claim voucher.</div>
+            <div className="text-gray-500 italic">
+              Kamu belum claim voucher.
+            </div>
           ) : null}
 
-          {mine.map((v) => (
-            <VoucherCard
-              key={v?.id}
-              v={v}
-              rightSlot={
-                <button
-                  onClick={() => onUse(v)}
-                  className="shrink-0 px-4 py-2 rounded-full border border-pink-600 text-pink-700 hover:bg-pink-50"
-                >
-                  Pakai di Checkout
-                </button>
-              }
-            />
-          ))}
+          {mine.map((v) => {
+            const isSpinPrize = spinPrizeNames.has(v?.name);
+            return (
+              <VoucherCard
+                key={v?.id}
+                v={v}
+                rightSlot={
+                  <div className="flex flex-col gap-2 items-end">
+                    {isSpinPrize ? (
+                      <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-700">
+                        Hadiah Spin
+                      </span>
+                    ) : null}
+                    <button
+                      onClick={() => onUse(v)}
+                      className="shrink-0 px-4 py-2 rounded-full border border-pink-600 text-pink-700 hover:bg-pink-50"
+                    >
+                      Pakai di Checkout
+                    </button>
+                  </div>
+                }
+              />
+            );
+          })}
         </TabsContent>
       </Tabs>
     </div>
