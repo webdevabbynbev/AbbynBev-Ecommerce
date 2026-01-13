@@ -47,30 +47,8 @@ const formatToRupiah = (number) =>
   }).format(number);
 
 // --- DATA (tetap boleh kamu ganti) ---
-const RECOMMENDED_PRODUCTS = [
-  {
-    id: 1,
-    name: "Wardah Lightening Facial Wash",
-    price: 35000,
-    compareAt: 45000,
-    brand: "Wardah",
-    category: "Skincare",
-    image:
-      "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png",
-    slug: "wardah-lightening-facial-wash",
-  },
-  {
-    id: 2,
-    name: "Skintific 5X Ceramide Moisturizer",
-    price: 129000,
-    compareAt: 159000,
-    brand: "Skintific",
-    category: "Moisturizer",
-    image:
-      "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png",
-    slug: "skintific-5x-ceramide",
-  },
-];
+const DEFAULT_RECOMMENDATION_IMAGE =
+  "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
 
 const SPIN_COLORS = [
   { backgroundColor: "#AE2D68", textColor: "white" },
@@ -80,9 +58,34 @@ const SPIN_COLORS = [
   { backgroundColor: "#9CA3AF", textColor: "white" },
   { backgroundColor: "#BE185D", textColor: "white" },
 ];
+const SPIN_STORAGE_KEY = "ramadan_spin_prizes";
+
+const saveSpinPrize = (prize) => {
+  if (!prize?.name) return;
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(SPIN_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    const list = Array.isArray(parsed) ? parsed : [];
+    const exists = list.some(
+      (item) => item?.id === prize?.id || item?.name === prize?.name
+    );
+    if (exists) return;
+    const next = [
+      ...list,
+      {
+        id: prize?.id ?? null,
+        name: prize?.name,
+        wonAt: new Date().toISOString(),
+      },
+    ];
+    window.localStorage.setItem(SPIN_STORAGE_KEY, JSON.stringify(next));
+  } catch {}
+};
 
 const TOTAL_DAYS = 30;
-const MAX_EXEMPT_DAYS = 21;
+const MAX_EXEMPT_DAYS = 7;
+const FASTING_TICKET_THRESHOLD = 23;
 const CHECKIN_QUOTES = [
   "Setiap langkah kecil hari ini membawa berkah besar esok hari.",
   "Kebaikan yang konsisten akan membentuk kebiasaan baik.",
@@ -141,7 +144,7 @@ const RecommendationCard = ({ data }) => {
   );
 };
 
-const RecommendationList = () => (
+const RecommendationList = ({ products, loading }) => (
   <div className="mt-6 w-full animate-slide-up">
     <div className="flex items-center justify-center gap-2 mb-4 opacity-80">
       <Sparkles size={14} className="text-[#AE2D68]" />
@@ -150,11 +153,26 @@ const RecommendationList = () => (
       </p>
       <Sparkles size={14} className="text-[#AE2D68]" />
     </div>
-    <div className="grid grid-cols-2 gap-3">
-      {RECOMMENDED_PRODUCTS.map((product) => (
-        <RecommendationCard key={product.id} data={product} />
-      ))}
-    </div>
+    {loading ? (
+      <div className="grid grid-cols-2 gap-3">
+        {Array.from({ length: 2 }).map((_, index) => (
+          <div
+            key={`recommendation-skeleton-${index}`}
+            className="h-48 rounded-2xl bg-[#FDF5FA] border border-[#FCE9F3] animate-pulse"
+          />
+        ))}
+      </div>
+    ) : products.length ? (
+      <div className="grid grid-cols-2 gap-3">
+        {products.map((product) => (
+          <RecommendationCard key={product.id} data={product} />
+        ))}
+      </div>
+    ) : (
+      <div className="rounded-2xl border border-dashed border-[#FCE9F3] bg-white p-4 text-center text-xs font-bold text-[#AE2D68]/70">
+        Belum ada rekomendasi Ramadan untuk hari ini.
+      </div>
+    )}
   </div>
 );
 
@@ -229,11 +247,11 @@ const SpinWheelModal = ({ open, onClose, prizes, tickets, onSpin }) => {
           Hadiah spesial menantimu hari ini
         </p>
 
-        {!tickets && (
+        {/* {!tickets && (
           <div className="w-full mb-4 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-2xl px-3 py-2 flex items-center justify-center gap-2">
             <Info size={14} /> Kamu belum punya tiket spin.
           </div>
-        )}
+        )} */}
 
         <div className="mb-6 scale-90 md:scale-100 pointer-events-none drop-shadow-xl relative z-10">
           <Wheel
@@ -302,7 +320,7 @@ const SpinWheelModal = ({ open, onClose, prizes, tickets, onSpin }) => {
 };
 
 // --- OFFER MODAL (isi: rekomendasi spesial) ---
-const OfferModal = ({ open, onClose }) => {
+const OfferModal = ({ open, onClose, recommendations, loading }) => {
   if (!open) return null;
 
   return (
@@ -328,7 +346,7 @@ const OfferModal = ({ open, onClose }) => {
         </p>
 
         <div className="rounded-2xl bg-gradient-to-br from-[#FDF5FA] to-[#F9EAF4] border-2 border-[#FCE9F3] p-4">
-          <RecommendationList />
+          <RecommendationList products={recommendations} loading={loading} />
         </div>
 
         <button
@@ -342,10 +360,51 @@ const OfferModal = ({ open, onClose }) => {
   );
 };
 
+const ClaimTicketModal = ({ open, onSpinNow, onSpinLater, onClose }) => {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[75] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl border-4 border-[#FCE9F3] relative text-center">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 rounded-full bg-[#F9EAF4] text-[#AE2D68] hover:bg-[#FCE9F3] transition"
+          aria-label="Tutup"
+        >
+          <X size={18} />
+        </button>
+
+        <div className="text-5xl mb-4">🎫</div>
+        <h3 className="text-lg font-extrabold text-[#AE2D68] mb-2">Selamat!</h3>
+        <p className="text-xs text-gray-600 mb-6 leading-relaxed">
+          Kamu mendapatkan <b>1 tiket</b> untuk spin. Mau langsung spin
+          sekarang?
+        </p>
+
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={onSpinNow}
+            className="w-full bg-[#AE2D68] text-white py-3 rounded-2xl font-extrabold hover:opacity-90 active:scale-95 transition"
+          >
+            Spin Sekarang
+          </button>
+          <button
+            onClick={onSpinLater}
+            className="w-full bg-[#F9EAF4] text-[#AE2D68] py-3 rounded-2xl font-extrabold border-2 border-[#FCE9F3] hover:bg-[#FCE9F3] active:scale-95 transition"
+          >
+            Spin Nanti
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- MAIN CLIENT PAGE ---
 export default function RamadanCheckinClient() {
   const todayDate = new Date();
   const todayValue = format(todayDate, "yyyy-MM-dd");
+  const fastingTicketThreshold = 23;
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -384,7 +443,13 @@ export default function RamadanCheckinClient() {
   });
 
   const [showSpin, setShowSpin] = useState(false);
+  const [showClaimTicket, setShowClaimTicket] = useState(false);
   const [showOffer, setShowOffer] = useState(false);
+  const [recommendations, setRecommendations] = useState([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(true);
+  const [claimingTicket, setClaimingTicket] = useState(false);
+  const [claimError, setClaimError] = useState("");
+  const [pendingTicketNotice, setPendingTicketNotice] = useState(false);
 
   const checkinDetail = status.checkedData.find((d) => d.date === selectedDate);
   const isSelectedChecked = status.checkedDates.includes(selectedDate);
@@ -393,6 +458,9 @@ export default function RamadanCheckinClient() {
   );
   const isToday = selectedDate === todayValue;
   const isExemptLimitReached = status.exemptCount >= MAX_EXEMPT_DAYS;
+  const canClaimTicket =
+    spinStatus.fastingDays >= FASTING_TICKET_THRESHOLD &&
+    spinStatus.tickets === 0;
 
   const calendarDays = useMemo(() => {
     const start = startOfMonth(currentMonth);
@@ -401,6 +469,46 @@ export default function RamadanCheckinClient() {
     const leadingEmpty = Array.from({ length: getDay(start) });
     return { days, leadingEmpty };
   }, [currentMonth]);
+
+  const buildRecommendationProducts = (items) =>
+    (items || [])
+      .map((item) => {
+        const product = item?.product;
+        if (!product) return null;
+        const media = product.medias?.[0];
+        return {
+          id: product.id ?? item.id,
+          name: product.name ?? "Produk Ramadan",
+          price: Number(product.basePrice ?? 0),
+          compareAt: null,
+          brand: product.brand?.name ?? "AbbynBev",
+          category: product.categoryType?.name ?? "",
+          image: media?.url || DEFAULT_RECOMMENDATION_IMAGE,
+          slug: product.slug ?? "",
+        };
+      })
+      .filter(Boolean);
+
+  const loadRecommendations = async (date) => {
+    setRecommendationsLoading(true);
+    try {
+      const response = await axios.get("/admin/ramadan-recommendations", {
+        params: { date, per_page: 4 },
+      });
+      let items = response?.data?.data || [];
+      if (!items.length && date) {
+        const fallback = await axios.get("/admin/ramadan-recommendations", {
+          params: { per_page: 4 },
+        });
+        items = fallback?.data?.data || [];
+      }
+      setRecommendations(buildRecommendationProducts(items));
+    } catch (error) {
+      setRecommendations([]);
+    } finally {
+      setRecommendationsLoading(false);
+    }
+  };
 
   const loadStatus = async () => {
     setLoading(true);
@@ -454,6 +562,8 @@ export default function RamadanCheckinClient() {
   const handleSpin = async () => {
     const res = await axios.post("/ramadan/spin");
     const prize = res?.data?.serve?.prize;
+    saveSpinPrize(prize);
+    saveSpinPrize(prize);
     setSpinStatus((prev) => ({
       ...prev,
       tickets:
@@ -482,6 +592,30 @@ export default function RamadanCheckinClient() {
       }
     } catch (err) {
       // user cancel share - ignore
+    }
+  };
+
+  const handleClaimTicket = async () => {
+    if (!canClaimTicket || claimingTicket) return;
+
+    setClaimingTicket(true);
+    setClaimError("");
+
+    try {
+      const res = await axios.post("/ramadan/spin/claim");
+      const remainingTickets =
+        res?.data?.serve?.remaining_tickets ?? res?.data?.serve?.tickets ?? 1;
+      setSpinStatus((prev) => ({
+        ...prev,
+        tickets: remainingTickets,
+      }));
+      setShowClaimTicket(true);
+    } catch (error) {
+      setClaimError(
+        error?.response?.data?.message || "Gagal mengklaim tiket spin."
+      );
+    } finally {
+      setClaimingTicket(false);
     }
   };
 
@@ -585,6 +719,7 @@ export default function RamadanCheckinClient() {
   // ✅ UPDATED: tidak ada popup otomatis lagi
   useEffect(() => {
     loadStatus();
+    loadRecommendations(todayValue);
   }, []);
 
   useEffect(() => {
@@ -602,7 +737,24 @@ export default function RamadanCheckinClient() {
           tickets={spinStatus.tickets}
           onSpin={handleSpin}
         />
-        <OfferModal open={showOffer} onClose={() => setShowOffer(false)} />
+        <ClaimTicketModal
+          open={showClaimTicket}
+          onClose={() => setShowClaimTicket(false)}
+          onSpinNow={() => {
+            setShowClaimTicket(false);
+            setShowSpin(true);
+          }}
+          onSpinLater={() => {
+            setShowClaimTicket(false);
+            setPendingTicketNotice(true);
+          }}
+        />
+        <OfferModal
+          open={showOffer}
+          onClose={() => setShowOffer(false)}
+          recommendations={recommendations}
+          loading={recommendationsLoading}
+        />
 
         {/* SUCCESS MODAL */}
         {successModal.open && (
@@ -636,7 +788,10 @@ export default function RamadanCheckinClient() {
               </div>
 
               <div className="mb-6">
-                <RecommendationList />
+                <RecommendationList
+                  products={recommendations}
+                  loading={recommendationsLoading}
+                />
               </div>
 
               <div className="flex flex-col gap-3">
@@ -680,24 +835,15 @@ export default function RamadanCheckinClient() {
               </p>
             </div>
 
+            {/* ✅ PERMINTAAN: Bagikan Progress tetap ada, tidak diganti Spin */}
             <div className="w-full md:w-auto">
-              {spinStatus.tickets ? (
-                <button
-                  onClick={() => setShowSpin(true)}
-                  className="w-full md:w-auto animate-bounce bg-gradient-to-r from-[#F9A8D4] to-[#EC4899] text-white font-extrabold py-3.5 px-6 rounded-2xl shadow-[0_10px_20px_rgba(249,168,212,0.4)] hover:scale-105 transition flex items-center justify-center gap-2 text-sm"
-                >
-                  <Gift size={18} />
-                  SPIN WHEEL TERSEDIA!
-                </button>
-              ) : (
-                <button
-                  onClick={handleShare}
-                  className="w-full md:w-auto flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 rounded-2xl py-3 px-6 font-semibold transition active:scale-95 text-sm"
-                >
-                  <Share2 size={16} className="text-white/90" />
-                  <span>Bagikan Progress</span>
-                </button>
-              )}
+              <button
+                onClick={handleShare}
+                className="w-full md:w-auto flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 rounded-2xl py-3 px-6 font-semibold transition active:scale-95 text-sm"
+              >
+                <Share2 size={16} className="text-white/90" />
+                <span>Bagikan Progress</span>
+              </button>
             </div>
           </div>
         </div>
@@ -988,10 +1134,47 @@ export default function RamadanCheckinClient() {
                 <Gift size={18} className="text-[#F9A8D4]" /> Grand Prize
               </h3>
 
-              <p className="relative z-10 text-white/80 text-xs mb-6 leading-relaxed">
-                Selesaikan 30 hari tantangan untuk membuka Spin Wheel dan
-                menangkan hadiah eksklusif!
-              </p>
+              {/* ✅ PERMINTAAN: Saat ada Spin Wheel, tampilkan tombol Spin di sini dan hilangkan teks Grand Prize */}
+              <div className="relative z-10 text-white/80 text-xs mb-6 leading-relaxed">
+                {spinStatus.tickets ? (
+                  <button
+                    onClick={() => setShowSpin(true)}
+                    className="w-full animate-bounce bg-gradient-to-r from-[#F9A8D4] to-[#EC4899] text-white font-extrabold py-3.5 px-6 rounded-2xl shadow-[0_10px_20px_rgba(249,168,212,0.4)] hover:scale-105 transition flex items-center justify-center gap-2 text-sm"
+                  >
+                    <Gift size={18} />
+                    SPIN WHEEL TERSEDIA!
+                  </button>
+                ) : canClaimTicket ? (
+                  <button
+                    onClick={handleClaimTicket}
+                    disabled={claimingTicket}
+                    className="text-left text-white/90 hover:text-white underline decoration-white/60 underline-offset-4 transition disabled:opacity-70"
+                  >
+                    Selesaikan 30 hari tantangan untuk membuka Spin Wheel dan
+                    menangkan hadiah eksklusif!{" "}
+                    <span className="block mt-1 text-[10px] font-extrabold text-white">
+                      Klik untuk klaim tiket spin kamu 🎫
+                    </span>
+                  </button>
+                ) : (
+                  <>
+                    Selesaikan 30 hari tantangan untuk membuka Spin Wheel dan
+                    menangkan hadiah eksklusif!
+                  </>
+                )}
+              </div>
+
+              {claimError && (
+                <div className="relative z-10 mb-4 rounded-2xl bg-red-50 text-red-600 text-[10px] px-3 py-2 border border-red-200 font-bold">
+                  {claimError}
+                </div>
+              )}
+
+              {pendingTicketNotice && spinStatus.tickets > 0 && (
+                <div className="relative z-10 mb-4 rounded-2xl bg-white/15 text-white text-[10px] px-3 py-2 border border-white/30 font-bold">
+                  Kamu punya {spinStatus.tickets} tiket spin belum digunakan.
+                </div>
+              )}
 
               <div className="relative z-10">
                 <div className="flex justify-between text-[10px] font-extrabold mb-2 text-white/70 uppercase tracking-wider">
@@ -1036,7 +1219,7 @@ export default function RamadanCheckinClient() {
                   <div className="w-1.5 h-1.5 rounded-full bg-[#AE2D68] mt-1.5 shrink-0"></div>
                   <span>
                     Max izin (tidak puasa):{" "}
-                    <b className="text-gray-800">21 hari</b>.
+                    <b className="text-gray-800">{MAX_EXEMPT_DAYS} hari</b>.
                   </span>
                 </li>
                 <li className="flex gap-3">

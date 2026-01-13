@@ -1,8 +1,4 @@
-import {
-  createElement,
-  useEffect,
-  useState
-} from "react";
+import { createElement, useEffect, useState } from "react";
 import type { ReactNode, FC } from "react";
 import { Layout, Menu, Dropdown, Modal, Button, Avatar } from "antd";
 import type { MenuProps } from "antd";
@@ -68,6 +64,18 @@ const MainLayout: FC<MainLayoutProps> = (props) => {
     }
   };
 
+  // ✅ ambil session 1x aja (biar ga panggil helper berkali-kali)
+  const session = helper.isAuthenticated();
+
+  // ✅ fallback aman
+  const displayName = session?.data?.name || "John Doe";
+  const roleName = session?.data?.role_name || "ADMINISTRATOR";
+  const roleId = session?.data?.role;
+  const email = session?.data?.email;
+
+  // ✅ avatar placeholder (inisial + warna konsisten)
+  const { initials, color } = helper.avatarPlaceholder(displayName, 2);
+
   return (
     <Layout>
       <Sider
@@ -79,12 +87,26 @@ const MainLayout: FC<MainLayoutProps> = (props) => {
         breakpoint="lg"
         style={{ overflowY: "auto", height: window.innerHeight }}
       >
-        <div className="logo" style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "center" }}>
+        <div
+          className="logo"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            justifyContent: "center",
+          }}
+        >
           <img src={collapsed ? "favicon.png" : "/logoAbby.svg"} alt="Logo" />
           {!collapsed && (
             <div style={{ fontWeight: "bold", textAlign: "left" }}>
               Abby <br />
-              <span style={{ fontSize: 10, fontWeight: "normal", color: "#8c8c8c" }}>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: "normal",
+                  color: "#8c8c8c",
+                }}
+              >
                 E-Commerce
               </span>
             </div>
@@ -95,13 +117,14 @@ const MainLayout: FC<MainLayoutProps> = (props) => {
           theme="light"
           mode="inline"
           defaultOpenKeys={[
-            location.pathname.includes("-product") || location.pathname.includes("product-")
+            location.pathname.includes("-product") ||
+            location.pathname.includes("product-")
               ? "#product"
               : "",
           ]}
           selectedKeys={[location.pathname]}
           onClick={handleMenuClick}
-          items={MenuAdmin(helper.isAuthenticated()?.data?.role)}
+          items={MenuAdmin(roleId)}
         />
       </Sider>
 
@@ -138,8 +161,14 @@ const MainLayout: FC<MainLayoutProps> = (props) => {
           </span>
 
           {(collapsed && isMobile) || !isMobile ? (
-            <div className="flex align-center" style={{ marginLeft: "auto", marginRight: 20 }}>
-              <div className="flex flex-column" style={{ marginRight: 10, gap: 5 }}>
+            <div
+              className="flex align-center"
+              style={{ marginLeft: "auto", marginRight: 20 }}
+            >
+              <div
+                className="flex flex-column"
+                style={{ marginRight: 10, gap: 5 }}
+              >
                 <span
                   style={{
                     fontSize: 12,
@@ -148,7 +177,7 @@ const MainLayout: FC<MainLayoutProps> = (props) => {
                     textAlign: "right",
                   }}
                 >
-                  {helper.isAuthenticated()?.data?.name || "John Doe"}
+                  {displayName}
                 </span>
                 <span
                   style={{
@@ -158,7 +187,7 @@ const MainLayout: FC<MainLayoutProps> = (props) => {
                     fontWeight: "bold",
                   }}
                 >
-                  {helper.isAuthenticated()?.data?.role_name || "ADMINISTRATOR"}
+                  {roleName}
                 </span>
               </div>
 
@@ -197,14 +226,20 @@ const MainLayout: FC<MainLayoutProps> = (props) => {
                       key: "/logout",
                       icon: <LogoutOutlined />,
                       label: "Logout",
-                      style: { fontSize: 12, borderTop: "1px solid #f0f0f0" },
+                      style: {
+                        fontSize: 12,
+                        borderTop: "1px solid #f0f0f0",
+                      },
                     },
                   ],
                 }}
                 trigger={["click"]}
               >
                 <a href="/#" onClick={(e) => e.preventDefault()}>
-                  <Avatar icon={<UserOutlined />} />
+                  {/* ✅ Avatar placeholder */}
+                  <Avatar style={{ backgroundColor: color }}>
+                    {initials === "?" ? <UserOutlined /> : initials}
+                  </Avatar>
                 </a>
               </Dropdown>
             </div>
@@ -230,7 +265,8 @@ const MainLayout: FC<MainLayoutProps> = (props) => {
             }}
           >
             Copyright &copy;
-            {new Date().getFullYear()} CV. Gaya Beauty Utama | All Rights Reserved.
+            {new Date().getFullYear()} CV. Gaya Beauty Utama | All Rights
+            Reserved.
           </div>
         </Content>
 
@@ -240,11 +276,15 @@ const MainLayout: FC<MainLayoutProps> = (props) => {
           open={visiblePassword}
           title="Edit Password"
           onCancel={() => setVisiblePassword(false)}
-          footer={[<Button key="back" onClick={() => setVisiblePassword(false)}>Cancel</Button>]}
+          footer={[
+            <Button key="back" onClick={() => setVisiblePassword(false)}>
+              Cancel
+            </Button>,
+          ]}
         >
           <FormChangePassword
             handleClose={() => setVisiblePassword(false)}
-            email={helper.isAuthenticated()?.data?.email}
+            email={email}
             authenticated={true}
           />
         </Modal>
@@ -255,7 +295,11 @@ const MainLayout: FC<MainLayoutProps> = (props) => {
           open={visibleProfile}
           title="Edit Profile"
           onCancel={() => setVisibleProfile(false)}
-          footer={[<Button key="back" onClick={() => setVisibleProfile(false)}>Cancel</Button>]}
+          footer={[
+            <Button key="back" onClick={() => setVisibleProfile(false)}>
+              Cancel
+            </Button>,
+          ]}
         >
           <FormProfile handleClose={() => setVisibleProfile(false)} />
         </Modal>

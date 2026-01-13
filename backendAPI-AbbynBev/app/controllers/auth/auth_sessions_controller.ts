@@ -11,6 +11,7 @@ import { badRequest, badRequest400, internalError } from '../../utils/response.j
 import AuthLoginService from '#services/auth/auth_login_service'
 import { login as loginValidator } from '#validators/auth'
 import { UserRepository } from '#services/user/user_repository'
+import { vineMessagesToString } from '../../utils/validation.js'
 
 export default class AuthSessionsController {
   private userRepo = new UserRepository()
@@ -60,24 +61,23 @@ export default class AuthSessionsController {
   }
 
   public async loginAdmin({ request, response }: HttpContext) {
-  try {
-    const { email, password } = request.only(['email', 'password'])
-    const result = await AuthLoginService.loginAdmin(email, password)
+    try {
+      const { email, password } = request.only(['email', 'password'])
+      const result = await AuthLoginService.loginAdmin(email, password)
 
-    if (!result.ok) {
-      const fn = result.errorType === 'badRequest400' ? badRequest400 : badRequest
-      return fn(response, result.message)
+      if (!result.ok) {
+        const fn = result.errorType === 'badRequest400' ? badRequest400 : badRequest
+        return fn(response, result.message)
+      }
+
+      const token = result.payload?.serve?.token
+      if (token) this.setAuthCookie(response, token, 60 * 60 * 24)
+
+      return response.ok(result.payload)
+    } catch (error) {
+      return internalError(response, error)
     }
-
-    const token = result.payload?.serve?.token
-    if (token) this.setAuthCookie(response, token, 60 * 60 * 24)
-
-    return response.ok(result.payload)
-  } catch (error) {
-    return internalError(response, error)
   }
-}
-
 
   public async login({ request, response }: HttpContext) {
     try {
@@ -159,10 +159,6 @@ export default class AuthSessionsController {
     return { email, firstName, lastName, googleId }
   }
 
-  /**
-   * ✅ LOGIN GOOGLE (existing only)
-   * Kalau user belum ada => error "Akun belum terdaftar..."
-   */
   public async loginGoogle({ response, request }: HttpContext) {
     const validator = vine.compile(
       vine.object({
@@ -199,7 +195,6 @@ export default class AuthSessionsController {
 
       const tokenLogin = await this.generateToken(user)
 
-      // ✅ SET COOKIE + HIDE TOKEN BODY
       this.setAuthCookie(response, tokenLogin, 60 * 60 * 24 * 30)
 
       return response.ok({
@@ -222,30 +217,32 @@ export default class AuthSessionsController {
             ],
           }),
 
-          // FE redirect: existing => home
           is_new_user: false,
           needs_profile_completion: false,
         },
       })
     } catch (e: any) {
+      if (e?.status === 422) {
+        return response.status(422).send({
+          message: vineMessagesToString(e),
+          serve: null,
+        })
+      }
       return internalError(response, e)
     }
   }
 
-  /**
-   * ✅ REGISTER GOOGLE (boleh create)
-   * new => profile
-   * existing => home (link googleId kalau belum ada)
-   */
   public async registerGoogle({ response, request }: HttpContext) {
     const validator = vine.compile(
       vine.object({
         token: vine.string(),
+
+        accept_privacy_policy: vine.boolean().optional(),
       })
     )
 
     try {
-      const { token } = await request.validateUsing(validator)
+      const { token, accept_privacy_policy } = await request.validateUsing(validator)
 
       const identity = await this.getGoogleIdentity(token)
       if (!identity) return badRequest(response, 'Bad Request')
@@ -256,6 +253,13 @@ export default class AuthSessionsController {
       let isNewUser = false
 
       if (!user) {
+        if (!accept_privacy_policy) {
+          return response.status(422).send({
+            message: 'Anda harus menyetujui Privacy Policy sebelum mendaftar.',
+            serve: null,
+          })
+        }
+
         isNewUser = true
         const randomPass = randomBytes(24).toString('hex')
 
@@ -286,9 +290,7 @@ export default class AuthSessionsController {
       const tokenLogin = await this.generateToken(user)
       this.setAuthCookie(response, tokenLogin, 60 * 60 * 24 * 30)
 
-      // sesuai rule kamu: yang “register” => ke profile
       const needsProfile = isNewUser ? true : false
-      // (kalau mau lebih strict, bisa: isNewUser || this.needsProfileCompletion(user))
 
       return response.ok({
         message: 'Ok',
@@ -315,6 +317,12 @@ export default class AuthSessionsController {
         },
       })
     } catch (e: any) {
+      if (e?.status === 422) {
+        return response.status(422).send({
+          message: vineMessagesToString(e),
+          serve: null,
+        })
+      }
       return internalError(response, e)
     }
   }

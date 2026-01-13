@@ -8,6 +8,8 @@ import { BiteshipOrderService } from '../shipping/biteship_order_service.js'
 import { BiteshipTrackingService } from '../shipping/biteship_tracking_service.js'
 import NumberUtils from '../../utils/number.js'
 
+import VoucherClaim, { VoucherClaimStatus } from '#models/voucher_claim'
+
 export class AdminFulfillmentService {
   private status = new TransactionStatusMachine()
   private biteship = new BiteshipOrderService()
@@ -73,7 +75,6 @@ export class AdminFulfillmentService {
       return this.biteship.createReceiptForTransaction(trx, transaction)
     })
   }
-
 
   async refreshTracking(transactionId: number) {
     return db.transaction(async (trx) => {
@@ -172,20 +173,37 @@ export class AdminFulfillmentService {
           }
 
           if (detail.product) {
-            detail.product.popularity = Math.max(
-              0,
-              NumberUtils.toNumber(detail.product.popularity) - 1
-            )
+            detail.product.popularity = Math.max(0, NumberUtils.toNumber(detail.product.popularity) - 1)
             await detail.product.useTransaction(trx).save()
           }
         }
 
         const voucherId = t.ecommerce?.voucherId
         if (voucherId) {
-          const v = await Voucher.query({ client: trx }).where('id', voucherId).forUpdate().first()
-          if (v) {
-            v.qty = NumberUtils.toNumber(v.qty) + 1
-            await v.useTransaction(trx).save()
+          const claim = await VoucherClaim.query({ client: trx })
+            .where('transaction_id', t.id)
+            .where('voucher_id', voucherId)
+            .forUpdate()
+            .first()
+
+          const claimStatus = NumberUtils.toNumber(claim?.status, -1)
+
+          if (
+            claim &&
+            (claimStatus === VoucherClaimStatus.RESERVED || claimStatus === VoucherClaimStatus.USED)
+          ) {
+            claim.status = VoucherClaimStatus.CLAIMED
+            claim.transactionId = null
+            claim.reservedAt = null
+            claim.usedAt = null
+            await claim.useTransaction(trx).save()
+          } else {
+            // fallback legacy
+            const v = await Voucher.query({ client: trx }).where('id', voucherId).forUpdate().first()
+            if (v) {
+              v.qty = NumberUtils.toNumber(v.qty) + 1
+              await v.useTransaction(trx).save()
+            }
           }
         }
 

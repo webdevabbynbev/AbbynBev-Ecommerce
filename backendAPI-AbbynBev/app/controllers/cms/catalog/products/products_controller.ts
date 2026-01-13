@@ -35,9 +35,10 @@ export default class ProductsController {
               .orWhere('products.slug', 'like', `%${keyword}%`)
               .orWhere('products.master_sku', 'like', `%${keyword}%`)
               .orWhereHas('variants', (vq) => {
-                vq.where('sku', 'like', `%${keyword}%`)
-              .orWhere('porducts.barand','like','%{ketword}%')
-              .orWhere('porducts.barcode','like','%{ketword}%')
+                vq.where('sku', 'like', `%${keyword}%`).orWhere('barcode', 'like', `%${keyword}%`)
+              })
+              .orWhereHas('brand', (bq) => {
+                bq.whereILike('name', `%${keyword}%`)
               })
           })
         })

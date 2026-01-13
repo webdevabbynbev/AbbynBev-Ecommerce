@@ -7,6 +7,10 @@ import { MidtransService } from './midtrans_service.js'
 import { StockService } from './stock_service.js'
 import { VoucherCalculator } from './voucher_calculator.js'
 
+import NumberUtils from '../../utils/number.js'
+import { DateTime } from 'luxon'
+import VoucherClaim, { VoucherClaimStatus } from '#models/voucher_claim'
+
 export class EcommerceWebhookService {
   private midtrans = new MidtransService()
   private stock = new StockService()
@@ -21,7 +25,10 @@ export class EcommerceWebhookService {
       }
 
       const orderId = String(payload.order_id || '')
-      const transaction = await Transaction.query({ client: trx }).where('transaction_number', orderId).first()
+      const transaction = await Transaction.query({ client: trx })
+        .where('transaction_number', orderId)
+        .first()
+
       if (!transaction) {
         return { ok: true }
       }
@@ -40,8 +47,6 @@ export class EcommerceWebhookService {
       }
 
       const current = String(transaction.transactionStatus || '')
-
-      // terminal FAILED jangan diubah lagi
       if (current === TransactionStatus.FAILED.toString()) {
         return { ok: true }
       }
@@ -62,7 +67,6 @@ export class EcommerceWebhookService {
         nextStatus = TransactionStatus.FAILED.toString()
       }
 
-      // jangan downgrade paid -> waiting
       const isDowngrade =
         current === TransactionStatus.PAID_WAITING_ADMIN.toString() &&
         nextStatus === TransactionStatus.WAITING_PAYMENT.toString()
@@ -76,11 +80,51 @@ export class EcommerceWebhookService {
         changed = true
       }
 
-      // kalau berubah jadi FAILED, restore stock + voucher sekali
-      if (changed && nextStatus === TransactionStatus.FAILED.toString() && prevStatus !== TransactionStatus.FAILED.toString()) {
+      if (
+        changed &&
+        nextStatus === TransactionStatus.FAILED.toString() &&
+        prevStatus !== TransactionStatus.FAILED.toString()
+      ) {
         const voucherId = transactionEcommerce?.voucherId ?? null
+
         await this.stock.restoreFromTransaction(trx, transaction.id)
-        if (voucherId) await this.voucher.restoreVoucher(trx, voucherId)
+
+        if (voucherId) {
+          const claim = await VoucherClaim.query({ client: trx })
+            .where('transaction_id', transaction.id)
+            .where('voucher_id', voucherId)
+            .forUpdate()
+            .first()
+
+          if (claim && NumberUtils.toNumber(claim.status) === VoucherClaimStatus.RESERVED) {
+            claim.status = VoucherClaimStatus.CLAIMED
+            claim.transactionId = null
+            claim.reservedAt = null
+            await claim.useTransaction(trx).save()
+          } else {
+            await this.voucher.restoreVoucher(trx, voucherId)
+          }
+        }
+      }
+
+      if (
+        changed &&
+        nextStatus === TransactionStatus.PAID_WAITING_ADMIN.toString()
+      ) {
+        const voucherId = transactionEcommerce?.voucherId ?? null
+        if (voucherId) {
+          const claim = await VoucherClaim.query({ client: trx })
+            .where('transaction_id', transaction.id)
+            .where('voucher_id', voucherId)
+            .forUpdate()
+            .first()
+
+          if (claim && NumberUtils.toNumber(claim.status) === VoucherClaimStatus.RESERVED) {
+            claim.status = VoucherClaimStatus.USED
+            claim.usedAt = DateTime.now().setZone('Asia/Jakarta')
+            await claim.useTransaction(trx).save()
+          }
+        }
       }
 
       return { ok: true }
