@@ -12,6 +12,7 @@ export default class RamadanRecommendationsController {
     const query = RamadanProductRecommendation.query()
       .preload('product', (q) => {
         q.preload('medias') // Ambil gambar produk
+        q.preload('variants') // Ambil SKU dari varian produk
       })
       .orderBy('recommendation_date', 'desc')
 

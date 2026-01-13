@@ -111,12 +111,12 @@ export function NavbarLoggedIn({
           <CartButton />
 
           <Link href="/notification">
-            <BtnIcon iconName="Bell" variant="tertiary" size="sm" />
+            <BtnIcon as="span" iconName="Bell" variant="tertiary" size="sm" />
           </Link>
 
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-              <BtnIcon iconName="User" variant="tertiary" size="sm" />
+              <BtnIcon as="span" iconName="User" variant="tertiary" size="sm" />
             </SheetTrigger>
 
             <SheetContent>

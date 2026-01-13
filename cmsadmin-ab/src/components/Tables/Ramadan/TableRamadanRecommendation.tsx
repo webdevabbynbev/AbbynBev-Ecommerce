@@ -150,7 +150,13 @@ const TableRamadanRecommendation: React.FC = () => {
           <div>
             <div style={{ fontWeight: "bold" }}>{record.product?.name}</div>
             <div style={{ fontSize: 12, color: "#888" }}>
-              SKU: {record.product?.sku}
+              Barkode:{" "}
+              {(record.product?.variants || [])
+                .map((variant: any) => variant.barcode)
+                .filter(Boolean)
+                .join(", ") ||
+                record.product?.barcode ||
+                "-"}
             </div>
           </div>
         </div>
