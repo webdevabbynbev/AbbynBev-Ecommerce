@@ -142,21 +142,8 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
   }
 
   async function handleUpload() {
-  if (!file || headerError || rowErrors.length > 0) {
-    alert('Masih ada error pada data CSV')
-    return
-  }
-
-  try {
-    setLoading(true)
-    setProgress(0)
-    setBackendErrors([])
-
-    const result = await importProductCSV(file, setProgress)
-
-    if (result?.data?.errors?.length) {
-      setBackendErrors(result.data.errors)
-      alert('Import selesai, namun ada data yang gagal')
+    if (!file || headerError || rowErrors.length > 0) {
+      alert('Masih ada error pada data CSV')
       return
     }
 
@@ -192,7 +179,7 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
       setLoading(false)
     }
   }
-}
+
 
   const canUpload = useMemo(() => {
     return !!file && !loading && !headerError && rowErrors.length === 0
