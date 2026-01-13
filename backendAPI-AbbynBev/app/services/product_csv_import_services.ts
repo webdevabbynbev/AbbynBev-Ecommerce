@@ -509,13 +509,56 @@ export default class ProductCsvImportService {
       }
 
       const existingOnline = await ProductOnline.query({ client: trx })
-  .where('product_id', product.id)
-  .first()
+ .where('product_id', product.id)
+        .first()
 
-if (!existingOnline) {
-  await ProductOnline.create(
-    { productId: product.id, isActive: true, publishedAt: DateTime.now() as any } as any,
-    { client: trx }
-  )
-  stats.onlineCreated += 1  // Opsional: Update stats jika diperlukan
-}}}}
+      if (!existingOnline) {
+        await ProductOnline.create(
+          { productId: product.id, isActive: true, publishedAt: DateTime.now() as any } as any,
+          { client: trx }
+        )
+        stats.onlineCreated += 1
+      }
+    }
+  }
+
+  async import(filePath: string): Promise<{
+    success: boolean
+    errors: Array<{ row: number | string; name?: string; message: string }>
+    stats?: {
+      productCreated: number
+      productUpdated: number
+      variantCreated: number
+      mediaCreated: number
+      tagAttached: number
+      concernAttached: number
+      variantAttrAttached: number
+      onlineCreated: number
+    }
+  }> {
+    const errors: Array<{ row: number | string; name?: string; message: string }> = []
+    const { rows } = await this.readCsv(filePath)
+
+    if (!rows.length) {
+      return { success: false, errors: [{ row: '-', message: 'File CSV kosong' }] }
+    }
+
+    const isMasterSchema = this.detectSchema(Object.keys(rows[0] || {}))
+
+    if (isMasterSchema) {
+      const { groups, stats } = await this.importMaster(rows, errors)
+      await Database.transaction(async (trx) => {
+        await this.processMaster(groups, stats, trx, errors)
+      })
+
+      return { success: errors.length === 0, errors, stats }
+    }
+
+    const { validRows } = await this.importTemplate(rows, errors)
+    await Database.transaction(async (trx) => {
+      await this.processTemplate(validRows, trx)
+    })
+
+    return { success: errors.length === 0, errors }
+  }
+}
