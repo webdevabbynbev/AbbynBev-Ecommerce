@@ -28,18 +28,18 @@ export function NewArrivaleCard({ product }) {
 
     const price = Number(
       raw.price ??
-        raw.base_price ??
-        raw.basePrice ??
-        raw.salePrice ??
-        (Array.isArray(raw.prices) ? raw.prices[0] : undefined) ??
-        0
+      raw.base_price ??
+      raw.basePrice ??
+      raw.salePrice ??
+      (Array.isArray(raw.prices) ? raw.prices[0] : undefined) ??
+      0
     );
 
     const compareAt = Number(
       raw.realprice ??
-        raw.oldPrice ??
-        (Array.isArray(raw.prices) ? raw.prices[1] : undefined) ??
-        NaN
+      raw.oldPrice ??
+      (Array.isArray(raw.prices) ? raw.prices[1] : undefined) ??
+      NaN
     );
 
     const image =
@@ -102,15 +102,12 @@ export function NewArrivaleCard({ product }) {
       <div className="relative">
         {/* Wishlist button */}
         <div
-          className="
-            absolute top-4 right-4 z-10
-            opacity-0 scale-95
-            pointer-events-none
-            transition-all duration-200
-            group-hover:opacity-100
-            group-hover:scale-100
-            group-hover:pointer-events-auto
-          "
+          className={`absolute top-4 right-4 z-10 transition-all duration-200
+            ${isWishlisted
+              ? "opacity-100 scale-100 pointer-events-auto"
+              : "opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto"
+            }
+            `}
         >
           <BtnIconToggle
             active={isWishlisted}

@@ -13,6 +13,17 @@ export default function AccountTabs({ slug }) {
   const isOrder = pathname.includes("/account/order-history");
   const isVouchers = pathname.startsWith("/vouchers");
 
+  const navClass = (active) =>
+    `
+    group w-full flex items-center gap-3
+    px-3 py-2 rounded-lg text-sm font-medium transition-all
+    ${active
+      ? "bg-primary-700 text-white shadow-md"
+      : "text-gray-700 hover:bg-pink-50 hover:text-pink-600"
+    }
+  `;
+
+
   return (
     <Tabs
       key={activeSlug}
@@ -23,53 +34,42 @@ export default function AccountTabs({ slug }) {
       {/* SIDEBAR */}
       <TabsList
         className="
-          flex flex-row lg:flex-col
+          flex flex-row lg:flex-col gap-1
           h-fit w-[220px]
           items-start
-          rounded-xl border p-4 space-y-2
+          rounded-xl border p-4 space-y-1
           bg-white shadow-sm
         "
       >
-        {/* ========== PROFILE ========== */}
-        <TabsTrigger value="profile" className="w-full justify-start text-left">
+        <button
+          onClick={() => router.push("/account/profile")}
+          className={navClass(pathname === "/account/profile")}
+        >
           Profile
-        </TabsTrigger>
+        </button>
 
-        {/* ========== MY ORDER (Halaman terpisah) ========== */}
         <button
           onClick={() => router.push("/account/order-history")}
-          className={`
-            w-full text-left px-3 py-2 rounded-md text-sm transition
-            ${
-              isOrder
-                ? "bg-pink-600 text-white shadow"
-                : "text-gray-700 hover:bg-gray-100"
-            }
-          `}
+          className={navClass(pathname.startsWith("/account/order-history"))}
         >
           My Order
         </button>
 
-        {/* ========== VOUCHER (Halaman terpisah) ========== */}
+        <button
+          onClick={() => router.push("/account/wishlist")}
+          className={navClass(pathname.startsWith("/account/wishlist"))}
+        >
+          Wishlist
+        </button>
+
         <button
           onClick={() => router.push("/vouchers")}
-          className={`
-            w-full text-left px-3 py-2 rounded-md text-sm transition
-            ${
-              isVouchers
-                ? "bg-pink-600 text-white shadow"
-                : "text-gray-700 hover:bg-gray-100"
-            }
-          `}
+          className={navClass(pathname.startsWith("/vouchers"))}
         >
           Voucher
         </button>
-
-        {/* ========== WISHLIST ========== */}
-        <TabsTrigger value="wishlist" className="w-full justify-start text-left">
-          Wishlist
-        </TabsTrigger>
       </TabsList>
+
 
       {/* CONTENT */}
       <div className="flex-1 h-auto w-full">
