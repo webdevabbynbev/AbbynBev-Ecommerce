@@ -28,10 +28,12 @@ type RamadanParticipantRecord = {
   totalFasting: number;
   totalNotFasting: number;
   notFastingReasons?: string[];
+  spinResult?: string;
 };
 
 type QueryParams = {
   name?: string;
+  spin?: string;
   sort_by?: string;
   direction?: "asc" | "desc";
 };
@@ -86,6 +88,11 @@ const columns = (props: ColumnsCtx): ColumnsType<RamadanParticipantRecord> => [
     ),
   },
   {
+    title: "Hasil Spin",
+    dataIndex: "spinResult",
+    render: (val) => val || "-",
+  },
+  {
     title: "#",
     width: "10%",
     align: "center",
@@ -117,6 +124,7 @@ const TableRamadanEvent: React.FC = () => {
   const [data, setData] = React.useState<RamadanParticipantRecord[]>([]);
   const [params, setParams] = React.useState<QueryParams>({
     name: "",
+    spin: "",
     sort_by: "total_fasting",
     direction: "desc",
   });
@@ -152,27 +160,23 @@ const TableRamadanEvent: React.FC = () => {
       const resp: any = await http.get(
         `/admin/ramadan-participants?page=${
           page?.current ?? pagination.current
-        }&per_page=${page?.pageSize ?? pagination.pageSize}&q=${q.name ?? ""}`
+        }&per_page=${
+          page?.pageSize ?? pagination.pageSize
+        }&q=${encodeURIComponent(q.name ?? "")}&spin=${encodeURIComponent(
+          q.spin ?? ""
+        )}`
       );
-
-      console.log("Response Raw:", resp); // Debugging
 
       const serve = resp?.data?.serve;
 
       if (serve) {
-        // ✅ FIX UTAMA: Normalisasi Data
-        // Jika serve.data adalah Array, pakai langsung.
-        // Jika serve.data adalah Object (misal {0: {...}, 1: {...}}), convert jadi Array.
         let tableData: RamadanParticipantRecord[] = [];
 
         if (Array.isArray(serve.data)) {
           tableData = serve.data;
         } else if (typeof serve.data === "object" && serve.data !== null) {
-          // Konversi Object ke Array
           tableData = Object.values(serve.data);
         }
-
-        console.log("Data Table Fixed:", tableData);
 
         setData(tableData);
         setPagination({
@@ -230,13 +234,24 @@ const TableRamadanEvent: React.FC = () => {
             <Search
               placeholder="Search Participant Name"
               onSearch={(val) => {
-                const next: QueryParams = { name: val };
+                const next: QueryParams = { ...params, name: val };
                 setParams(next);
-                // Reset ke halaman 1 saat searching
                 const nextPagination = { ...pagination, current: 1 };
                 setPagination(nextPagination);
                 fetchList(next, nextPagination);
               }}
+            />
+
+            <Search
+              placeholder="Filter Hasil Spin (nama hadiah)"
+              onSearch={(val) => {
+                const next: QueryParams = { ...params, spin: val };
+                setParams(next);
+                const nextPagination = { ...pagination, current: 1 };
+                setPagination(nextPagination);
+                fetchList(next, nextPagination);
+              }}
+              allowClear
             />
           </Space>
         </div>
