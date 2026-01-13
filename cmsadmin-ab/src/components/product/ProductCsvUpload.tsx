@@ -12,11 +12,101 @@ interface Props {
 }
 
 type CsvRow = Record<string, string>
+type BackendError = { row?: number; message?: string; name?: string } | any
 
-// ✅ Samain dengan backend: yang wajib hanya ini
-const REQUIRED_HEADERS = ['name', 'category_type_id'] as const
+// ✅ schema 1: template lama
+const REQUIRED_HEADERS_TEMPLATE = ['name', 'category_type_id'] as const
 
-type BackendError = { row?: number; message?: string } | any
+// ✅ schema 2: master file (header Indonesia)
+const REQUIRED_HEADERS_MASTER = ['nama produk', 'sku master', 'sku varian 1'] as const
+
+function normalizeHeader(h: string) {
+  return (h || '').replace(/^\uFEFF/, '').trim().toLowerCase()
+}
+
+function normalizeHeaders(fields: string[]) {
+  return fields.map((f) => String(f || '').replace(/^\uFEFF/, '').trim())
+}
+
+function isMasterHeaders(fields: string[]) {
+  const norm = fields.map(normalizeHeader)
+  return REQUIRED_HEADERS_MASTER.every((h) => norm.includes(h))
+}
+
+function isTemplateHeaders(fields: string[]) {
+  const norm = fields.map(normalizeHeader)
+  return REQUIRED_HEADERS_TEMPLATE.every((h) => norm.includes(h))
+}
+
+function validateHeaders(fields: string[]) {
+  const norm = fields.map(normalizeHeader)
+
+  const missTemplate = REQUIRED_HEADERS_TEMPLATE.filter((h) => !norm.includes(h))
+  const missMaster = REQUIRED_HEADERS_MASTER.filter((h) => !norm.includes(h))
+
+  const okTemplate = missTemplate.length === 0
+  const okMaster = missMaster.length === 0
+
+  if (okTemplate || okMaster) return null
+
+  return `Header CSV tidak cocok format.
+Template wajib: ${REQUIRED_HEADERS_TEMPLATE.join(', ')}.
+Master wajib: ${REQUIRED_HEADERS_MASTER.join(', ')}`
+}
+
+// ===== Row validation TEMPLATE =====
+function validateRowsTemplate(rows: CsvRow[]) {
+  const errors: string[] = []
+
+  rows.forEach((row, index) => {
+    const rowNumber = index + 2
+
+    const name = (row.name || '').trim()
+    const categoryId = (row.category_type_id || '').trim()
+    const basePrice = (row.base_price || '').trim()
+    const weight = (row.weight || '').trim()
+    const isFlash = (row.is_flash_sale || '').trim()
+
+    if (!name) errors.push(`Baris ${rowNumber}: name wajib diisi`)
+    if (!categoryId || isNaN(Number(categoryId))) errors.push(`Baris ${rowNumber}: category_type_id harus angka`)
+
+    // base_price optional, tapi kalau ada harus valid
+    if (basePrice !== '' && (isNaN(Number(basePrice)) || Number(basePrice) < 0)) {
+      errors.push(`Baris ${rowNumber}: base_price harus angka ≥ 0 (atau kosongin)`)
+    }
+
+    if (weight !== '' && (isNaN(Number(weight)) || Number(weight) < 0)) {
+      errors.push(`Baris ${rowNumber}: weight harus angka ≥ 0`)
+    }
+
+    if (isFlash !== '' && !['0', '1'].includes(isFlash)) {
+      errors.push(`Baris ${rowNumber}: is_flash_sale harus 0 atau 1`)
+    }
+  })
+
+  return errors
+}
+
+// ===== Row validation MASTER (yang penting aja biar gak ngeblok) =====
+// ✅ di mode MASTER: kita cuma wajibkan "Nama Produk"
+// ✅ SKU Varian 1 boleh kosong -> backend akan bikin fallback
+function validateRowsMaster(rows: CsvRow[]) {
+  const errors: string[] = []
+
+  rows.forEach((row, index) => {
+    const rowNumber = index + 2
+
+    const namaProduk = (row['Nama Produk'] || row['nama produk'] || '').trim()
+
+    if (!namaProduk) errors.push(`Baris ${rowNumber}: "Nama Produk" wajib diisi`)
+
+    // OPTIONAL (kalau kamu mau warning tapi gak ngeblok):
+    // const skuVar1 = (row['SKU Varian 1'] || row['sku varian 1'] || '').trim()
+    // if (!skuVar1) console.warn(`Baris ${rowNumber}: "SKU Varian 1" kosong (akan dibuat otomatis oleh backend)`)
+  })
+
+  return errors
+}
 
 export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Props) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -29,10 +119,10 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
   const [backendErrors, setBackendErrors] = useState<BackendError[]>([])
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [csvMode, setCsvMode] = useState<'template' | 'master' | null>(null)
 
   useEffect(() => {
     if (!open) resetState()
-    // ❌ Jangan auto-click file picker di useEffect, sering ke-block browser
   }, [open])
 
   function resetState() {
@@ -44,57 +134,8 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
     setBackendErrors([])
     setProgress(0)
     setLoading(false)
+    setCsvMode(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
-  }
-
-  function normalizeHeaders(fields: string[]) {
-    return fields.map((f) => String(f || '').trim())
-  }
-
-  function validateHeaders(fields: string[]) {
-    const normalized = normalizeHeaders(fields)
-    const missing = REQUIRED_HEADERS.filter((h) => !normalized.includes(h))
-    return missing.length > 0
-      ? `Header CSV tidak lengkap. Kurang: ${missing.join(', ')}`
-      : null
-  }
-
-  function validateRows(rows: CsvRow[]) {
-    const errors: string[] = []
-
-    rows.forEach((row, index) => {
-      const rowNumber = index + 2 // +2 karena baris 1 header
-
-      const name = (row.name || '').trim()
-      const categoryId = (row.category_type_id || '').trim()
-      const basePrice = (row.base_price || '').trim()
-      const weight = (row.weight || '').trim()
-      const isFlash = (row.is_flash_sale || '').trim()
-
-      if (!name) {
-        errors.push(`Baris ${rowNumber}: name wajib diisi`)
-      }
-
-      if (!categoryId || isNaN(Number(categoryId))) {
-        errors.push(`Baris ${rowNumber}: category_type_id harus angka`)
-      }
-
-      // ✅ base_price optional, tapi kalau ada harus valid
-      if (basePrice !== '' && (isNaN(Number(basePrice)) || Number(basePrice) < 0)) {
-        errors.push(`Baris ${rowNumber}: base_price harus angka ≥ 0 (atau kosongin)`)
-      }
-
-      // optional
-      if (weight !== '' && (isNaN(Number(weight)) || Number(weight) < 0)) {
-        errors.push(`Baris ${rowNumber}: weight harus angka ≥ 0`)
-      }
-
-      if (isFlash !== '' && !['0', '1'].includes(isFlash)) {
-        errors.push(`Baris ${rowNumber}: is_flash_sale harus 0 atau 1`)
-      }
-    })
-
-    return errors
   }
 
   function handleFileChange(f: File) {
@@ -105,24 +146,28 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
     Papa.parse<CsvRow>(f, {
       header: true,
       skipEmptyLines: true,
-      transformHeader: (h) => String(h || '').trim(), // ✅ trim header biar gak ke-detect salah
+      transformHeader: (h) => String(h || '').replace(/^\uFEFF/, '').trim(),
       complete: (result) => {
         const fields = result.meta.fields || []
         const headerErr = validateHeaders(fields)
 
+        const cleanedHeaders = normalizeHeaders(fields)
+        setHeaders(cleanedHeaders)
+
         if (headerErr) {
           setHeaderError(headerErr)
-          setHeaders(normalizeHeaders(fields))
           setPreview([])
           setRowErrors([])
+          setCsvMode(null)
           return
         }
 
-        const cleanedHeaders = normalizeHeaders(fields)
+        // ✅ mode: cukup cek MASTER atau TEMPLATE
+        const mode: 'master' | 'template' = isMasterHeaders(fields) ? 'master' : 'template'
+        setCsvMode(mode)
         setHeaderError(null)
-        setHeaders(cleanedHeaders)
 
-        // ✅ trim value tiap cell biar rapi
+        // ✅ trim value tiap cell
         const cleanedData = (result.data || []).map((row) => {
           const out: CsvRow = {}
           cleanedHeaders.forEach((h) => {
@@ -132,7 +177,10 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
         })
 
         setPreview(cleanedData)
-        setRowErrors(validateRows(cleanedData))
+
+        // ✅ validasi sesuai mode
+        const errs = mode === 'master' ? validateRowsMaster(cleanedData) : validateRowsTemplate(cleanedData)
+        setRowErrors(errs)
       },
       error: (err) => {
         console.error('CSV PARSE ERROR:', err)
@@ -154,10 +202,10 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
 
       const result = await importProductCSV(file, setProgress)
 
-      // ✅ kompatibel sama response backend kamu
-      const errors = result?.data?.errors
-      if (Array.isArray(errors) && errors.length) {
-        setBackendErrors(errors)
+      // ✅ importProductCSV return response.data
+      const errs = result?.errors
+      if (Array.isArray(errs) && errs.length) {
+        setBackendErrors(errs)
         alert('Import selesai, namun ada data yang gagal. Lihat error list.')
         return
       }
@@ -173,13 +221,12 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
         err?.message ||
         'Upload CSV gagal'
 
-      setBackendErrors(err?.response?.data?.errors || [])
+      setBackendErrors(err?.errors || err?.response?.data?.errors || [])
       alert(message)
     } finally {
       setLoading(false)
     }
   }
-
 
   const canUpload = useMemo(() => {
     return !!file && !loading && !headerError && rowErrors.length === 0
@@ -220,10 +267,19 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
           </Dialog.Title>
 
           <Dialog.Description style={{ marginBottom: 12, color: '#555' }}>
-            Minimal header: <b>name</b>, <b>category_type_id</b>. (base_price boleh kosong)
+            Bisa upload 2 format:
+            <br />
+            <b>Template</b>: <code>name</code>, <code>category_type_id</code> (base_price optional)
+            <br />
+            <b>Master</b>: <code>Nama Produk</code>, <code>SKU Master</code>, <code>SKU Varian 1</code> (SKU Varian 1 boleh kosong)
+            {csvMode ? (
+              <>
+                <br />
+                Detected mode: <b>{csvMode.toUpperCase()}</b>
+              </>
+            ) : null}
           </Dialog.Description>
 
-          {/* Hidden file input */}
           <input
             ref={fileInputRef}
             type="file"
@@ -254,7 +310,8 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
             <div style={{ fontSize: 13, color: '#333' }}>
               {file ? (
                 <>
-                  <b>{file.name}</b> <span style={{ color: '#777' }}>({Math.round(file.size / 1024)} KB)</span>
+                  <b>{file.name}</b>{' '}
+                  <span style={{ color: '#777' }}>({Math.round(file.size / 1024)} KB)</span>
                 </>
               ) : (
                 <span style={{ color: '#777' }}>Belum ada file dipilih</span>
@@ -262,7 +319,6 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
             </div>
           </div>
 
-          {/* Header Error */}
           {headerError && (
             <div
               style={{
@@ -272,13 +328,13 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
                 background: '#ffecec',
                 color: '#a40000',
                 fontSize: 13,
+                whiteSpace: 'pre-line',
               }}
             >
               {headerError}
             </div>
           )}
 
-          {/* Frontend row errors */}
           {rowErrors.length > 0 && (
             <div
               style={{
@@ -301,7 +357,6 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
             </div>
           )}
 
-          {/* Backend errors */}
           {backendErrors.length > 0 && (
             <div
               style={{
@@ -327,7 +382,6 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
             </div>
           )}
 
-          {/* Preview table */}
           {preview.length > 0 && (
             <div
               style={{
@@ -380,7 +434,6 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
             </div>
           )}
 
-          {/* Progress */}
           {loading && (
             <div style={{ marginBottom: 12 }}>
               <div style={{ height: 8, width: '100%', background: '#eee', borderRadius: 999 }}>
@@ -398,7 +451,6 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
             </div>
           )}
 
-          {/* Actions */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <button
               type="button"
