@@ -35,6 +35,9 @@ export function AddressList() {
         const data = Array.isArray(addr) ? addr : [];
         setList(data);
 
+        console.log(data);
+        
+
         // set pilihan awal (yang isActive === 2) kalau ada, kalau tidak pilih item pertama
         const main = data.find((x) => Number(x.isActive) === 2);
         setSelectedId(main ? main.id : data[0]?.id ?? null);
