@@ -297,7 +297,7 @@ export default function ProductDetailClient({ product }) {
                       alt={`${product?.name} ${
                         selectedVariant ? `- ${selectedVariant}` : ""
                       }`}
-                      className="w-full h-auto object-cover border border-neutral-400 lg:max-w-75 lg:max-h-75"
+                      className="w-full h-auto  object-cover border border-neutral-400 lg:max-w-75 lg:max-h-75"
                     />
                   </div>
                 </div>
@@ -568,7 +568,7 @@ export default function ProductDetailClient({ product }) {
             </div>
           </div>
 
-          <div className="flex w-full items-center">
+          <div className="flex w-full items-center gap-6">
             <QuantityInput min={1} max={stock} value={qty} onChange={setQty} />
             <div className="text-sm font-normal text-neutral-600">
               Stock :

@@ -301,8 +301,8 @@ export default function CartClient({ initialCart }) {
                     }
                   />
 
-                  <div className="flex flex-col">
-                    <div className="w-full flex flex-row gap-4">
+                  <div className="flex w-full flex-col">
+                    <div className="w-full flex flex-row gap-4 items-start">
                       <Image
                         src={image}
                         width={60}
@@ -311,16 +311,26 @@ export default function CartClient({ initialCart }) {
                         className="rounded-sm"
                       />
                       <div className="w-full flex flex-col">
-                        <p className="font-medium line-clamp-1">
+                        <p className="font-regular line-clamp-1">
                           {productName}
                         </p>
                         <p className="text-sm text-gray-500">
                           Variant: {variantName}
                         </p>
                       </div>
+                      <div className="lg:hidden">
+                        <Button
+                          variant="tertiary"
+                          size="xs"
+                          disabled={busy || loadingCheckout}
+                          onClick={() => handleDelete(item)}
+                          className="text-xs hover:underline disabled:opacity-40"
+                        >
+                          Hapus
+                        </Button>
+                      </div>
                     </div>
-
-                    <div className="mt-2 flex items-center gap-3">
+                    <div className="mt-4 w-full flex flex-row justify-between items-center">
                       <div className="hidden lg:block">
                         <Button
                           variant="tertiary"
@@ -332,30 +342,22 @@ export default function CartClient({ initialCart }) {
                           Remove
                         </Button>
                       </div>
+                      <div className="flex flex-row items-center justify-between lg:justify-end gap-6 w-full ">
+                        <QuantityInput
+                          min={1}
+                          max={toNumber(
+                            item?.variant?.stock ?? product?.stock ?? 999999,
+                            999999
+                          )}
+                          value={quantity}
+                          disabled={busy || loadingCheckout}
+                          onChange={(newQty) => handleUpdateQty(item, newQty)}
+                        />
+                        <p className="font-semibold text-primary-700 text-right">
+                          {formatToRupiah(getLineTotal(item, quantity))}
+                        </p>
+                      </div>
                     </div>
-                    <div className="w-full flex flex-row justify-between items-center">
-                      <QuantityInput
-                        min={1}
-                        max={toNumber(
-                          item?.variant?.stock ?? product?.stock ?? 999999,
-                          999999
-                        )}
-                        value={quantity}
-                        disabled={busy || loadingCheckout}
-                        onChange={(newQty) => handleUpdateQty(item, newQty)}
-                      />
-                      <p className="font-semibold text-primary-700 text-right">
-                        {formatToRupiah(getLineTotal(item, quantity))}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="lg:hidden">
-                    <BtnIcon
-                      variant="tertiary"
-                      size="xs"
-                      iconName="Xmark"
-                      onClick={() => handleDelete(item)}
-                    />
                   </div>
                 </div>
               </div>
