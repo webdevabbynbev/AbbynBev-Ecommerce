@@ -2,7 +2,8 @@ import { getBrandBySlug } from "@/services/api/brands.services";
 import BrandDetailClient from "./BrandDetailClient";
 import { notFound } from "next/navigation";
 
-export async function generateMetadata({ params }) {
+export async function generateMetadata(props) {
+  const params = await props.params;
   const brandData = await getBrandBySlug(params.slug);
 
   if (!brandData) {
@@ -42,7 +43,8 @@ export async function generateMetadata({ params }) {
   };
 }
 
-export default async function BrandDetailPage({ params }) {
+export default async function BrandDetailPage(props) {
+  const params = await props.params;
   const brandData = await getBrandBySlug(params.slug);
 
   if (!brandData) {
