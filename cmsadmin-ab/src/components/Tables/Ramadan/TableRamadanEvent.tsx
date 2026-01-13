@@ -1,8 +1,6 @@
 import React from "react";
 import { SearchOutlined } from "@ant-design/icons";
 import {
-  Col,
-  Row,
   Space,
   Card,
   Modal,
@@ -11,6 +9,7 @@ import {
   Button,
   Input,
   Tag,
+  Descriptions,
 } from "antd";
 import type {
   ColumnsType,
@@ -19,7 +18,7 @@ import type {
 } from "antd/es/table";
 import http from "../../../api/http";
 
-// Tipe data sesuai dengan respon API ramadan-participants
+// Tipe data sesuai respon API ramadan-participants
 type RamadanParticipantRecord = {
   id: number | string;
   name: string;
@@ -38,14 +37,6 @@ type QueryParams = {
   direction?: "asc" | "desc";
 };
 
-type ServePayload = {
-  currentPage: string | number;
-  perPage: string | number;
-  total: string | number;
-  lastPage?: number;
-  data: RamadanParticipantRecord[];
-};
-
 type ColumnsCtx = {
   setOpen: (open: boolean) => void;
   setCurrent: (rec: RamadanParticipantRecord | false) => void;
@@ -55,9 +46,8 @@ const columns = (props: ColumnsCtx): ColumnsType<RamadanParticipantRecord> => [
   {
     title: "Nama",
     dataIndex: "name",
-    render: (val, record) => (
+    render: (_val, record) => (
       <div className="flex flex-col">
-        {" "}
         <span className="text-xs text-gray-400">{record.name}</span>
       </div>
     ),
@@ -128,16 +118,19 @@ const TableRamadanEvent: React.FC = () => {
     sort_by: "total_fasting",
     direction: "desc",
   });
+
   const [pagination, setPagination] = React.useState<TablePaginationConfig>({
     current: 1,
     pageSize: 10,
     total: 0,
   });
+
   const [open, setOpen] = React.useState<boolean>(false);
   const [current, setCurrent] = React.useState<
     RamadanParticipantRecord | false
   >(false);
   const [loading, setLoading] = React.useState<boolean>(false);
+
   const { Search } = Input;
 
   React.useEffect(() => {
@@ -210,7 +203,7 @@ const TableRamadanEvent: React.FC = () => {
               value={pagination.pageSize as number}
               onChange={(pageSize) => {
                 const next = {
-                  current: 1, // Reset ke halaman 1 saat ubah page size
+                  current: 1,
                   pageSize,
                   total: pagination.total ?? 0,
                 };
@@ -240,6 +233,7 @@ const TableRamadanEvent: React.FC = () => {
                 setPagination(nextPagination);
                 fetchList(next, nextPagination);
               }}
+              allowClear
             />
 
             <Search
@@ -270,7 +264,6 @@ const TableRamadanEvent: React.FC = () => {
         onChange={handleTableChange}
       />
 
-      {/* Modal Detail */}
       <Modal
         centered
         open={open}
@@ -280,69 +273,53 @@ const TableRamadanEvent: React.FC = () => {
           setCurrent(false);
         }}
         footer={null}
-        width={600}
+        width={700}
       >
-        {current && (
+        {current ? (
           <>
-            <Row style={{ marginTop: "0.5rem" }}>
-              <Col span={10} style={{ fontWeight: "bold" }}>
-                Name
-              </Col>
-              <Col span={1}>:</Col>
-              <Col span={13}>{current.name}</Col>
-            </Row>
-            <Row>
-              <Col span={10} style={{ fontWeight: "bold" }}>
-                Email
-              </Col>
-              <Col span={1}>:</Col>
-              <Col span={13}>{current.email}</Col>
-            </Row>
-            <Row>
-              <Col span={10} style={{ fontWeight: "bold" }}>
-                Phone Number
-              </Col>
-              <Col span={1}>:</Col>
-              <Col span={13}>{current.phone_number ?? "-"}</Col>
-            </Row>
-            <div className="my-4 border-t border-gray-200" />
-            <Row>
-              <Col span={10} style={{ fontWeight: "bold" }}>
-                Total Fasting (Puasa)
-              </Col>
-              <Col span={1}>:</Col>
-              <Col span={13}>
-                <Tag color="green">{current.totalFasting} Days</Tag>
-              </Col>
-            </Row>
-            <Row>
-              <Col span={10} style={{ fontWeight: "bold" }}>
-                Total Exempt (Tidak Puasa)
-              </Col>
-              <Col span={1}>:</Col>
-              <Col span={13}>
-                <Tag color="orange">{current.totalNotFasting} Days</Tag>
-              </Col>
-            </Row>
-            {/* Tampilkan Alasan Jika Ada */}
+            <Descriptions
+              column={1}
+              size="small"
+              bordered
+              labelStyle={{ width: 220, fontWeight: 600 }}
+              contentStyle={{ background: "#fff" }}
+            >
+              <Descriptions.Item label="Name">{current.name}</Descriptions.Item>
+              <Descriptions.Item label="Email">
+                {current.email || "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Phone Number">
+                {current.phone_number ?? "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Spin Result">
+                {current.spinResult || "-"}
+              </Descriptions.Item>
+
+              <Descriptions.Item label="Total Fasting (Puasa)">
+                <Tag color="green">{current.totalFasting ?? 0} Days</Tag>
+              </Descriptions.Item>
+
+              <Descriptions.Item label="Total Exempt (Tidak Puasa)">
+                <Tag color="orange">{current.totalNotFasting ?? 0} Days</Tag>
+              </Descriptions.Item>
+            </Descriptions>
+
             {current.notFastingReasons &&
-              current.notFastingReasons.length > 0 && (
-                <Row style={{ marginTop: 10 }}>
-                  <Col span={10} style={{ fontWeight: "bold" }}>
-                    Alasan Tidak Puasa
-                  </Col>
-                  <Col span={1}>:</Col>
-                  <Col span={13}>
-                    <ul style={{ paddingLeft: 20, margin: 0 }}>
-                      {current.notFastingReasons.map((reason, idx) => (
-                        <li key={idx}>{reason}</li>
-                      ))}
-                    </ul>
-                  </Col>
-                </Row>
-              )}
+            current.notFastingReasons.length > 0 ? (
+              <Card
+                size="small"
+                style={{ marginTop: 16 }}
+                title="Alasan Tidak Puasa"
+              >
+                <ul style={{ paddingLeft: 20, margin: 0 }}>
+                  {current.notFastingReasons.map((reason, idx) => (
+                    <li key={idx}>{reason}</li>
+                  ))}
+                </ul>
+              </Card>
+            ) : null}
           </>
-        )}
+        ) : null}
       </Modal>
     </>
   );

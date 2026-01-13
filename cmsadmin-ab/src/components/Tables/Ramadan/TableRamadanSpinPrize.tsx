@@ -32,6 +32,7 @@ interface VoucherRecord {
   id: number | string;
   name: string;
   code: string;
+  qty: number;
 }
 
 interface VoucherResponse {
@@ -41,19 +42,19 @@ interface VoucherResponse {
     };
   };
 }
-interface VoucherRecord {
-  id: number | string;
-  name: string;
-  code: string;
-}
+// interface VoucherRecord {
+//   id: number | string;
+//   name: string;
+//   code: string;
+// }
 
-interface VoucherResponse {
-  data?: {
-    serve?: {
-      data?: VoucherRecord[];
-    };
-  };
-}
+// interface VoucherResponse {
+//   data?: {
+//     serve?: {
+//       data?: VoucherRecord[];
+//     };
+//   };
+// }
 const TableRamadanSpinPrize: React.FC = () => {
   const [data, setData] = useState<SpinPrizeRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -106,7 +107,7 @@ const TableRamadanSpinPrize: React.FC = () => {
         is_grand: record.isGrand,
         is_active: record.isActive,
         voucher_id: matchedVoucher?.id ?? fallbackVoucher?.id,
-        voucher_qty: record.voucherQty ?? undefined,
+        voucher_qty: record.voucherQty ?? matchedVoucher?.qty ?? undefined,
         daily_quota: record.dailyQuota ?? undefined,
       });
     } else {
@@ -261,9 +262,14 @@ const TableRamadanSpinPrize: React.FC = () => {
                 const selectedVoucher = voucherOptions.find(
                   (voucher) => voucher.id === value
                 );
-                if (selectedVoucher) {
-                  form.setFieldsValue({ name: selectedVoucher.name });
+                if (!selectedVoucher) {
+                  form.setFieldsValue({ voucher_qty: undefined });
+                  return;
                 }
+                form.setFieldsValue({
+                  name: selectedVoucher.name,
+                  voucher_qty: selectedVoucher.qty,
+                });
               }}
               showSearch
               optionFilterProp="label"
