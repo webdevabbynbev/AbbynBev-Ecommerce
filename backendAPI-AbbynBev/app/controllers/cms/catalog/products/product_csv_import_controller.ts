@@ -1,6 +1,4 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import Database from '@adonisjs/lucid/services/db'
-import csv from 'csv-parser'
 import fs from 'fs'
 import * as slugifyLib from 'slugify'
 import { DateTime } from 'luxon'
@@ -308,8 +306,7 @@ export default class ProductCsvImportController {
     }
 
     const filePath = file.tmpPath
-    const rows: any[] = []
-    const errors: any[] = []
+    const service = new ProductCsvImportService()
 
     try {
       /* ======================

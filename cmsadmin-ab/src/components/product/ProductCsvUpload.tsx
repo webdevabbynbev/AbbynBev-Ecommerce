@@ -142,6 +142,7 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
     setFile(f)
     setBackendErrors([])
     setProgress(0)
+    setCurrentPage(1)
 
     Papa.parse<CsvRow>(f, {
       header: true,
@@ -232,6 +233,11 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
     return !!file && !loading && !headerError && rowErrors.length === 0
   }, [file, loading, headerError, rowErrors.length])
 
+  const totalPages = Math.ceil(preview.length / rowsPerPage)
+  const startIndex = (currentPage - 1) * rowsPerPage
+  const endIndex = startIndex + rowsPerPage
+  const currentRows = preview.slice(startIndex, endIndex)
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -299,8 +305,8 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
               style={{
                 padding: '8px 12px',
                 borderRadius: 8,
-                border: '1px solid #ddd',
-                background: '#fff',
+                border: '1px solid #0d0d0d',
+                background: '#ddd5d5',
                 cursor: loading ? 'not-allowed' : 'pointer',
               }}
             >
@@ -314,7 +320,7 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
                   <span style={{ color: '#777' }}>({Math.round(file.size / 1024)} KB)</span>
                 </>
               ) : (
-                <span style={{ color: '#777' }}>Belum ada file dipilih</span>
+                <span style={{ color: '#861212' }}>Belum ada file dipilih</span>
               )}
             </div>
           </div>
@@ -347,7 +353,7 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
               }}
             >
               <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                Ada error di CSV (menampilkan max 10):
+                Ada error di CSV (menampilkan max 15):
               </div>
               <ul style={{ margin: 0, paddingLeft: 18 }}>
                 {rowErrors.slice(0, 10).map((e, i) => (
@@ -369,7 +375,7 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
               }}
             >
               <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                Error dari server (menampilkan max 10):
+                Error dari server (menampilkan max 15):
               </div>
               <ul style={{ margin: 0, paddingLeft: 18 }}>
                 {backendErrors.slice(0, 10).map((e: any, i) => (
@@ -410,7 +416,7 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
                   </tr>
                 </thead>
                 <tbody>
-                  {preview.slice(0, 10).map((row, i) => (
+                  {currentRows.map((row, i) => (
                     <tr key={i}>
                       {headers.map((h) => (
                         <td
@@ -429,8 +435,42 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
                 </tbody>
               </table>
               <div style={{ padding: 10, fontSize: 12, color: '#777' }}>
-                Preview menampilkan max 10 baris.
+                Preview menampilkan {currentRows.length} baris dari halaman {currentPage}.
               </div>
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 10, paddingBottom: 10 }}>
+                  <button
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 4,
+                      border: '1px solid #ddd',
+                      background: currentPage === 1 ? '#f0f0f0' : '#fff',
+                      cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    Previous
+                  </button>
+                  <span style={{ alignSelf: 'center', fontSize: 12 }}>
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                    disabled={currentPage === totalPages}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 4,
+                      border: '1px solid #ddd',
+                      background: currentPage === totalPages ? '#f0f0f0' : '#fff',
+                      cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -458,8 +498,8 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
               style={{
                 padding: '8px 12px',
                 borderRadius: 8,
-                border: '1px solid #ddd',
-                background: '#fff',
+                border: '1px solid #810505',
+                background: '#e9e7e7',
                 cursor: 'pointer',
               }}
             >
@@ -473,8 +513,8 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
               style={{
                 padding: '8px 12px',
                 borderRadius: 8,
-                border: '1px solid #6d28d9',
-                background: canUpload ? '#6d28d9' : '#c7b7f3',
+                border: '1px solid #89081e',
+                background: canUpload ? '#992a2e' : '#c7b7f3',
                 color: '#fff',
                 cursor: canUpload ? 'pointer' : 'not-allowed',
               }}
