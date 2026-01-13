@@ -52,4 +52,4 @@ export function QuantityInput({
       />
     </div>
   );
-}s
+}
