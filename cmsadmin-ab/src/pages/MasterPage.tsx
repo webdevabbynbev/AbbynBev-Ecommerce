@@ -58,7 +58,11 @@ export default function MasterPage(): React.ReactElement {
         <Route path="/return-policy" element={<FormReturnPolicy />} />
         <Route path="/about-us" element={<FormAboutUs />} />
         <Route path="/contact-us" element={<FormContactUs />} />
-
+{/* ✅ DISCOUNTS */}
+        <Route path="/discounts" element={<TableDiscount />} />
+        <Route path="/discounts/new" element={<DiscountFormPage mode="create" />} />
+        <Route path="/discounts/:id" element={<DiscountFormPage mode="edit" />} />
+        
         <Route path="/settings" element={<TableSetting />} />
         <Route path="/brand-product" element={<TableBrand />} />
         <Route path="/category-types" element={<TableCategoryType />} />
