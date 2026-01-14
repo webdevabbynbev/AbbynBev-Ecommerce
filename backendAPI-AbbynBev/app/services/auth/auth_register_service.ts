@@ -58,7 +58,7 @@ export default class AuthRegisterService {
       return {
         message: 'OTP sent via Email.',
         serve: {
-          otp_sent_via: 'Whatsapp',
+          otp_sent_via: 'email',
           email,
           phone_number,
           first_name,
@@ -71,7 +71,8 @@ export default class AuthRegisterService {
 
     try {
       const wa = new WhatsAppService()
-      await wa.sendOTP(this.normalizeWaNumber(phone_number), otp)
+      const normalized = wa.normalizeNumber(phone_number)
+      await wa.sendOTP(normalized, otp)
 
       return {
         message: 'OTP sent via WhatsApp.',
@@ -146,12 +147,7 @@ export default class AuthRegisterService {
       role: Role.GUEST,
     })
 
-    try {
-      await AuthEmailService.sendWelcomeLetter(user)
-    } catch (e: any) {
-      console.error('Gagal kirim welcome letter:', e.message)
-    }
-
+    await this.sendWelcomeNotification(user)
     const token = await User.accessTokens.create(user)
 
     return {
@@ -212,11 +208,23 @@ export default class AuthRegisterService {
     }
   }
 
-  private static normalizeWaNumber(input: string) {
-    let n = (input || '').replace(/\s+/g, '').replace(/-/g, '')
-    if (n.startsWith('+')) n = n.slice(1)
-    if (n.startsWith('0')) n = '62' + n.slice(1)
-    if (n.startsWith('8')) n = '62' + n
-    return n
+  private static async sendWelcomeNotification(user: User) {
+    if (user.phoneNumber) {
+      try {
+        const wa = new WhatsAppService()
+        const normalized = wa.normalizeNumber(user.phoneNumber)
+        await wa.sendRegisterSuccess(normalized, user.name)
+        return
+      } catch (waError: any) {
+        console.error('Gagal kirim welcome via WhatsApp:', waError?.message || waError)
+      }
+    }
+
+    try {
+      await AuthEmailService.sendWelcomeLetter(user)
+    } catch (emailError: any) {
+      console.error('Gagal kirim welcome letter:', emailError?.message || emailError)
+    }
   }
+
 }

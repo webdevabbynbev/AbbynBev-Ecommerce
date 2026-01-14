@@ -5,11 +5,50 @@ export default class WhatsAppService {
   private token = env.get('WHATSAPP_ACCESS_TOKEN') as string
   private phoneNumberId = env.get('WHATSAPP_PHONE_NUMBER_ID') as string
   private apiUrl = env.get('WHATSAPP_API_URL') as string
+   public normalizeNumber(input: string) {
+    let n = (input || '').replace(/\s+/g, '').replace(/-/g, '')
+    if (n.startsWith('+')) n = n.slice(1)
+    if (n.startsWith('0')) n = '62' + n.slice(1)
+    if (n.startsWith('8')) n = '62' + n
+    return n
+  }
 
-  private templateName = (env.get('WHATSAPP_TEMPLATE_NAME') as string) || 'otp_code'
-  private templateLang = (env.get('WHATSAPP_TEMPLATE_LANG') as string) || 'id'
 
   public async sendOTP(to: string, otp: string) {
+     return this.sendTemplate(to, 'otp_code', [
+      {
+        type: 'body',
+        parameters: [{ type: 'text', text: otp }],
+      },
+      {
+        type: 'button',
+        sub_type: 'url',
+        index: '0',
+        parameters: [{ type: 'text', text: otp }],
+      },
+    ])
+  }
+
+  public async sendRegisterSuccess(to: string, name?: string | null) {
+    const displayName = (name || '').trim() || 'Customer'
+    return this.sendTemplate(to, 'register_success', [
+      {
+        type: 'body',
+        parameters: [{ type: 'text', text: displayName }],
+      },
+    ])
+  }
+
+  public async sendTransactionSuccess(to: string, transactionNumber: string) {
+    return this.sendTemplate(to, 'transaction_success', [
+      {
+        type: 'body',
+        parameters: [{ type: 'text', text: transactionNumber }],
+      },
+    ])
+  }
+
+  private async sendTemplate(to: string, name: string, components: any[]) {
     const url = `${this.apiUrl}/${this.phoneNumberId}/messages`
 
     try {
@@ -20,19 +59,14 @@ export default class WhatsAppService {
           to,
           type: 'template',
           template: {
-            name: this.templateName,
-            language: { code: this.templateLang },
-            components: [
-              {
-                type: 'body',
-                parameters: [{ type: 'text', text: otp }],
-              },
-            ],
+            name,
+            language: { code: 'en' },
+            components,
           },
         },
         {
           headers: {
-            Authorization: `Bearer ${this.token}`,
+            'Authorization': `Bearer ${this.token}`,
             'Content-Type': 'application/json',
           },
         }
@@ -40,9 +74,8 @@ export default class WhatsAppService {
 
       return res.data
     } catch (error: any) {
-      // IMPORTANT: biar ketahuan error WA yang sebenarnya
-      console.error('WA ERROR DETAIL:', error.response?.data || error.message)
-      throw error
+      console.error(`Error sending ${name} via WhatsApp:`, error.response?.data || error.message)
+      throw new Error(`Gagal mengirim ${name} via WhatsApp`)
     }
   }
 }

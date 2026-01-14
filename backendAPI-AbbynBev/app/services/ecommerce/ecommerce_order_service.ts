@@ -4,6 +4,7 @@ import { TransactionStatus } from '../../enums/transaction_status.js'
 
 import { EcommerceRepository } from './ecommerce_repository.js'
 import { BiteshipTrackingService } from '../shipping/biteship_tracking_service.js'
+import WhatsAppService from '#services/whatsapp_api_service'
 
 export class EcommerceOrderService {
   private repo = new EcommerceRepository()
@@ -69,6 +70,36 @@ export class EcommerceOrderService {
         const shipment: any = transaction.shipments[0]
         shipment.status = 'delivered'
         await shipment.useTransaction(trx).save()
+      }
+
+        const user = await transaction.related('user').query().first()
+      if (user) {
+        if (user.phoneNumber) {
+          try {
+            const wa = new WhatsAppService()
+            await wa.sendTransactionSuccess(wa.normalizeNumber(user.phoneNumber), transaction.transactionNumber)
+          } catch (error) {
+            try {
+              await transaction.sendTransactionEmail(
+                { email: user.email, name: user.name },
+                'Success',
+                'emails/transaction_success'
+              )
+            } catch (mailError) {
+              console.error('Gagal kirim notifikasi transaksi sukses:', mailError)
+            }
+          }
+        } else {
+          try {
+            await transaction.sendTransactionEmail(
+              { email: user.email, name: user.name },
+              'Success',
+              'emails/transaction_success'
+            )
+          } catch (mailError) {
+            console.error('Gagal kirim notifikasi transaksi sukses:', mailError)
+          }
+        }
       }
 
       return transaction

@@ -1,4 +1,5 @@
 import api from "@/lib/axios";
+import { setToken, clearToken } from "@/services/authToken";
 
 function s(v) {
   return String(v ?? "").trim();
@@ -16,7 +17,6 @@ export async function updateProfile(payload) {
   try {
     const res = await api.put("/profile", payload, {
       headers: { "Content-Type": "application/json" },
-      withCredentials: true,
     });
     return res.data;
   } catch (err) {
@@ -28,6 +28,7 @@ export async function updateProfile(payload) {
 export async function getUser() {
   try {
     const res = await api.get("/profile", { withCredentials: true });
+
     const payload = res.data;
 
     const user =
@@ -40,9 +41,7 @@ export async function getUser() {
     return { user };
   } catch (err) {
     const msg = err?.response?.data?.message || "Failed to fetch user profile";
-    const error = new Error(msg);
-    error.status = err?.response?.status;
-    throw error;
+    throw new Error(msg);
   }
 }
 
@@ -53,7 +52,6 @@ export async function getAddressByQuery(userId) {
   try {
     const res = await api.get("/addresses", {
       params: { user_id: userId },
-      withCredentials: true,
     });
     return res.data?.serve ?? res.data?.data ?? [];
   } catch (err) {
@@ -73,7 +71,7 @@ export async function regis(
   gender,
   password,
   send_via = "whatsapp",
-  accept_privacy_policy = false
+  accept_privacy_policy // ✅ Tambahkan parameter baru
 ) {
   try {
     const payload = {
@@ -84,8 +82,7 @@ export async function regis(
       gender: n(gender),
       password: String(password ?? ""),
       send_via: s(send_via) || "whatsapp",
-
-      accept_privacy_policy: Boolean(accept_privacy_policy),
+      accept_privacy_policy: Boolean(accept_privacy_policy), // ✅ Tambahkan ke payload sebagai boolean
     };
 
     if (!payload.email) throw new Error("Email wajib diisi");
@@ -94,12 +91,9 @@ export async function regis(
     if (!payload.last_name) throw new Error("Last name wajib diisi");
     if (![1, 2].includes(payload.gender)) throw new Error("Gender wajib dipilih");
     if (!payload.password) throw new Error("Password wajib diisi");
-    if (!payload.accept_privacy_policy)
-      throw new Error("Wajib menyetujui Privacy Policy sebelum mendaftar");
+    if (!payload.accept_privacy_policy) throw new Error("Wajib menyetujui Privacy Policy"); // ✅ Validasi tambahan
 
-    const res = await api.post("/auth/register", payload, {
-      withCredentials: true,
-    });
+    const res = await api.post("/auth/register", payload);
     return res.data;
   } catch (err) {
     const msg = err?.response?.data?.message || err?.message || "Register gagal";
@@ -115,7 +109,7 @@ export async function OtpRegis(
   gender,
   password,
   otp,
-  accept_privacy_policy = false
+  accept_privacy_policy // ✅ Tambahkan parameter baru
 ) {
   try {
     const payload = {
@@ -126,20 +120,20 @@ export async function OtpRegis(
       gender: n(gender),
       password: String(password ?? ""),
       otp: s(otp),
-
-      accept_privacy_policy: Boolean(accept_privacy_policy),
+      accept_privacy_policy: Boolean(accept_privacy_policy), // ✅ Tambahkan ke payload sebagai boolean
     };
 
     if (!payload.email) throw new Error("Email wajib diisi");
     if (!payload.otp) throw new Error("OTP wajib diisi");
-    if (!payload.accept_privacy_policy)
-      throw new Error("Wajib menyetujui Privacy Policy sebelum mendaftar");
+    if (!payload.accept_privacy_policy) throw new Error("Wajib menyetujui Privacy Policy"); // ✅ Validasi tambahan
 
-    const res = await api.post("/auth/verify-register", payload, {
-      withCredentials: true,
-    });
+    const res = await api.post("/auth/verify-register", payload);
 
-    return res.data;
+    const data = res.data;
+    const token = data?.serve?.token;
+    if (token) setToken(token);
+
+    return data;
   } catch (err) {
     const msg = err?.response?.data?.message || err?.message || "OTP Salah";
     throw new Error(msg);
@@ -160,48 +154,70 @@ export async function loginUser(email_or_phone, password, remember_me = false) {
     if (!payload.email_or_phone) throw new Error("Email/Phone wajib diisi");
     if (!payload.password) throw new Error("Password wajib diisi");
 
-    const res = await api.post("/auth/login", payload, {
-      withCredentials: true,
-    });
+    const res = await api.post("/auth/login", payload);
 
-    return res.data;
+    const data = res.data;
+    const token = data?.serve?.token;
+    if (token) setToken(token);
+
+    return data;
   } catch (err) {
     const msg = err?.response?.data?.message || err?.message || "Login gagal";
     throw new Error(msg);
   }
 }
 
+/**
+ * ❌ OTP login sudah dimatikan di backend.
+ */
 export async function verifyOtp() {
   throw new Error("OTP login is disabled. Use loginUser() instead.");
 }
 
 /** =========================
- *  GOOGLE LOGIN / REGISTER
+ *  GOOGLE LOGIN
  *  ========================= */
-export async function LoginGoogle(token, mode = "login", accept_privacy_policy = false) {
+export async function LoginGoogle(token, mode = "login", accept_privacy_policy = false) { // ✅ Tambahkan parameter mode dan accept_privacy_policy
   try {
-    const endpoint = mode === "register" ? "/auth/register-google" : "/auth/login-google";
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/auth/login-google`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ 
+          token, 
+          mode: s(mode), // ✅ Kirim mode (login/register)
+          accept_privacy_policy: Boolean(accept_privacy_policy) // ✅ Kirim accept_privacy_policy
+        }),
+      }
+    );
 
-    const body =
-      mode === "register"
-        ? { token, accept_privacy_policy: Boolean(accept_privacy_policy) }
-        : { token };
+    let payload = null;
+    try {
+      payload = await res.json();
+    } catch {
+      payload = null;
+    }
 
-    const res = await api.post(endpoint, body, { withCredentials: true });
+    if (!res.ok) {
+      throw new Error(payload?.message || `LoginGoogle gagal (HTTP ${res.status})`);
+    }
 
-    return res.data;
+    const accessToken = payload?.serve?.token;
+    if (accessToken) setToken(accessToken);
+
+    return payload;
   } catch (err) {
-    const msg = err?.response?.data?.message || err?.message || "Login Google gagal";
-    throw new Error(msg);
+    throw new Error(err?.message || "Login Google gagal");
   }
 }
 
 /** =========================
  *  LOGOUT
  *  ========================= */
-// HttpOnly cookie mode: tidak ada token lokal yang perlu dibersihkan
 export function logoutLocal() {
-  // no-op
+  clearToken();
 }
 
 export async function logoutUser() {
@@ -210,5 +226,7 @@ export async function logoutUser() {
   } catch (err) {
     const msg = err?.response?.data?.message || err?.message || "Logout failed";
     throw new Error(msg);
+  } finally {
+    clearToken();
   }
 }
