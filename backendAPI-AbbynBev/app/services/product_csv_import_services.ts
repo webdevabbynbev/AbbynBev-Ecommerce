@@ -652,39 +652,48 @@ export default class ProductCsvImportService {
         }
 
         // =========================
-        // 5) CONCERNS (SYNC sesuai CSV)
-        // =========================
-        if (pivot.hasProductConcernsTable && pivot.productConcernsOptionCol) {
-          await trx.from('product_concerns').where('product_id', product.id).delete()
+// 5) CONCERNS (SYNC sesuai CSV) - ✅ minimal kolom biar aman
+// =========================
+try {
+  if (pivot.hasProductConcernsTable && pivot.productConcernsOptionCol) {
+    // hapus dulu biar CSV jadi source of truth
+    await trx.from('product_concerns').where('product_id', product.id).delete()
 
-          // support banyak concern dipisah (| ; ,)
-          const concernNames = this.splitList(g.concern || '')
-          const uniqConcernNames = Array.from(new Set(concernNames.map((x) => x.trim()).filter(Boolean)))
+    // support banyak concern dipisah (| ; ,)
+    const concernNames = this.splitList(g.concern || '')
+    const uniqConcernNames = Array.from(new Set(concernNames.map((x) => x.trim()).filter(Boolean)))
 
-          for (const cName of uniqConcernNames) {
-            const optionIds = await this.getOrCreateConcernOptions(
-              cName,
-              g.subConcern || '',
-              trx,
-              concernCache,
-              concernOptionCache
-            )
-            const uniqOptIds = Array.from(new Set(optionIds))
+    for (const cName of uniqConcernNames) {
+      const optionIds = await this.getOrCreateConcernOptions(
+        cName,
+        g.subConcern || '',
+        trx,
+        concernCache,
+        concernOptionCache
+      )
 
-            for (const optId of uniqOptIds) {
-              const payload: any = {
-                product_id: product.id,
-                [pivot.productConcernsOptionCol]: optId,
-              }
-              if (pivot.productConcernsHasDeletedAt) payload.deleted_at = null
-              if (pivot.productConcernsHasCreatedAt) payload.created_at = nowSql
-              if (pivot.productConcernsHasUpdatedAt) payload.updated_at = nowSql
+      const uniqOptIds = Array.from(new Set(optionIds))
 
-              await trx.insertQuery().table('product_concerns').insert(payload)
-              stats.concernAttached += 1
-            }
-          }
+      for (const optId of uniqOptIds) {
+        // ✅ jangan kirim created_at/updated_at/deleted_at
+        const payload: any = {
+          product_id: product.id,
+          [pivot.productConcernsOptionCol]: optId,
         }
+
+        await trx.insertQuery().table('product_concerns').insert(payload)
+        stats.concernAttached += 1
+      }
+    }
+  }
+} catch (e: any) {
+  errors.push({
+    row: '-',
+    name: g.productName,
+    message: `Concern sync gagal: ${e?.message || 'unknown error'}`,
+  })
+}
+
 
         // =========================
         // 6) VARIANTS + AttributeValue (opsi B, update by barcode)
