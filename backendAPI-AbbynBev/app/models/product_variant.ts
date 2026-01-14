@@ -1,8 +1,6 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, belongsTo, hasMany, manyToMany } from '@adonisjs/lucid/orm'
-import type { BelongsTo, HasMany, ManyToMany } from '@adonisjs/lucid/types/relations'
-import db from '@adonisjs/lucid/services/db'
-import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import { BaseModel, belongsTo, column, hasMany, scope } from '@adonisjs/lucid/orm'
+import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 
 import Product from './product.js'
 import ProductMedia from './product_media.js'
@@ -13,94 +11,55 @@ export default class ProductVariant extends BaseModel {
   declare id: number
 
   @column()
-  declare productId: number
-
-  @column()
   declare sku: string
 
   @column()
-  declare price: number
-
-    @column()
   declare barcode: string
 
-  @column({
-    consume: (v) => Number(v),
-    prepare: (v) => String(v),
-  })
-  @column.dateTime({ columnName: 'deleted_at' })
-  declare deletedAt: DateTime | null
+  // DB kamu price = string (sesuai yang sebelumnya)
+  @column()
+  declare price: string
 
   @column()
   declare stock: number
 
-  @belongsTo(() => Product)
+  @column({ columnName: 'product_id' })
+  declare productId: number | null
+
+  @column()
+  declare width: number | null
+
+  @column()
+  declare height: number | null
+
+  @column()
+  declare length: number | null
+
+  @column.dateTime({ columnName: 'deleted_at' })
+  declare deletedAt: DateTime | null
+
+  @column.dateTime({ autoCreate: true, columnName: 'created_at' })
+  declare createdAt: DateTime
+
+  @column.dateTime({ autoCreate: true, autoUpdate: true, columnName: 'updated_at' })
+  declare updatedAt: DateTime
+
+  @belongsTo(() => Product, { foreignKey: 'productId' })
   declare product: BelongsTo<typeof Product>
 
-  // ✅ media nempel ke variant_id di product_medias
+  // jalan kalau product_medias punya kolom variant_id
   @hasMany(() => ProductMedia, { foreignKey: 'variantId' })
   declare medias: HasMany<typeof ProductMedia>
 
-  // ✅ attributes nempel via pivot table: variant_attributes
-  @manyToMany(() => AttributeValue, {
-    pivotTable: 'variant_attributes',
-    pivotForeignKey: 'product_variant_id',
-    pivotRelatedForeignKey: 'attribute_value_id',
 
-    // pivot table kamu punya deleted_at, created_at, updated_at
-    pivotColumns: ['deleted_at'],
-    pivotTimestamps: true,
+  @hasMany(() => AttributeValue, { foreignKey: 'productVariantId' })
+  declare attributes: HasMany<typeof AttributeValue>
+
+  public static active = scope((query) => {
+    query.whereNull('product_variants.deleted_at')
   })
-  declare attributes: ManyToMany<typeof AttributeValue>
 
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
-
-    public async adjustStock(
-    change: number,
-    type: string,
-    relatedId?: number,
-    note?: string,
-    trx?: TransactionClientContract
-  ) {
-    const delta = Number(change)
-    if (!Number.isFinite(delta)) throw new Error('Invalid stock change')
-
-    const nextStock = Number(this.stock || 0) + delta
-    if (nextStock < 0) throw new Error('Insufficient stock')
-
-    if (trx) this.useTransaction(trx)
-
-    this.stock = nextStock
-    await this.save()
-
-    const client: any = trx ?? db
-    await client.table('stock_movements').insert({
-      product_variant_id: this.id,
-      change: delta,
-      type,
-      related_id: relatedId ?? null,
-      note: note ?? null,
-    })
-
-    return this
-  }
-
-  @column()
-declare width: number | null
-
-@column()
-declare height: number | null
-
-@column()
-declare length: number | null
-
-@column()
-declare weight: number | null
-
-
+  public static trashed = scope((query) => {
+    query.whereNotNull('product_variants.deleted_at')
+  })
 }
-

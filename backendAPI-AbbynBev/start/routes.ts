@@ -124,6 +124,10 @@ const FeRamadanSpinController = () =>
 const OrdersController = () => import('#controllers/frontend/orders/orders_controller')
 const FeDiscountsController = () => import('#controllers/frontend/discounts/discounts_controller')
 
+// CMS discounts
+const CmsDiscountsController = () => import('#controllers/cms/promotions/discounts_controller')
+const CmsDiscountOptionsController = () =>
+  import('#controllers/cms/promotions/discount_options_controller')
 
 // =========================
 // POS CONTROLLERS
@@ -167,6 +171,7 @@ router
         'verifyForgotPassword',
       ])
       .as('verifyForgotPassword')
+
     router.post('/auth/reset-password', [AuthPasswordResetController, 'resetPassword'])
     router.post('/upload', [UploadsController, 'upload'])
 
@@ -176,6 +181,7 @@ router
     router
       .group(() => {
         router.get('/ramadan-participants', [CmsRamadanParticipantsController, 'index'])
+
         router
           .group(() => {
             router.get('', [UsersController, 'getAdmin'])
@@ -189,6 +195,7 @@ router
           .prefix('/users')
 
         router.get('/customers', [CustomersController, 'getCustomers'])
+
         router
           .group(() => {
             router.get('', [CategoryTypesController, 'get'])
@@ -277,6 +284,32 @@ router
           })
           .use(middleware.roleAdmin())
           .prefix('/voucher')
+
+        // ✅ DISCOUNTS (CMS) — dipindah ke dalam /api/v1/admin
+        router
+          .group(() => {
+            router.get('', [CmsDiscountsController, 'get'])
+            router.post('', [CmsDiscountsController, 'create'])
+
+            // penting: status dulu, biar gak ketabrak :id
+            router.put('/status', [CmsDiscountsController, 'updateStatus'])
+
+            router.get('/:id', [CmsDiscountsController, 'show'])
+            router.put('/:id', [CmsDiscountsController, 'update'])
+            router.delete('/:id', [CmsDiscountsController, 'delete'])
+          })
+          .use(middleware.roleAdmin())
+          .prefix('/discounts')
+
+        // ✅ DISCOUNT OPTIONS (CMS) — dipindah ke dalam /api/v1/admin
+        router
+          .group(() => {
+            router.get('/brands', [CmsDiscountOptionsController, 'brands'])
+            router.get('/products', [CmsDiscountOptionsController, 'products'])
+            router.get('/variants', [CmsDiscountOptionsController, 'variants'])
+          })
+          .use(middleware.roleAdmin())
+          .prefix('/discount-options')
 
         router
           .group(() => {
@@ -450,6 +483,7 @@ router
             router.delete('/:id', [CmsRamadanRecommendationsController, 'destroy'])
           })
           .prefix('/ramadan-recommendations')
+
         router
           .group(() => {
             router.get('/', [CmsRamadanSpinPrizesController, 'index'])
@@ -465,10 +499,7 @@ router
           'getTotalRegisterUserByPeriod',
         ])
 
-        router.get('/total-transaction', [
-          CmsDashboardTransactionsController,
-          'getTotalTransaction',
-        ])
+        router.get('/total-transaction', [CmsDashboardTransactionsController, 'getTotalTransaction'])
         router.get('/total-transaction-month', [
           CmsDashboardTransactionsController,
           'getTotalTransactionByMonth',
@@ -545,7 +576,6 @@ router
         router.post('/vouchers/validate', [FeVoucherController, 'validate'])
         router.post('/discounts/validate', [FeDiscountsController, 'validate'])
 
-
         router.get('/vouchers/available', [FeVoucherController, 'available'])
         router.get('/vouchers/my', [FeVoucherController, 'my'])
         router.post('/vouchers/:id/claim', [FeVoucherController, 'claim'])
@@ -614,10 +644,7 @@ router
 
     router.put('/transaction/status', [FeTransactionEcommerceController, 'updateWaybillStatus'])
     router.post('/transaction/pickup', [FeTransactionEcommerceController, 'requestPickup'])
-    router.post('/transaction/retrieve', [
-      FeTransactionEcommerceController,
-      'getByTransactionNumber',
-    ])
+    router.post('/transaction/retrieve', [FeTransactionEcommerceController, 'getByTransactionNumber'])
     router.post('/midtrans/callback', [FeTransactionEcommerceController, 'webhookMidtrans'])
 
     // =========================

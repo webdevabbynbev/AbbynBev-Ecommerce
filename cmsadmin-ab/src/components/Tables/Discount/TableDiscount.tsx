@@ -35,6 +35,8 @@ const appliesLabel = (v: number) => {
   if (v === 1) return "Pesanan Minimal";
   if (v === 2) return "Koleksi Produk";
   if (v === 3) return "Varian Produk";
+  if (v === 4) return "Brand";
+  if (v === 5) return "Produk";
   return "-";
 };
 

@@ -149,7 +149,7 @@ const FormDiscount: React.FC<Props> = ({ data, handleClose }) => {
       const opts: { label: string; value: number }[] = [];
       for (const p of products) {
         for (const v of p.variants ?? []) {
-          const label = `${p.name} • ${v.sku ?? "SKU-?"} • (id:${v.id})`;
+          const label = `${p.name} • ${v.sku ?? "SKU-?"}`;
           opts.push({ label, value: Number(v.id) });
         }
       }

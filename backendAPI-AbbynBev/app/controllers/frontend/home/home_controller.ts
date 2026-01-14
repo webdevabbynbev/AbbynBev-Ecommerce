@@ -6,6 +6,7 @@ import Faq from '#models/faq'
 import FlashSale from '#models/flashsale'
 import Sale from '#models/sale'
 import { DateTime } from 'luxon'
+import { DiscountPricingService } from '#services/discount/discount_pricing_service'
 
 type PromoKind = 'flash' | 'sale'
 
@@ -67,20 +68,40 @@ export default class HomeController {
       const promoPrice = Number(p?.$extras?.[priceKey] ?? 0)
       const stock = Number(p?.$extras?.pivot_stock ?? 0)
 
+      const normalPrice = this.basePrice(p)
+      const baseForCode = promoPrice > 0 ? promoPrice : normalPrice
+
       return {
         id: p.id,
         name: p.name,
         slug: p.slug ?? null,
         path: p.path ?? null,
 
-        price: this.basePrice(p),
+        // harga normal (buat coret di FE kalau mau)
+        price: normalPrice,
+
+        // ✅ harga yang jadi dasar perhitungan "dengan kode"
+        basePrice: baseForCode,
+
+        // promo price (flash/sale)
         [mappedKey]: promoPrice,
         stock,
+
+        // ✅ supaya discount appliesTo BRAND / COLLECTION jalan
+        brandId: p.brand?.id ?? null,
+        categoryTypeId: p.categoryType?.id ?? null,
 
         image: this.firstImageUrl(p),
         brand: p.brand ? { id: p.brand.id, name: p.brand.name, slug: p.brand.slug } : null,
         categoryType: p.categoryType ? { id: p.categoryType.id, name: p.categoryType.name } : null,
       }
+    })
+  }
+
+  private stripHelperFields(products: any[]) {
+    return (products || []).map((p: any) => {
+      const { basePrice, brandId, categoryTypeId, ...rest } = p || {}
+      return rest
     })
   }
 
@@ -213,6 +234,12 @@ export default class HomeController {
         })
       }
 
+      // ✅ map + attach extraDiscount
+      const products = this.mapPromoProducts(flashSale.products, 'flash')
+      const svc = new DiscountPricingService()
+      await svc.attachExtraDiscount(products as any[])
+      const cleanProducts = this.stripHelperFields(products)
+
       return response.status(200).send({
         message: 'Success',
         serve: {
@@ -224,7 +251,7 @@ export default class HomeController {
           buttonUrl: flashSale.buttonUrl,
           startDatetime: this.toISO(flashSale.startDatetime),
           endDatetime: this.toISO(flashSale.endDatetime),
-          products: this.mapPromoProducts(flashSale.products, 'flash'),
+          products: cleanProducts,
         },
         meta: { nowStr, timezone: 'Asia/Jakarta' },
       })
@@ -259,22 +286,41 @@ export default class HomeController {
         .orderBy('start_datetime', 'asc')
         .preload('products', (q) => this.preloadPromoProducts(q, 'sale'))
 
-      const mapSale = (s: any) => ({
-        id: s.id,
-        title: s.title,
-        description: s.description,
-        hasButton: s.hasButton,
-        buttonText: s.buttonText,
-        buttonUrl: s.buttonUrl,
-        startDatetime: this.toISO(s.startDatetime),
-        endDatetime: this.toISO(s.endDatetime),
-        products: this.mapPromoProducts(s.products, 'sale'),
-      })
+      const svc = new DiscountPricingService()
+
+      const mapSaleBase = (s: any) => {
+        const products = this.mapPromoProducts(s.products, 'sale')
+        return {
+          id: s.id,
+          title: s.title,
+          description: s.description,
+          hasButton: s.hasButton,
+          buttonText: s.buttonText,
+          buttonUrl: s.buttonUrl,
+          startDatetime: this.toISO(s.startDatetime),
+          endDatetime: this.toISO(s.endDatetime),
+          products,
+        }
+      }
+
+      const serveObj = active ? mapSaleBase(active) : null
+      if (serveObj?.products?.length) {
+        await svc.attachExtraDiscount(serveObj.products as any[])
+        serveObj.products = this.stripHelperFields(serveObj.products)
+      }
+
+      const listMapped = list.map(mapSaleBase)
+      for (const it of listMapped) {
+        if (it?.products?.length) {
+          await svc.attachExtraDiscount(it.products as any[])
+          it.products = this.stripHelperFields(it.products)
+        }
+      }
 
       return response.status(200).send({
         message: active ? 'Success' : 'No active sale',
-        serve: active ? mapSale(active) : null,
-        list: list.map(mapSale),
+        serve: serveObj,
+        list: listMapped,
         meta: { nowStr, timezone: 'Asia/Jakarta' },
       })
     } catch (e: any) {
@@ -309,6 +355,8 @@ export default class HomeController {
         .orderBy('start_datetime', 'desc')
         .preload('products', (pq) => this.preloadPromoProducts(pq, 'sale'))
 
+      const svc = new DiscountPricingService()
+
       const mapped = rows.map((s: any) => ({
         id: s.id,
         title: s.title,
@@ -320,6 +368,13 @@ export default class HomeController {
         endDatetime: this.toISO(s.endDatetime),
         products: this.mapPromoProducts(s.products, 'sale'),
       }))
+
+      for (const it of mapped) {
+        if (it?.products?.length) {
+          await svc.attachExtraDiscount(it.products as any[])
+          it.products = this.stripHelperFields(it.products)
+        }
+      }
 
       return response.status(200).send({
         message: 'Success',
