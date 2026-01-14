@@ -1,3 +1,4 @@
+export {ChatkitWidget} from "./chatKitWidget.jsx";
 export { ProfileSkeleton } from "./skeleton/profileSkeleton.jsx";
 export { MobileCartActionBar } from "./mobile/mobileCartActionBar.jsx";
 export { NewArrivaleCard } from "./card/newArrivalCard.jsx";
