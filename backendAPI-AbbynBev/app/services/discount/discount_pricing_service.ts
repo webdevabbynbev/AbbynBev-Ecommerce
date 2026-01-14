@@ -172,6 +172,18 @@ export class DiscountPricingService {
 
   private async getCtx(now: DateTime): Promise<DiscountCtx> {
     return this.cache.cachedFetch('discount_pricing_ctx', this.TTL_MS, async () => {
+      const schema = (db as any).connection().schema as any
+      const hasDiscountsTable = await schema.hasTable('discounts')
+      if (!hasDiscountsTable) {
+        return {
+          discounts: [],
+          categoryTargets: new Map(),
+          brandTargets: new Map(),
+          productTargets: new Map(),
+          variantEligibleRange: new Map(),
+        }
+      }
+
       const discounts = await Discount.query()
         .whereNull('deleted_at')
         .where('is_active', 1 as any)
@@ -192,7 +204,13 @@ export class DiscountPricingService {
         }
       }
 
-      const targets = await DiscountTarget.query().whereIn('discount_id', ids)
+      const hasDiscountTargetsTable = await schema.hasTable('discount_targets')
+      const hasProductVariantsTable = await schema.hasTable('product_variants')
+      const hasVariantAttributesTable = await schema.hasTable('variant_attributes')
+
+      const targets = hasDiscountTargetsTable
+        ? await DiscountTarget.query().whereIn('discount_id', ids)
+        : []
 
       const categoryTargets = new Map<number, Set<number>>()
       const brandTargets = new Map<number, Set<number>>()
@@ -223,13 +241,16 @@ export class DiscountPricingService {
 
       const variantEligibleRange = new Map<number, Map<number, { min: number; max: number; count: number }>>()
 
-      const legacyRows = await db
-        .from('discount_targets as dt')
-        .join('product_variants as pv', 'pv.id', 'dt.target_id')
-        .whereIn('dt.discount_id', ids)
-        .where('dt.target_type', 2)
-        .whereNull('pv.deleted_at')
-        .select('dt.discount_id as discount_id', 'pv.product_id as product_id', 'pv.price as price')
+      const legacyRows =
+        hasDiscountTargetsTable && hasProductVariantsTable
+          ? await db
+              .from('discount_targets as dt')
+              .join('product_variants as pv', 'pv.id', 'dt.target_id')
+              .whereIn('dt.discount_id', ids)
+              .where('dt.target_type', 2)
+              .whereNull('pv.deleted_at')
+              .select('dt.discount_id as discount_id', 'pv.product_id as product_id', 'pv.price as price')
+          : []
 
       for (const r of legacyRows as any[]) {
         const did = toNumber(r.discount_id, 0)
@@ -244,15 +265,18 @@ export class DiscountPricingService {
         else mp.set(pid, { min: Math.min(cur.min, price), max: Math.max(cur.max, price), count: cur.count + 1 })
       }
 
-      const attrRows = await db
-        .from('discount_targets as dt')
-        .join('variant_attributes as va', 'va.attribute_value_id', 'dt.target_id')
-        .join('product_variants as pv', 'pv.id', 'va.product_variant_id')
-        .whereIn('dt.discount_id', ids)
-        .where('dt.target_type', 5)
-        .whereNull('va.deleted_at')
-        .whereNull('pv.deleted_at')
-        .select('dt.discount_id as discount_id', 'pv.product_id as product_id', 'pv.price as price')
+      const attrRows =
+        hasDiscountTargetsTable && hasVariantAttributesTable && hasProductVariantsTable
+          ? await db
+              .from('discount_targets as dt')
+              .join('variant_attributes as va', 'va.attribute_value_id', 'dt.target_id')
+              .join('product_variants as pv', 'pv.id', 'va.product_variant_id')
+              .whereIn('dt.discount_id', ids)
+              .where('dt.target_type', 5)
+              .whereNull('va.deleted_at')
+              .whereNull('pv.deleted_at')
+              .select('dt.discount_id as discount_id', 'pv.product_id as product_id', 'pv.price as price')
+          : []
 
       for (const r of attrRows as any[]) {
         const did = toNumber(r.discount_id, 0)
