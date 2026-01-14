@@ -1,16 +1,9 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import axios from "@/lib/axios";
 import { Textarea } from "@/components";
 import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectGroup,
-  SelectLabel,
-  SelectItem,
-  SelectValue,
   Button,
   Dialog,
   DialogTrigger,
@@ -20,40 +13,112 @@ import {
   TxtField,
 } from "@/components";
 
+import AsyncSelect from "react-select/async";
+
 export function NewAddress({ onSuccess }) {
   const [open, setOpen] = useState(false);
 
+  // Basic info
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [street, setStreet] = useState("");
 
-  const [areaQuery, setAreaQuery] = useState("");
-  const [areas, setAreas] = useState([]);
-  const [loadingAreas, setLoadingAreas] = useState(false);
-  const [areaId, setAreaId] = useState("");
+  // Address hierarchy - REVERSE ORDER
+  const [district, setDistrict] = useState(null);
+  const [city, setCity] = useState(null);
+  const [province, setProvince] = useState(null);
   const [postalCode, setPostalCode] = useState("");
 
   const [saving, setSaving] = useState(false);
 
-  const timerRef = useRef(null);
-  const reqIdRef = useRef(0);
+  // Cache untuk hemat API
+  const areaCache = useRef(new Map());
+  const allAreasRef = useRef([]);
 
-  const selectedArea = useMemo(() => {
-    return areas.find((a) => String(a.id) === String(areaId)) || null;
-  }, [areas, areaId]);
+  /* =========================
+   * Helpers
+   * ========================= */
+
+  const parseArea = (area) => {
+    const parts = area.name.split(",").map((p) => p.trim());
+
+    return {
+      id: area.id,
+      kecamatan: parts[0] ?? "",
+      kota: parts[1] ?? "",
+      provinsi: parts[2] ?? "",
+      postalCode: area.postal_code ?? "",
+      fullName: area.name,
+    };
+  };
+
+  const loadAreas = async (inputValue) => {
+    const searchInput = inputValue || "";
+    const cacheKey = searchInput || "default";
+
+    if (areaCache.current.has(cacheKey)) {
+      return areaCache.current.get(cacheKey);
+    }
+
+    try {
+      const res = await axios.get("/areas", {
+        params: {
+          input: searchInput,
+          countries: "ID",
+          type: "single",
+        },
+      });
+
+      const areas = res.data?.serve || [];
+
+      areas.forEach(area => {
+        const exists = allAreasRef.current.find(a => a.id === area.id);
+        if (!exists) {
+          allAreasRef.current.push(area);
+        }
+      });
+
+      const options = areas.map((a) => {
+        const parsed = parseArea(a);
+        return {
+          value: a.id,
+          label: a.name,
+          data: parsed,
+          raw: a,
+        };
+      });
+
+      areaCache.current.set(cacheKey, options);
+      return options;
+    } catch (err) {
+      console.error("Error loading areas:", err);
+      return [];
+    }
+  };
+
+  // STEP 1: Load kecamatan dulu (most specific)
+  const loadDistricts = async (input) => {
+    const list = await loadAreas(input || "kecamatan");
+
+    // Return semua kecamatan dengan info lengkap
+    const districts = list.map((o) => ({
+      value: o.value, // ID biteship area
+      label: `${o.data.kecamatan}, ${o.data.kota}, ${o.data.provinsi}`, // Full display
+      data: o.data,
+    }));
+
+    return districts.sort((a, b) => a.data.kecamatan.localeCompare(b.data.kecamatan));
+  };
 
   const resetAll = () => {
     setFullName("");
     setPhone("");
     setStreet("");
-
-    setAreaQuery("");
-    setAreas([]);
-    setAreaId("");
+    setDistrict(null);
+    setCity(null);
+    setProvince(null);
     setPostalCode("");
-
     setSaving(false);
-    setLoadingAreas(false);
   };
 
   useEffect(() => {
@@ -62,102 +127,37 @@ export function NewAddress({ onSuccess }) {
     }
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-
-    const q = String(areaQuery || "").trim();
-    if (timerRef.current) clearTimeout(timerRef.current);
-
-    if (!q) {
-      setAreas([]);
-      setAreaId("");
-      setPostalCode("");
-      setLoadingAreas(false);
-      return;
-    }
-
-    if (q.length < 3) {
-      setAreas([]);
-      setAreaId("");
-      setPostalCode("");
-      setLoadingAreas(false);
-      return;
-    }
-
-    timerRef.current = setTimeout(async () => {
-      const reqId = ++reqIdRef.current;
-      setLoadingAreas(true);
-
-      try {
-        const res = await axios.get("/areas", {
-          params: { input: q, countries: "ID", type: "single" },
-        });
-
-        if (reqId !== reqIdRef.current) return;
-
-        const list = res.data?.serve || [];
-        const arr = Array.isArray(list) ? list : [];
-        setAreas(arr);
-
-        // kalau selection yang lama gak ada di hasil baru, reset
-        setAreaId((prev) => {
-          if (!prev) return "";
-          const exists = arr.some((a) => String(a.id) === String(prev));
-          return exists ? prev : "";
-        });
-      } catch (e) {
-        console.error(e);
-        if (reqId !== reqIdRef.current) return;
-        setAreas([]);
-      } finally {
-        if (reqId === reqIdRef.current) setLoadingAreas(false);
-      }
-    }, 450);
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [areaQuery, open]);
-
-  // auto-fill postal code when area chosen
-  useEffect(() => {
-    if (!selectedArea) {
-      setPostalCode("");
-      return;
-    }
-    const zip = selectedArea.postal_code || selectedArea.postalCode || "";
-    setPostalCode(String(zip || ""));
-  }, [selectedArea]);
+  /* =========================
+   * Submit
+   * ========================= */
 
   const handleSave = async (e) => {
     e?.preventDefault?.();
     if (saving) return;
 
-    if (!fullName.trim()) return alert("Full name wajib diisi");
-    if (!phone.trim()) return alert("Phone number wajib diisi");
-    if (!street.trim()) return alert("Street name wajib diisi");
-    if (!areaId) return alert("Area tujuan wajib dipilih (hasil search Biteship).");
+    if (!fullName.trim()) return alert("Nama lengkap wajib diisi");
+    if (!phone.trim()) return alert("Nomor telepon wajib diisi");
+    if (!street.trim()) return alert("Alamat lengkap wajib diisi");
+    if (!district) return alert("Kecamatan wajib dipilih");
 
     try {
       setSaving(true);
 
-      const picked = selectedArea;
-      if (!picked) return alert("Area tujuan tidak valid. Coba search dan pilih ulang.");
-
-      await axios.post("/addresses", {
+      const data = {
         address: street,
-
         pic_name: fullName,
         pic_phone: phone,
         pic_label: "Home",
-        benchmark: "",
         is_active: 2,
+        province: province.value.split(".")[0].trim(),
+        city: city.value,
+        district: district.data.kecamatan,
+        postal_code: postalCode,
+        area_id: district.value, // ID area kecamatan dari biteship
+        area_name: district.label
+      }
 
-        // ✅ search biteship
-        area_id: picked.id,
-        area_name: picked.name || "",
-        postal_code: postalCode || picked.postal_code || "",
-      });
+      await axios.post("/addresses", data);
 
       onSuccess?.();
       setOpen(false);
@@ -170,137 +170,138 @@ export function NewAddress({ onSuccess }) {
     }
   };
 
+  /* =========================
+   * Render
+   * ========================= */
+
   return (
-    <div>
-      <Dialog
-        open={open}
-        onOpenChange={(v) => {
-          setOpen(v);
-          if (!v) resetAll();
-        }}
-      >
-        <DialogTrigger asChild>
-          <Button variant="primary" size="sm" iconName="Plus">
-            Add new address
-          </Button>
-        </DialogTrigger>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="primary" size="sm" iconName="Plus">
+          Add new address
+        </Button>
+      </DialogTrigger>
 
-        <DialogContent className="flex flex-col sm:max-w-75 md:max-w-106.25 h-[80%] overflow-y-auto overflow-x-hidden custom-scrollbar justify-start items-start">
-          <DialogHeader>
-            <DialogTitle>Add new address</DialogTitle>
+      <DialogContent className="flex flex-col sm:max-w-75 md:max-w-106.25 h-[80%] overflow-y-auto custom-scrollbar">
+        <DialogHeader>
+          <DialogTitle>Add new address</DialogTitle>
 
-            <form className="flex flex-wrap gap-4 py-2 w-full" onSubmit={handleSave}>
-              <div className="flex md:flex-row sm:flex-col gap-4 w-full">
-                <TxtField
-                  label="Nama Lengkap"
-                  variant="outline"
-                  size="sm"
-                  type="text"
-                  placeholder="Isi Nama Lengkap Anda"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                />
-                <TxtField
-                  label="Phone number"
-                  type="tel"
-                  variant="outline"
-                  size="sm"
-                  placeholder="Enter your phone number"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-              </div>
-
-              <Textarea
-                label="Alamat Lengkap"
-                type="text"
+          <div className="flex flex-wrap gap-4 py-2 w-full">
+            <div className="flex md:flex-row sm:flex-col gap-4 w-full">
+              <TxtField
+                label="Nama Lengkap"
                 variant="outline"
                 size="sm"
-                placeholder="Tulis Alamat Lengkap Anda Disini"
-                value={street}
-                onChange={(e) => setStreet(e.target.value)}
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
               />
+              <TxtField
+                label="Phone number"
+                type="tel"
+                variant="outline"
+                size="sm"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+            </div>
 
-              {/* Search Area */}
-              <div className="space-y-2 w-full">
-                <TxtField
-                  label="Kecamatan"
-                  variant="outline"
-                  size="sm"
-                  type="text"
-                  placeholder='Masukan Nama Kecamatan,'
-                  value={areaQuery}
-                  onChange={(e) => setAreaQuery(e.target.value)}
-                />
-                <p className="text-xs text-neutral-500">
-                  . {loadingAreas ? "Mencari..." : ""}
-                </p>
-              </div>
+            <Textarea
+              label="Alamat Lengkap"
+              variant="outline"
+              size="sm"
+              value={street}
+              onChange={(e) => setStreet(e.target.value)}
+            />
 
-              {/* Select hasil area */}
-              <div className="space-y-2 w-full">
-                <p className="text-sm font-medium text-neutral-800">Pilih Area Tujuan</p>
-                <Select
-                  value={areaId}
-                  onValueChange={(val) => setAreaId(val)}
-                  disabled={!areas.length || loadingAreas}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue
-                      placeholder={
-                        loadingAreas
-                          ? "Searching area..."
-                          : !areaQuery.trim()
-                            ? "Isi Kecamatan Terlebih Dahulu"
-                            : !areas.length
-                              ? "Tidak ada hasil"
-                              : "Pilih Area Tujuan"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectLabel>Alamat Tujuan</SelectLabel>
-                      {areas.map((a) => (
-                        <SelectItem key={a.id} value={String(a.id)}>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{a.name}</span>
-                            <span className="text-xs text-neutral-500">
-                              {a.postal_code ? `Postal: ${a.postal_code}` : ""}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
+            {/* STEP 1: Pilih Kecamatan dulu */}
+            <div className="w-full">
+              <label className="block text-sm font-medium mb-1">
+                Kecamatan <span className="text-red-500">*</span>
+              </label>
+              <AsyncSelect
+                classNamePrefix="rs"
+                cacheOptions
+                defaultOptions
+                loadOptions={loadDistricts}
+                value={district}
+                onChange={(val) => {
+                  setDistrict(val);
+                  // Auto-fill kota dan provinsi dari data kecamatan
+                  if (val) {
+                    setCity({
+                      value: val.data.kota,
+                      label: val.data.kota,
+                      data: { kota: val.data.kota, provinsi: val.data.provinsi }
+                    });
+                    setProvince({
+                      value: val.data.provinsi,
+                      label: val.data.provinsi,
+                      data: { provinsi: val.data.provinsi }
+                    });
+                    setPostalCode(val.data.postalCode || "");
+                  } else {
+                    setCity(null);
+                    setProvince(null);
+                    setPostalCode("");
+                  }
+                }}
+                placeholder="Cari kecamatan"
+                isClearable
+                noOptionsMessage={() => "Ketik nama kecamatan untuk mencari"}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Mulai dengan kecamatan, kota dan provinsi akan terisi otomatis
+              </p>
+            </div>
 
-              {/* Postal code (auto) */}
-              <div className="space-y-2 w-full">
-                <TxtField
-                  label="Kode Pos"
-                  variant="outline"
-                  size="sm"
-                  type="text"
-                  placeholder=""
-                  value={postalCode}
-                  readOnly
-                />
-              </div>
+            {/* STEP 2: Kota (auto-filled, read-only) */}
+            <TxtField
+              label="Kota / Kabupaten"
+              variant="outline"
+              size="sm"
+              value={city?.value || ""}
+              readOnly
+              placeholder="Otomatis terisi dari kecamatan..."
+            />
 
-              <div className="w-full flex gap-3">
-                <Button type="submit" variant="primary" size="sm" disabled={saving}>
-                  {saving ? "Saving..." : "Save address"}
-                </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
-    </div>
+            {/* STEP 3: Provinsi (auto-filled, read-only) */}
+            <TxtField
+              label="Provinsi"
+              variant="outline"
+              size="sm"
+              value={province?.value || ""}
+              readOnly
+              placeholder="Otomatis terisi dari kecamatan..."
+            />
+
+            <TxtField
+              label="Kode Pos"
+              value={postalCode}
+              readOnly
+              variant="outline"
+              size="sm"
+            />
+
+            <div className="w-full flex gap-3">
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={saving}
+                onClick={handleSave}
+              >
+                {saving ? "Saving..." : "Save address"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setOpen(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogHeader>
+      </DialogContent>
+    </Dialog>
   );
 }

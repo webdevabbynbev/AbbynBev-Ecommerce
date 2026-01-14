@@ -24,6 +24,8 @@ import {
   Info,
   Gift,
   Sparkles,
+  Ban,
+  Clock,
 } from "lucide-react";
 
 const Wheel = dynamic(
@@ -31,11 +33,22 @@ const Wheel = dynamic(
   { ssr: false }
 );
 
-// --- CONFIG WARNA BRAND ---
-const BRAND_PRIMARY = "#AE2D68";
-const BRAND_BG = "#F9EAF4";
-const BRAND_LIGHT = "#FDF5FA";
-const BRAND_LIGHTER = "#FCE9F3";
+// =======================
+// BEAUTY THEME (PALETTE)
+// =======================
+const BRAND_PRIMARY = "#AE2D68"; // primary-700
+const BRAND_DARK = "#762549"; // primary-900
+const BRAND_HOVER = "#8D2754"; // primary-800
+
+const BRAND_BG = "#FCF3F8"; // primary-50
+const BRAND_SOFT = "#FEF1F6"; // secondary-50
+const BRAND_SOFT2 = "#F9EAF4"; // primary-100
+
+const BRAND_BORDER = "#FEE5EE"; // secondary-100
+const BRAND_BORDER_STRONG = "#FECCDF"; // secondary-200
+
+const BRAND_ACCENT = "#F83C77"; // secondary-500
+const BRAND_ACCENT_SOFT = "#FFAFCC"; // secondary-300
 
 // --- UTILS ---
 const formatToRupiah = (number) =>
@@ -46,18 +59,19 @@ const formatToRupiah = (number) =>
     maximumFractionDigits: 0,
   }).format(number);
 
-// --- DATA (tetap boleh kamu ganti) ---
+// --- DATA ---
 const DEFAULT_RECOMMENDATION_IMAGE =
   "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
 
 const SPIN_COLORS = [
-  { backgroundColor: "#AE2D68", textColor: "white" },
-  { backgroundColor: "#F9A8D4", textColor: "white" },
-  { backgroundColor: "#DB2777", textColor: "white" },
-  { backgroundColor: "#EC4899", textColor: "white" },
-  { backgroundColor: "#9CA3AF", textColor: "white" },
-  { backgroundColor: "#BE185D", textColor: "white" },
+  { backgroundColor: "#AE2D68", textColor: "#ffffff" },
+  { backgroundColor: "#C53D7F", textColor: "#ffffff" },
+  { backgroundColor: "#D85C9E", textColor: "#ffffff" },
+  { backgroundColor: "#FE689B", textColor: "#ffffff" },
+  { backgroundColor: "#FFAFCC", textColor: "#762549" },
+  { backgroundColor: "#8D2754", textColor: "#ffffff" },
 ];
+
 const SPIN_STORAGE_KEY = "ramadan_spin_prizes";
 
 const saveSpinPrize = (prize) => {
@@ -91,17 +105,28 @@ const CHECKIN_QUOTES = [
   "Kebaikan yang konsisten akan membentuk kebiasaan baik.",
 ];
 
-// --- RECOMMENDATION UI (styling dari kode contoh) ---
+// --- RECOMMENDATION UI ---
 const RecommendationCard = ({ data }) => {
   const hasSale = (data.compareAt ?? 0) > (data.price ?? 0);
   const href = data.slug ? `/product/${data.slug}` : "#";
 
   return (
-    <div className="group relative flex h-full w-full flex-col rounded-2xl bg-white shadow-[0_2px_8px_rgba(174,45,104,0.08)] transition-all duration-300 active:scale-95 md:hover:scale-105 overflow-hidden border border-[#FCE9F3]">
+    <div
+      className="group relative flex h-full w-full flex-col rounded-2xl bg-white shadow-[0_6px_18px_rgba(174,45,104,0.10)] transition-all duration-300 active:scale-95 md:hover:scale-105 overflow-hidden border"
+      style={{ borderColor: BRAND_BORDER }}
+    >
       <Link href={href}>
-        <div className="relative aspect-square bg-gradient-to-br from-[#FDF5FA] to-[#FCE9F3] overflow-hidden">
+        <div
+          className="relative aspect-square overflow-hidden"
+          style={{
+            background: `linear-gradient(135deg, ${BRAND_SOFT} 0%, ${BRAND_BORDER_STRONG} 100%)`,
+          }}
+        >
           {hasSale && (
-            <div className="absolute top-2 left-2 z-10 bg-[#AE2D68] text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-sm">
+            <div
+              className="absolute top-2 left-2 z-10 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-sm"
+              style={{ backgroundColor: BRAND_PRIMARY }}
+            >
               SALE
             </div>
           )}
@@ -109,12 +134,17 @@ const RecommendationCard = ({ data }) => {
             src={data.image}
             alt={data.name}
             className="w-full h-full object-cover transition-transform duration-500 md:group-hover:scale-110 mix-blend-multiply"
-            onError={(e) => (e.currentTarget.style.display = "none")}
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
           />
         </div>
 
         <div className="p-3 bg-white">
-          <span className="text-[10px] text-[#AE2D68]/60 font-medium">
+          <span
+            className="text-[10px] font-medium"
+            style={{ color: `${BRAND_DARK}99` }}
+          >
             {data.brand}
           </span>
 
@@ -125,7 +155,10 @@ const RecommendationCard = ({ data }) => {
           <div className="flex flex-col mt-2">
             {hasSale ? (
               <div className="flex flex-wrap items-baseline gap-1.5">
-                <span className="text-sm font-extrabold text-[#AE2D68]">
+                <span
+                  className="text-sm font-extrabold"
+                  style={{ color: BRAND_PRIMARY }}
+                >
                   {formatToRupiah(data.price)}
                 </span>
                 <span className="text-[10px] text-gray-300 line-through">
@@ -133,7 +166,10 @@ const RecommendationCard = ({ data }) => {
                 </span>
               </div>
             ) : (
-              <span className="text-sm font-extrabold text-[#AE2D68]">
+              <span
+                className="text-sm font-extrabold"
+                style={{ color: BRAND_PRIMARY }}
+              >
                 {formatToRupiah(data.price)}
               </span>
             )}
@@ -146,19 +182,24 @@ const RecommendationCard = ({ data }) => {
 
 const RecommendationList = ({ products, loading }) => (
   <div className="mt-6 w-full animate-slide-up">
-    <div className="flex items-center justify-center gap-2 mb-4 opacity-80">
-      <Sparkles size={14} className="text-[#AE2D68]" />
-      <p className="text-xs font-extrabold text-[#AE2D68]/70 uppercase tracking-widest">
+    <div className="flex items-center justify-center gap-2 mb-4 opacity-90">
+      <Sparkles size={14} style={{ color: BRAND_ACCENT }} />
+      <p
+        className="text-xs font-extrabold uppercase tracking-widest"
+        style={{ color: `${BRAND_DARK}B3` }}
+      >
         Rekomendasi Hari Ini
       </p>
-      <Sparkles size={14} className="text-[#AE2D68]" />
+      <Sparkles size={14} style={{ color: BRAND_ACCENT }} />
     </div>
+
     {loading ? (
       <div className="grid grid-cols-2 gap-3">
         {Array.from({ length: 2 }).map((_, index) => (
           <div
             key={`recommendation-skeleton-${index}`}
-            className="h-48 rounded-2xl bg-[#FDF5FA] border border-[#FCE9F3] animate-pulse"
+            className="h-48 rounded-2xl border animate-pulse"
+            style={{ backgroundColor: BRAND_SOFT, borderColor: BRAND_BORDER }}
           />
         ))}
       </div>
@@ -169,14 +210,17 @@ const RecommendationList = ({ products, loading }) => (
         ))}
       </div>
     ) : (
-      <div className="rounded-2xl border border-dashed border-[#FCE9F3] bg-white p-4 text-center text-xs font-bold text-[#AE2D68]/70">
+      <div
+        className="rounded-2xl border border-dashed bg-white p-4 text-center text-xs font-bold"
+        style={{ borderColor: BRAND_BORDER, color: `${BRAND_DARK}B3` }}
+      >
         Belum ada rekomendasi Ramadan untuk hari ini.
       </div>
     )}
   </div>
 );
 
-// --- SPIN MODAL (logic API dari kode kamu, styling dari kode contoh) ---
+// --- SPIN MODAL ---
 const SpinWheelModal = ({ open, onClose, prizes, tickets, onSpin }) => {
   const [mustSpin, setMustSpin] = useState(false);
   const [prizeNumber, setPrizeNumber] = useState(0);
@@ -237,21 +281,29 @@ const SpinWheelModal = ({ open, onClose, prizes, tickets, onSpin }) => {
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md transition-all">
-      <div className="w-full max-w-[90%] md:max-w-md rounded-3xl md:rounded-[2.5rem] bg-white p-6 md:p-8 shadow-2xl text-center relative overflow-hidden flex flex-col items-center border-4 border-[#FCE9F3]">
-        <div className="absolute top-0 inset-x-0 h-24 md:h-32 bg-gradient-to-b from-[#F9EAF4] to-transparent pointer-events-none"></div>
+      <div
+        className="w-full max-w-[90%] md:max-w-md rounded-3xl md:rounded-[2.5rem] bg-white p-6 md:p-8 shadow-2xl text-center relative overflow-hidden flex flex-col items-center border-4"
+        style={{ borderColor: BRAND_BORDER }}
+      >
+        <div
+          className="absolute top-0 inset-x-0 h-24 md:h-32 pointer-events-none"
+          style={{
+            background: `linear-gradient(180deg, ${BRAND_SOFT2} 0%, ${BRAND_BG} 100%)`,
+          }}
+        />
 
-        <h2 className="text-xl md:text-2xl font-extrabold text-[#AE2D68] mb-1 relative z-10">
+        <h2
+          className="text-xl md:text-2xl font-extrabold mb-1 relative z-10"
+          style={{ color: BRAND_DARK }}
+        >
           Putar Keberuntungan!
         </h2>
-        <p className="text-[#AE2D68]/60 mb-4 text-xs md:text-sm relative z-10">
+        <p
+          className="mb-4 text-xs md:text-sm relative z-10"
+          style={{ color: `${BRAND_DARK}99` }}
+        >
           Hadiah spesial menantimu hari ini
         </p>
-
-        {/* {!tickets && (
-          <div className="w-full mb-4 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-2xl px-3 py-2 flex items-center justify-center gap-2">
-            <Info size={14} /> Kamu belum punya tiket spin.
-          </div>
-        )} */}
 
         <div className="mb-6 scale-90 md:scale-100 pointer-events-none drop-shadow-xl relative z-10">
           <Wheel
@@ -259,14 +311,14 @@ const SpinWheelModal = ({ open, onClose, prizes, tickets, onSpin }) => {
             prizeNumber={prizeNumber}
             data={wheelData.length ? wheelData : [{ option: "..." }]}
             onStopSpinning={handleStopSpinning}
-            backgroundColors={["#AE2D68", "#DB2777"]}
+            backgroundColors={[BRAND_PRIMARY, BRAND_ACCENT]}
             textColors={["#ffffff"]}
-            outerBorderColor="#AE2D68"
+            outerBorderColor={BRAND_PRIMARY}
             outerBorderWidth={5}
             innerRadius={20}
-            innerBorderColor="#AE2D68"
+            innerBorderColor={BRAND_PRIMARY}
             innerBorderWidth={0}
-            radiusLineColor="#FCE9F3"
+            radiusLineColor={BRAND_BORDER}
             radiusLineWidth={1}
             fontSize={14}
           />
@@ -274,17 +326,44 @@ const SpinWheelModal = ({ open, onClose, prizes, tickets, onSpin }) => {
 
         {showResult ? (
           <div className="absolute inset-0 bg-white flex flex-col items-center justify-center z-20 animate-fade-in p-6">
-            <div className="text-5xl md:text-6xl mb-4 animate-bounce">🎁</div>
+            <div className="mb-4 flex items-center justify-center">
+              <div
+                className="rounded-full p-3 md:p-4 border shadow-inner"
+                style={{
+                  backgroundColor: BRAND_SOFT2,
+                  borderColor: BRAND_BORDER,
+                }}
+              >
+                <Sparkles
+                  size={32}
+                  className="md:w-10 md:h-10"
+                  style={{ color: BRAND_ACCENT }}
+                />
+              </div>
+            </div>
             <h3 className="text-xl md:text-2xl font-bold text-gray-800">
               Selamat!
             </h3>
-            <p className="text-[#AE2D68]/70 mt-2 text-sm">Kamu mendapatkan:</p>
-            <div className="mt-4 mb-6 px-6 py-3 bg-[#F9EAF4] text-[#AE2D68] rounded-xl text-lg md:text-2xl font-extrabold border-2 border-[#FCE9F3]">
+            <p className="mt-2 text-sm" style={{ color: `${BRAND_DARK}B3` }}>
+              Kamu mendapatkan:
+            </p>
+            <div
+              className="mt-4 mb-6 px-6 py-3 rounded-xl text-lg md:text-2xl font-extrabold border-2"
+              style={{
+                backgroundColor: BRAND_SOFT,
+                color: BRAND_PRIMARY,
+                borderColor: BRAND_BORDER,
+              }}
+            >
               {activePrize?.name || wheelData[prizeNumber]?.option || "-"}
             </div>
             <button
               onClick={resetAndClose}
-              className="w-full bg-[#AE2D68] text-white py-3 md:py-4 rounded-xl font-extrabold shadow-lg shadow-pink-200 active:scale-95 transition-transform"
+              className="w-full text-white py-3 md:py-4 rounded-xl font-extrabold shadow-lg active:scale-95 transition-transform"
+              style={{
+                backgroundColor: BRAND_PRIMARY,
+                boxShadow: "0 14px 28px rgba(174,45,104,0.18)",
+              }}
             >
               Klaim Hadiah
             </button>
@@ -299,7 +378,11 @@ const SpinWheelModal = ({ open, onClose, prizes, tickets, onSpin }) => {
             <button
               onClick={handleSpinClick}
               disabled={mustSpin || spinLoading || !tickets}
-              className="w-full rounded-xl md:rounded-2xl bg-[#AE2D68] px-4 py-3 md:py-4 text-white font-extrabold shadow-lg shadow-pink-200 active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed text-sm md:text-base"
+              className="w-full rounded-xl md:rounded-2xl px-4 py-3 md:py-4 text-white font-extrabold shadow-lg active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed text-sm md:text-base"
+              style={{
+                backgroundColor: BRAND_PRIMARY,
+                boxShadow: "0 14px 28px rgba(248,60,119,0.18)",
+              }}
             >
               {mustSpin || spinLoading ? "Sedang Memutar..." : "PUTAR SEKARANG"}
             </button>
@@ -309,7 +392,8 @@ const SpinWheelModal = ({ open, onClose, prizes, tickets, onSpin }) => {
         {!mustSpin && !showResult && (
           <button
             onClick={resetAndClose}
-            className="absolute top-4 right-4 p-2 rounded-full bg-[#F9EAF4] text-[#AE2D68] hover:bg-[#FCE9F3] transition z-20"
+            className="absolute top-4 right-4 p-2 rounded-full transition z-20"
+            style={{ backgroundColor: BRAND_SOFT2, color: BRAND_PRIMARY }}
           >
             <X size={18} />
           </button>
@@ -319,22 +403,29 @@ const SpinWheelModal = ({ open, onClose, prizes, tickets, onSpin }) => {
   );
 };
 
-// --- OFFER MODAL (isi: rekomendasi spesial) ---
+// --- OFFER MODAL ---
 const OfferModal = ({ open, onClose, recommendations, loading }) => {
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border-4 border-[#FCE9F3] relative">
+      <div
+        className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border-4 relative"
+        style={{ borderColor: BRAND_BORDER }}
+      >
         <div className="flex justify-between items-start mb-4">
-          <h3 className="text-lg font-extrabold text-[#AE2D68] flex items-center gap-2">
-            <Sparkles size={18} className="text-[#AE2D68]" />
+          <h3
+            className="text-lg font-extrabold flex items-center gap-2"
+            style={{ color: BRAND_DARK }}
+          >
+            <Sparkles size={18} style={{ color: BRAND_ACCENT }} />
             Rekomendasi Hari Ini
           </h3>
 
           <button
             onClick={onClose}
-            className="p-2 rounded-full bg-[#F9EAF4] text-[#AE2D68] hover:bg-[#FCE9F3] transition"
+            className="p-2 rounded-full transition"
+            style={{ backgroundColor: BRAND_SOFT2, color: BRAND_PRIMARY }}
             aria-label="Tutup"
           >
             <X size={18} />
@@ -342,16 +433,23 @@ const OfferModal = ({ open, onClose, recommendations, loading }) => {
         </div>
 
         <p className="text-xs text-gray-500 mb-4">
-          Pilihan produk terbaik untuk menemani Ramadanmu ✨
+          Pilihan produk terbaik untuk menemani Ramadanmu.
         </p>
 
-        <div className="rounded-2xl bg-gradient-to-br from-[#FDF5FA] to-[#F9EAF4] border-2 border-[#FCE9F3] p-4">
+        <div
+          className="rounded-2xl border-2 p-4"
+          style={{
+            background: `linear-gradient(135deg, ${BRAND_SOFT} 0%, ${BRAND_SOFT2} 100%)`,
+            borderColor: BRAND_BORDER,
+          }}
+        >
           <RecommendationList products={recommendations} loading={loading} />
         </div>
 
         <button
           onClick={onClose}
-          className="mt-5 w-full bg-[#AE2D68] text-white py-3 rounded-2xl font-extrabold hover:opacity-90 active:scale-95 transition"
+          className="mt-5 w-full text-white py-3 rounded-2xl font-extrabold hover:opacity-90 active:scale-95 transition"
+          style={{ backgroundColor: BRAND_PRIMARY }}
         >
           Tutup
         </button>
@@ -365,17 +463,33 @@ const ClaimTicketModal = ({ open, onSpinNow, onSpinLater, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-[75] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl border-4 border-[#FCE9F3] relative text-center">
+      <div
+        className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl border-4 relative text-center"
+        style={{ borderColor: BRAND_BORDER }}
+      >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-full bg-[#F9EAF4] text-[#AE2D68] hover:bg-[#FCE9F3] transition"
+          className="absolute top-4 right-4 p-2 rounded-full transition"
+          style={{ backgroundColor: BRAND_SOFT2, color: BRAND_PRIMARY }}
           aria-label="Tutup"
         >
           <X size={18} />
         </button>
 
-        <div className="text-5xl mb-4">🎫</div>
-        <h3 className="text-lg font-extrabold text-[#AE2D68] mb-2">Selamat!</h3>
+        <div className="mb-4 flex items-center justify-center">
+          <div
+            className="rounded-full p-3 border shadow-inner"
+            style={{ backgroundColor: BRAND_SOFT2, borderColor: BRAND_BORDER }}
+          >
+            <Gift size={32} style={{ color: BRAND_PRIMARY }} />
+          </div>
+        </div>
+        <h3
+          className="text-lg font-extrabold mb-2"
+          style={{ color: BRAND_DARK }}
+        >
+          Selamat!
+        </h3>
         <p className="text-xs text-gray-600 mb-6 leading-relaxed">
           Kamu mendapatkan <b>1 tiket</b> untuk spin. Mau langsung spin
           sekarang?
@@ -384,13 +498,19 @@ const ClaimTicketModal = ({ open, onSpinNow, onSpinLater, onClose }) => {
         <div className="flex flex-col gap-3">
           <button
             onClick={onSpinNow}
-            className="w-full bg-[#AE2D68] text-white py-3 rounded-2xl font-extrabold hover:opacity-90 active:scale-95 transition"
+            className="w-full text-white py-3 rounded-2xl font-extrabold hover:opacity-90 active:scale-95 transition"
+            style={{ backgroundColor: BRAND_PRIMARY }}
           >
             Spin Sekarang
           </button>
           <button
             onClick={onSpinLater}
-            className="w-full bg-[#F9EAF4] text-[#AE2D68] py-3 rounded-2xl font-extrabold border-2 border-[#FCE9F3] hover:bg-[#FCE9F3] active:scale-95 transition"
+            className="w-full py-3 rounded-2xl font-extrabold border-2 hover:opacity-95 active:scale-95 transition"
+            style={{
+              backgroundColor: BRAND_SOFT2,
+              color: BRAND_PRIMARY,
+              borderColor: BRAND_BORDER,
+            }}
           >
             Spin Nanti
           </button>
@@ -404,7 +524,6 @@ const ClaimTicketModal = ({ open, onSpinNow, onSpinLater, onClose }) => {
 export default function RamadanCheckinClient() {
   const todayDate = new Date();
   const todayValue = format(todayDate, "yyyy-MM-dd");
-  const fastingTicketThreshold = 23;
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -445,8 +564,10 @@ export default function RamadanCheckinClient() {
   const [showSpin, setShowSpin] = useState(false);
   const [showClaimTicket, setShowClaimTicket] = useState(false);
   const [showOffer, setShowOffer] = useState(false);
+
   const [recommendations, setRecommendations] = useState([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(true);
+
   const [claimingTicket, setClaimingTicket] = useState(false);
   const [claimError, setClaimError] = useState("");
   const [pendingTicketNotice, setPendingTicketNotice] = useState(false);
@@ -458,6 +579,9 @@ export default function RamadanCheckinClient() {
   );
   const isToday = selectedDate === todayValue;
   const isExemptLimitReached = status.exemptCount >= MAX_EXEMPT_DAYS;
+  const completedDays = status.checkedCount + status.exemptCount;
+  const remainingDays = Math.max(status.totalDays - completedDays, 0);
+
   const canClaimTicket =
     spinStatus.fastingDays >= FASTING_TICKET_THRESHOLD &&
     spinStatus.tickets === 0;
@@ -574,10 +698,10 @@ export default function RamadanCheckinClient() {
   };
 
   const handleShare = async () => {
-    const progress = status.checkedCount + status.exemptCount;
+    const progress = completedDays;
     const shareData = {
       title: "Ramadan Challenge AbbynBev",
-      text: `Alhamdulillah! Saya sudah menyelesaikan ${progress} hari di Ramadan Challenge AbbynBev. Ayo ikutan check-in dan menangkan hadiahnya! 🌙✨`,
+      text: `Alhamdulillah! Saya sudah menyelesaikan ${progress} hari di Ramadan Challenge AbbynBev. Ayo ikutan check-in dan menangkan hadiahnya!`,
       url: typeof window !== "undefined" ? window.location.href : "",
     };
 
@@ -590,9 +714,7 @@ export default function RamadanCheckinClient() {
         );
         alert("Link dan pesan berhasil disalin ke clipboard!");
       }
-    } catch (err) {
-      // user cancel share - ignore
-    }
+    } catch (err) {}
   };
 
   const handleClaimTicket = async () => {
@@ -605,10 +727,8 @@ export default function RamadanCheckinClient() {
       const res = await axios.post("/ramadan/spin/claim");
       const remainingTickets =
         res?.data?.serve?.remaining_tickets ?? res?.data?.serve?.tickets ?? 1;
-      setSpinStatus((prev) => ({
-        ...prev,
-        tickets: remainingTickets,
-      }));
+
+      setSpinStatus((prev) => ({ ...prev, tickets: remainingTickets }));
       setShowClaimTicket(true);
     } catch (error) {
       setClaimError(
@@ -707,7 +827,6 @@ export default function RamadanCheckinClient() {
       });
 
       setShowExemptOptions(false);
-
       loadStatus();
     } catch (err) {
       setErrorMsg(err?.response?.data?.message || "Gagal menyimpan status.");
@@ -716,7 +835,6 @@ export default function RamadanCheckinClient() {
     }
   };
 
-  // ✅ UPDATED: tidak ada popup otomatis lagi
   useEffect(() => {
     loadStatus();
     loadRecommendations(todayValue);
@@ -727,7 +845,13 @@ export default function RamadanCheckinClient() {
   }, [selectedDate]);
 
   return (
-    <div className="min-h-screen pb-10" style={{ backgroundColor: BRAND_BG }}>
+    <div
+      className="min-h-screen pb-10"
+      style={{
+        backgroundColor: BRAND_BG,
+        backgroundImage: `radial-gradient(circle at top left, ${BRAND_SOFT2} 0%, transparent 55%), radial-gradient(circle at 85% 10%, ${BRAND_BORDER} 0%, transparent 45%), linear-gradient(180deg, #ffffff 0%, ${BRAND_BG} 55%, #ffffff 100%)`,
+      }}
+    >
       <div className="max-w-6xl mx-auto px-4 py-6 md:py-8 relative">
         {/* MODALS */}
         <SpinWheelModal
@@ -759,29 +883,50 @@ export default function RamadanCheckinClient() {
         {/* SUCCESS MODAL */}
         {successModal.open && (
           <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-0 md:p-4">
-            <div className="w-full md:max-w-sm rounded-t-[2rem] md:rounded-[2.5rem] bg-white p-6 md:p-8 shadow-2xl animate-slide-up md:animate-scale-in max-h-[90vh] overflow-y-auto relative border-t-4 md:border-4 border-[#FCE9F3]">
+            <div
+              className="w-full md:max-w-sm rounded-t-[2rem] md:rounded-[2.5rem] bg-white p-6 md:p-8 shadow-2xl animate-slide-up md:animate-scale-in max-h-[90vh] overflow-y-auto relative border-t-4 md:border-4"
+              style={{ borderColor: BRAND_BORDER }}
+            >
               <button
                 onClick={() =>
                   setSuccessModal({ open: false, title: "", quote: "" })
                 }
-                className="absolute top-4 right-4 md:top-6 md:right-6 text-[#AE2D68]/40 hover:text-[#AE2D68] transition bg-gray-50 rounded-full p-1"
+                className="absolute top-4 right-4 md:top-6 md:right-6 transition bg-gray-50 rounded-full p-1"
+                style={{ color: `${BRAND_PRIMARY}66` }}
               >
                 <X size={20} />
               </button>
 
               <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 bg-[#F9EAF4] rounded-full mb-4 shadow-inner border-2 border-[#FCE9F3]">
+                <div
+                  className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-full mb-4 shadow-inner border-2"
+                  style={{
+                    backgroundColor: BRAND_SOFT2,
+                    borderColor: BRAND_BORDER,
+                  }}
+                >
                   <CheckCircle2
                     size={32}
-                    className="md:w-10 md:h-10 text-[#AE2D68]"
+                    className="md:w-10 md:h-10"
+                    style={{ color: BRAND_PRIMARY }}
                   />
                 </div>
+
                 <h2 className="text-xl md:text-2xl font-extrabold text-gray-800 mb-3">
                   {successModal.title}
                 </h2>
 
-                <div className="bg-[#F9EAF4] rounded-2xl p-4 mx-1 border-2 border-[#FCE9F3]">
-                  <p className="text-xs md:text-sm text-[#AE2D68] font-medium leading-relaxed italic">
+                <div
+                  className="rounded-2xl p-4 mx-1 border-2"
+                  style={{
+                    backgroundColor: BRAND_SOFT,
+                    borderColor: BRAND_BORDER,
+                  }}
+                >
+                  <p
+                    className="text-xs md:text-sm font-medium leading-relaxed italic"
+                    style={{ color: BRAND_PRIMARY }}
+                  >
                     "{successModal.quote}"
                   </p>
                 </div>
@@ -799,14 +944,20 @@ export default function RamadanCheckinClient() {
                   onClick={() =>
                     setSuccessModal({ open: false, title: "", quote: "" })
                   }
-                  className="w-full rounded-xl bg-[#AE2D68] px-4 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-pink-200 active:scale-95 transition-transform"
+                  className="w-full rounded-xl px-4 py-3.5 text-sm font-extrabold text-white shadow-lg active:scale-95 transition-transform"
+                  style={{ backgroundColor: BRAND_PRIMARY }}
                 >
                   Lanjutkan
                 </button>
 
                 <button
                   onClick={handleShare}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#F9EAF4] px-4 py-3.5 text-sm font-extrabold text-[#AE2D68] hover:bg-[#FCE9F3] transition-colors border-2 border-[#FCE9F3]"
+                  className="w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-extrabold transition-colors border-2"
+                  style={{
+                    backgroundColor: BRAND_SOFT2,
+                    color: BRAND_PRIMARY,
+                    borderColor: BRAND_BORDER,
+                  }}
                 >
                   <Share2 size={18} />
                   Bagikan Pencapaian
@@ -817,16 +968,27 @@ export default function RamadanCheckinClient() {
         )}
 
         {/* HEADER */}
-        <div className="relative overflow-hidden mb-6 rounded-3xl md:rounded-[2.5rem] shadow-2xl text-white group border-4 border-[#FCE9F3]">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#AE2D68] to-[#8a2352]"></div>
+        <div
+          className="relative overflow-hidden mb-6 rounded-3xl md:rounded-[2.5rem] shadow-2xl text-white group border-4"
+          style={{ borderColor: BRAND_BORDER }}
+        >
+          <div
+            className="absolute inset-0"
+            style={{
+              background: `linear-gradient(90deg, ${BRAND_ACCENT} 0%, ${BRAND_ACCENT_SOFT} 100%)`,
+            }}
+          />
 
           <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-5 p-6 md:p-10 text-center md:text-left">
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-[10px] font-extrabold tracking-widest uppercase mb-3 border border-white/20">
                 <CalendarDays size={12} /> Ramadan Challenge
               </div>
-              <h1 className="text-2xl md:text-5xl font-black mb-2 leading-tight tracking-tight">
-                Ramadan Check-in
+              <h1
+                className="text-2xl md:text-5xl font-black mb-2 leading-tight tracking-tight 
+              "
+              >
+                Ramadhan Check-in
               </h1>
               <p className="text-white/90 text-xs md:text-base max-w-md leading-relaxed mx-auto md:mx-0">
                 Bangun konsistensi ibadahmu. Check-in setiap hari jam{" "}
@@ -835,7 +997,6 @@ export default function RamadanCheckinClient() {
               </p>
             </div>
 
-            {/* ✅ PERMINTAAN: Bagikan Progress tetap ada, tidak diganti Spin */}
             <div className="w-full md:w-auto">
               <button
                 onClick={handleShare}
@@ -851,22 +1012,37 @@ export default function RamadanCheckinClient() {
         {/* MAIN GRID */}
         <div className="flex flex-col lg:grid lg:grid-cols-[1.8fr_1fr] gap-6">
           {/* LEFT */}
-          <div className="bg-white rounded-3xl md:rounded-[2.5rem] p-5 md:p-10 shadow-xl shadow-pink-100/50 border-4 border-[#FCE9F3] order-1">
+          <div
+            className="bg-white rounded-3xl md:rounded-[2.5rem] p-5 md:p-10 shadow-xl shadow-pink-100/50 border-4 order-1"
+            style={{ borderColor: BRAND_BORDER }}
+          >
             {loading ? (
-              <div className="h-48 md:h-64 flex items-center justify-center text-[#AE2D68]/40 animate-pulse text-sm">
+              <div
+                className="h-48 md:h-64 flex items-center justify-center animate-pulse text-sm"
+                style={{ color: `${BRAND_PRIMARY}66` }}
+              >
                 Memuat data...
               </div>
             ) : (
               <>
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 md:mb-10">
                   <div>
-                    <div className="text-4xl md:text-5xl font-black text-[#AE2D68] leading-none tracking-tight">
-                      {status.checkedCount + status.exemptCount}
-                      <span className="text-xl md:text-2xl text-[#AE2D68]/30 font-medium ml-1">
+                    <div
+                      className="text-4xl md:text-5xl font-black leading-none tracking-tight"
+                      style={{ color: BRAND_PRIMARY }}
+                    >
+                      {completedDays}
+                      <span
+                        className="text-xl md:text-2xl font-medium ml-1"
+                        style={{ color: `${BRAND_PRIMARY}4D` }}
+                      >
                         /{status.totalDays}
                       </span>
                     </div>
-                    <p className="text-[10px] md:text-xs font-extrabold text-[#AE2D68]/60 uppercase tracking-widest mt-2 ml-1">
+                    <p
+                      className="text-[10px] md:text-xs font-extrabold uppercase tracking-widest mt-2 ml-1"
+                      style={{ color: `${BRAND_DARK}99` }}
+                    >
                       Hari Terselesaikan
                     </p>
                   </div>
@@ -878,14 +1054,80 @@ export default function RamadanCheckinClient() {
                         Sudah Check-in
                       </span>
                     ) : isSelectedExempt ? (
-                      <span className="px-4 py-2 bg-gradient-to-r from-amber-50 to-amber-100 text-amber-700 rounded-xl font-extrabold text-xs border border-amber-200">
-                        ⚠️ Tidak Puasa
+                      <span className="px-4 py-2 bg-gradient-to-r from-amber-50 to-amber-100 text-amber-700 rounded-xl font-extrabold text-xs border border-amber-200 flex items-center gap-2">
+                        <Ban size={14} className="text-amber-600" />
+                        Tidak Puasa
                       </span>
                     ) : isToday ? (
-                      <span className="px-4 py-2 bg-[#F9EAF4] text-[#AE2D68] rounded-xl font-extrabold text-xs animate-pulse border border-[#FCE9F3]">
-                        🕒 Belum Check-in
+                      <span
+                        className="px-4 py-2 rounded-xl font-extrabold text-xs animate-pulse border flex items-center gap-2"
+                        style={{
+                          backgroundColor: BRAND_SOFT2,
+                          color: BRAND_PRIMARY,
+                          borderColor: BRAND_BORDER,
+                        }}
+                      >
+                        <Clock size={14} />
+                        Belum Check-in
                       </span>
                     ) : null}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3 mb-6 md:mb-8">
+                  <div
+                    className="rounded-2xl p-3 md:p-4 border"
+                    style={{
+                      backgroundColor: BRAND_SOFT,
+                      borderColor: BRAND_BORDER,
+                    }}
+                  >
+                    <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-widest text-gray-500">
+                      <CheckCircle2
+                        size={12}
+                        style={{ color: BRAND_PRIMARY }}
+                      />
+                      Puasa
+                    </div>
+                    <div
+                      className="text-lg md:text-2xl font-extrabold mt-2"
+                      style={{ color: BRAND_PRIMARY }}
+                    >
+                      {status.checkedCount}
+                    </div>
+                  </div>
+                  <div
+                    className="rounded-2xl p-3 md:p-4 border"
+                    style={{
+                      backgroundColor: BRAND_SOFT,
+                      borderColor: BRAND_BORDER,
+                    }}
+                  >
+                    <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-widest text-gray-500">
+                      <Ban size={12} className="text-amber-600" />
+                      Izin
+                    </div>
+                    <div className="text-lg md:text-2xl font-extrabold mt-2 text-amber-600">
+                      {status.exemptCount}
+                    </div>
+                  </div>
+                  <div
+                    className="rounded-2xl p-3 md:p-4 border"
+                    style={{
+                      backgroundColor: BRAND_SOFT,
+                      borderColor: BRAND_BORDER,
+                    }}
+                  >
+                    <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-widest text-gray-500">
+                      <CalendarDays size={12} style={{ color: BRAND_DARK }} />
+                      Sisa
+                    </div>
+                    <div
+                      className="text-lg md:text-2xl font-extrabold mt-2"
+                      style={{ color: BRAND_DARK }}
+                    >
+                      {remainingDays}
+                    </div>
                   </div>
                 </div>
 
@@ -902,9 +1144,18 @@ export default function RamadanCheckinClient() {
                 )}
 
                 {/* CALENDAR WRAP */}
-                <div className="bg-gradient-to-br from-[#FDF5FA] to-[#F9EAF4] rounded-2xl md:rounded-[2rem] p-4 md:p-8 border-2 border-[#FCE9F3]">
+                <div
+                  className="rounded-2xl md:rounded-[2rem] p-4 md:p-8 border-2"
+                  style={{
+                    background: `linear-gradient(135deg, ${BRAND_SOFT} 0%, ${BRAND_SOFT2} 100%)`,
+                    borderColor: BRAND_BORDER,
+                  }}
+                >
                   <div className="flex items-center justify-between mb-6">
-                    <p className="text-lg md:text-xl font-extrabold text-[#AE2D68] tracking-tight">
+                    <p
+                      className="text-lg md:text-xl font-extrabold tracking-tight"
+                      style={{ color: BRAND_DARK }}
+                    >
                       {format(currentMonth, "MMMM yyyy")}
                     </p>
                     <div className="flex gap-2">
@@ -912,7 +1163,11 @@ export default function RamadanCheckinClient() {
                         onClick={() =>
                           setCurrentMonth(subMonths(currentMonth, 1))
                         }
-                        className="w-9 h-9 flex items-center justify-center rounded-full bg-white shadow-sm text-[#AE2D68] active:bg-[#FCE9F3] border border-[#FCE9F3]"
+                        className="w-9 h-9 flex items-center justify-center rounded-full bg-white shadow-sm active:bg-white border"
+                        style={{
+                          color: BRAND_PRIMARY,
+                          borderColor: BRAND_BORDER,
+                        }}
                       >
                         <ChevronLeft size={18} />
                       </button>
@@ -920,14 +1175,21 @@ export default function RamadanCheckinClient() {
                         onClick={() =>
                           setCurrentMonth(addMonths(currentMonth, 1))
                         }
-                        className="w-9 h-9 flex items-center justify-center rounded-full bg-white shadow-sm text-[#AE2D68] active:bg-[#FCE9F3] border border-[#FCE9F3]"
+                        className="w-9 h-9 flex items-center justify-center rounded-full bg-white shadow-sm active:bg-white border"
+                        style={{
+                          color: BRAND_PRIMARY,
+                          borderColor: BRAND_BORDER,
+                        }}
                       >
                         <ChevronRight size={18} />
                       </button>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-7 gap-2 md:gap-3 mb-3 text-center text-[10px] font-extrabold text-[#AE2D68]/60 uppercase tracking-widest">
+                  <div
+                    className="grid grid-cols-7 gap-2 md:gap-3 mb-3 text-center text-[10px] font-extrabold uppercase tracking-widest"
+                    style={{ color: `${BRAND_DARK}99` }}
+                  >
                     {["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map(
                       (d) => (
                         <div key={d}>{d}</div>
@@ -961,22 +1223,27 @@ export default function RamadanCheckinClient() {
                             ${isOutside ? "opacity-20" : "opacity-100"}
                             ${
                               isSelected
-                                ? "ring-2 md:ring-[3px] ring-[#AE2D68] ring-offset-1 scale-105 z-10 bg-white shadow-md"
+                                ? "ring-2 md:ring-[3px] ring-offset-1 scale-105 z-10 bg-white shadow-md"
                                 : "active:bg-white active:scale-95"
                             }
                             ${
                               isChecked
-                                ? "bg-gradient-to-br from-green-400 to-green-500 text-white shadow-md shadow-green-200"
+                                ? "bg-gradient-to-br from-pink-500 to-pink-100 text-white shadow-md shadow-pink-200"
                                 : isExempt
                                 ? "bg-amber-100 text-amber-700"
                                 : isDayToday
-                                ? "bg-white text-[#AE2D68]"
+                                ? "bg-white"
                                 : "bg-white text-gray-500"
                             }
                           `}
+                          style={{
+                            ...(isDayToday && !isChecked && !isExempt
+                              ? { color: BRAND_PRIMARY }
+                              : null),
+                          }}
                         >
                           {isChecked && (
-                            <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-white rounded-full opacity-80"></div>
+                            <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-white rounded-full opacity-80" />
                           )}
                           <span>{format(day, "d")}</span>
                           {isChecked &&
@@ -995,9 +1262,10 @@ export default function RamadanCheckinClient() {
                   <div
                     className={`p-5 md:p-8 rounded-2xl md:rounded-[2rem] transition-all duration-500 ${
                       isToday || isSelectedChecked || isSelectedExempt
-                        ? "bg-white shadow-xl shadow-gray-100 translate-y-0 opacity-100 border-2 border-[#FCE9F3]"
+                        ? "bg-white shadow-xl shadow-gray-100 translate-y-0 opacity-100 border-2"
                         : "bg-gray-100 opacity-50 grayscale translate-y-2"
                     }`}
+                    style={{ borderColor: BRAND_BORDER }}
                   >
                     {isSelectedChecked ? (
                       <div className="text-center animate-fade-in">
@@ -1038,17 +1306,25 @@ export default function RamadanCheckinClient() {
                             <button
                               onClick={handleCheckin}
                               disabled={!isToday || submitting}
-                              className={`w-full py-3.5 rounded-xl font-extrabold text-sm shadow-lg shadow-pink-100 transition-all active:scale-95 flex items-center justify-center gap-2
-                                ${
-                                  !isToday
-                                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                    : "bg-[#AE2D68] text-white"
-                                }
-                              `}
+                              className={`w-full py-3.5 rounded-xl font-extrabold text-sm shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 ${
+                                !isToday
+                                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                  : "text-white"
+                              }`}
+                              style={{
+                                backgroundColor: !isToday
+                                  ? undefined
+                                  : BRAND_PRIMARY,
+                                boxShadow: !isToday
+                                  ? undefined
+                                  : "0 14px 28px rgba(174,45,104,0.18)",
+                              }}
                             >
-                              {submitting
-                                ? "Menyimpan..."
-                                : "✅ CHECK-IN SEKARANG"}
+                              {submitting ? (
+                                "Menyimpan..."
+                              ) : (
+                                <>CHECK-IN SEKARANG</>
+                              )}
                             </button>
 
                             <button
@@ -1056,15 +1332,14 @@ export default function RamadanCheckinClient() {
                                 isToday && setShowExemptOptions(true)
                               }
                               disabled={!isToday}
-                              className={`w-full py-3.5 rounded-xl font-extrabold text-sm transition-all active:scale-95
-                                ${
-                                  !isToday
-                                    ? "text-gray-300"
-                                    : "bg-white text-gray-500 hover:bg-[#FCE9F3] hover:text-gray-800 shadow-sm border-2 border-[#FCE9F3]"
-                                }
-                              `}
+                              className={`w-full py-3.5 rounded-xl font-extrabold text-sm transition-all active:scale-95 flex items-center justify-center gap-2 ${
+                                !isToday
+                                  ? "text-gray-300"
+                                  : "bg-white text-gray-500 shadow-sm border-2"
+                              }`}
+                              style={{ borderColor: BRAND_BORDER }}
                             >
-                              🚫 Tidak Puasa
+                              Tidak Puasa
                             </button>
                           </div>
                         ) : (
@@ -1083,19 +1358,24 @@ export default function RamadanCheckinClient() {
 
                             <div className="grid grid-cols-2 gap-3 mb-4">
                               {[
-                                { id: "sakit", label: "🤒 Sakit" },
-                                { id: "haid", label: "🩸 Haid" },
-                                { id: "perjalanan", label: "🚗 Perjalanan" },
-                                { id: "lainnya", label: "📝 Lainnya" },
+                                { id: "sakit", label: "Sakit" },
+                                { id: "haid", label: "Haid" },
+                                { id: "perjalanan", label: "Perjalanan" },
+                                { id: "lainnya", label: "Lainnya" },
                               ].map((item) => (
                                 <button
                                   key={item.id}
                                   onClick={() => setSelectedReason(item.id)}
-                                  className={`py-3 px-2 rounded-xl text-xs font-extrabold transition active:scale-95 ${
+                                  className={`py-3 px-2 rounded-xl text-xs font-extrabold transition active:scale-95 border ${
                                     selectedReason === item.id
-                                      ? "bg-amber-100 text-amber-800 shadow-inner border-2 border-amber-200"
-                                      : "bg-white text-gray-500 shadow-sm border border-[#FCE9F3]"
+                                      ? "bg-amber-100 text-amber-800 shadow-inner border-amber-200"
+                                      : "bg-white text-gray-500 shadow-sm"
                                   }`}
+                                  style={
+                                    selectedReason === item.id
+                                      ? undefined
+                                      : { borderColor: BRAND_BORDER }
+                                  }
                                 >
                                   {item.label}
                                 </button>
@@ -1113,7 +1393,10 @@ export default function RamadanCheckinClient() {
                         )}
 
                         {isToday && !showExemptOptions && (
-                          <p className="text-[10px] text-center text-[#AE2D68]/50 mt-3 font-bold">
+                          <p
+                            className="text-[10px] text-center mt-3 font-bold"
+                            style={{ color: `${BRAND_DARK}80` }}
+                          >
                             *Check-in buka 06:00 - 18:00 WIB
                           </p>
                         )}
@@ -1127,19 +1410,32 @@ export default function RamadanCheckinClient() {
 
           {/* RIGHT */}
           <aside className="space-y-6 order-2">
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#AE2D68] to-[#8a2352] p-6 text-white shadow-xl border-4 border-[#FCE9F3]">
-              <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-[#F9A8D4] rounded-full blur-3xl opacity-40"></div>
+            <div
+              className="relative overflow-hidden rounded-3xl p-6 text-white shadow-xl border-4"
+              style={{
+                borderColor: BRAND_BORDER,
+                background: `linear-gradient(90deg, ${BRAND_ACCENT} 0%, ${BRAND_ACCENT_SOFT} 100%)`,
+              }}
+            >
+              <div
+                className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 rounded-full blur-3xl opacity-40"
+                style={{ backgroundColor: BRAND_ACCENT_SOFT }}
+              />
 
               <h3 className="relative z-10 text-lg font-extrabold mb-2 flex items-center gap-2">
-                <Gift size={18} className="text-[#F9A8D4]" /> Grand Prize
+                <Gift size={18} style={{ color: BRAND_ACCENT_SOFT }} /> Grand
+                Prize
               </h3>
 
-              {/* ✅ PERMINTAAN: Saat ada Spin Wheel, tampilkan tombol Spin di sini dan hilangkan teks Grand Prize */}
               <div className="relative z-10 text-white/80 text-xs mb-6 leading-relaxed">
                 {spinStatus.tickets ? (
                   <button
                     onClick={() => setShowSpin(true)}
-                    className="w-full animate-bounce bg-gradient-to-r from-[#F9A8D4] to-[#EC4899] text-white font-extrabold py-3.5 px-6 rounded-2xl shadow-[0_10px_20px_rgba(249,168,212,0.4)] hover:scale-105 transition flex items-center justify-center gap-2 text-sm"
+                    className="w-full animate-bounce text-white font-extrabold py-3.5 px-6 rounded-2xl hover:scale-105 transition flex items-center justify-center gap-2 text-sm"
+                    style={{
+                      background: `linear-gradient(90deg, ${BRAND_ACCENT_SOFT} 0%, ${BRAND_ACCENT} 100%)`,
+                      boxShadow: "0 16px 30px rgba(248,60,119,0.28)",
+                    }}
                   >
                     <Gift size={18} />
                     SPIN WHEEL TERSEDIA!
@@ -1153,7 +1449,7 @@ export default function RamadanCheckinClient() {
                     Selesaikan 30 hari tantangan untuk membuka Spin Wheel dan
                     menangkan hadiah eksklusif!{" "}
                     <span className="block mt-1 text-[10px] font-extrabold text-white">
-                      Klik untuk klaim tiket spin kamu 🎫
+                      Klik untuk klaim tiket spin kamu sekarang
                     </span>
                   </button>
                 ) : (
@@ -1179,70 +1475,77 @@ export default function RamadanCheckinClient() {
               <div className="relative z-10">
                 <div className="flex justify-between text-[10px] font-extrabold mb-2 text-white/70 uppercase tracking-wider">
                   <span>Progress</span>
-                  <span>
-                    {Math.round(
-                      ((status.checkedCount + status.exemptCount) /
-                        TOTAL_DAYS) *
-                        100
-                    )}
-                    %
-                  </span>
+                  <span>{Math.round((completedDays / TOTAL_DAYS) * 100)}%</span>
                 </div>
                 <div className="w-full bg-white/20 rounded-full h-2.5 overflow-hidden backdrop-blur-sm">
                   <div
-                    className="bg-gradient-to-r from-[#F9A8D4] to-white h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(249,168,212,0.8)]"
+                    className="h-full rounded-full transition-all duration-1000 ease-out"
                     style={{
-                      width: `${
-                        ((status.checkedCount + status.exemptCount) /
-                          TOTAL_DAYS) *
-                        100
-                      }%`,
+                      width: `${(completedDays / TOTAL_DAYS) * 100}%`,
+                      background: `linear-gradient(90deg, ${BRAND_ACCENT_SOFT} 0%, #ffffff 100%)`,
+                      boxShadow: "0 0 14px rgba(255,175,204,0.85)",
                     }}
-                  ></div>
+                  />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-3xl p-6 shadow-xl shadow-pink-100/50 border-4 border-[#FCE9F3]">
+            <div
+              className="bg-white rounded-3xl p-6 shadow-xl shadow-pink-100/50 border-4"
+              style={{ borderColor: BRAND_BORDER }}
+            >
               <h4 className="font-extrabold text-gray-900 mb-4 flex items-center gap-2 text-sm">
-                <Info size={16} className="text-[#AE2D68]" /> Ketentuan
+                <Info size={16} style={{ color: BRAND_PRIMARY }} /> Ketentuan
               </h4>
               <ul className="text-xs text-gray-500 space-y-3">
                 <li className="flex gap-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#AE2D68] mt-1.5 shrink-0"></div>
+                  <div
+                    className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
+                    style={{ backgroundColor: BRAND_PRIMARY }}
+                  />
                   <span>
                     Wajib Check-in antara{" "}
                     <b className="text-gray-800">06:00 - 18:00 WIB</b>.
                   </span>
                 </li>
                 <li className="flex gap-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#AE2D68] mt-1.5 shrink-0"></div>
+                  <div
+                    className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
+                    style={{ backgroundColor: BRAND_PRIMARY }}
+                  />
                   <span>
                     Max izin (tidak puasa):{" "}
                     <b className="text-gray-800">{MAX_EXEMPT_DAYS} hari</b>.
                   </span>
                 </li>
                 <li className="flex gap-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#AE2D68] mt-1.5 shrink-0"></div>
+                  <div
+                    className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
+                    style={{ backgroundColor: BRAND_PRIMARY }}
+                  />
                   <span>Tidak bisa check-in susulan.</span>
                 </li>
               </ul>
 
               <button
                 onClick={() => setShowOffer(true)}
-                className="mt-5 w-full rounded-2xl bg-[#F9EAF4] px-4 py-3 text-sm font-extrabold text-[#AE2D68] hover:bg-[#FCE9F3] transition border-2 border-[#FCE9F3] active:scale-95"
+                className="mt-5 w-full rounded-2xl px-4 py-3 text-sm font-extrabold transition border-2 active:scale-95"
+                style={{
+                  backgroundColor: BRAND_SOFT2,
+                  color: BRAND_PRIMARY,
+                  borderColor: BRAND_BORDER,
+                }}
               >
                 Lihat Rekomendasi Hari Ini
               </button>
             </div>
 
-            {isExemptLimitReached &&
-              status.checkedCount + status.exemptCount >= TOTAL_DAYS && (
-                <div className="bg-red-50 text-red-600 px-4 py-3 rounded-2xl text-xs font-bold text-center shadow-sm border-2 border-red-200">
-                  Maaf, kamu tidak memenuhi syarat Grand Prize (Tidak Puasa &gt;
-                  21 hari).
-                </div>
-              )}
+            {isExemptLimitReached && completedDays >= TOTAL_DAYS && (
+              <div className="bg-red-50 text-red-600 px-4 py-3 rounded-2xl text-xs font-bold text-center shadow-sm border-2 border-red-200">
+                Maaf, kamu tidak memenuhi syarat Grand Prize (Tidak Puasa &gt;
+                21 hari).
+              </div>
+            )}
           </aside>
         </div>
       </div>
