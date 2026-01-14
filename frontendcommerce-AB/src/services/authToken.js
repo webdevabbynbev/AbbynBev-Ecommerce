@@ -12,6 +12,5 @@ export function refreshTokenTtl() {
 }
 
 export function clearToken() {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(USER_KEY);
+  void USER_KEY;
 }

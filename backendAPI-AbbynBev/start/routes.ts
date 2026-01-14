@@ -122,6 +122,7 @@ const FeRamadanCheckinsController = () =>
 const FeRamadanSpinController = () =>
   import('#controllers/frontend/ramadan/ramadan_spin_controller')
 const OrdersController = () => import('#controllers/frontend/orders/orders_controller')
+const FeChatkitController = () => import('#controllers/frontend/chatkit/chatkit_controller')
 const FeDiscountsController = () => import('#controllers/frontend/discounts/discounts_controller')
 
 // CMS discounts
@@ -549,6 +550,7 @@ router
     router.get('/tags', [FeTagsController, 'list'])
     router.get('/tags/:slug', [FeTagsController, 'show'])
     router.post('/support-tickets', [FeSupportTicketController, 'create'])
+    router.post('/chatkit', [FeChatkitController, 'run'])
 
     // =========================
     // FRONTEND AUTH ROUTES
