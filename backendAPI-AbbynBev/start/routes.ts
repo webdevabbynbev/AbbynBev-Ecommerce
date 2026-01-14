@@ -122,6 +122,8 @@ const FeRamadanCheckinsController = () =>
 const FeRamadanSpinController = () =>
   import('#controllers/frontend/ramadan/ramadan_spin_controller')
 const OrdersController = () => import('#controllers/frontend/orders/orders_controller')
+const FeDiscountsController = () => import('#controllers/frontend/discounts/discounts_controller')
+
 
 // =========================
 // POS CONTROLLERS
@@ -541,6 +543,8 @@ router
         router.get('/beauty', [FeUserBeautyProfilesController, 'getUserSelections'])
         router.post('/beauty/concerns', [FeUserBeautyProfilesController, 'saveConcerns'])
         router.post('/vouchers/validate', [FeVoucherController, 'validate'])
+        router.post('/discounts/validate', [FeDiscountsController, 'validate'])
+
 
         router.get('/vouchers/available', [FeVoucherController, 'available'])
         router.get('/vouchers/my', [FeVoucherController, 'my'])

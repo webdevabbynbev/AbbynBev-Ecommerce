@@ -3,7 +3,8 @@ import ProductDetailClient from "./ProductDetailClient";
 import { slugify } from "@/utils";
 import { notFound } from "next/navigation";
 
-export async function generateMetadata({ params }) {
+export async function generateMetadata(props) {
+  const params = await props.params;
   const slugParam = norm(params.slug);
   const resByPath = await getProductByPath(slugParam);
   const product = resByPath?.data;

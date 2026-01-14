@@ -97,7 +97,7 @@ export function MobileBottomNav({ className = "" }) {
                       profileActive ? "bg-primary-100" : null
                     )}
                   >
-                    <BtnIcon iconName="User" variant="tertiary" size="sm" />
+                    <BtnIcon as="span" iconName="User" variant="tertiary" size="sm" />
                   </div>
                   <span
                     className={clsx(
@@ -107,7 +107,7 @@ export function MobileBottomNav({ className = "" }) {
                         : "text-primary-700 font-normal"
                     )}
                   >
-                    Profile
+                    Account
                   </span>
                 </button>
               </SheetTrigger>
