@@ -646,7 +646,7 @@ export default class ProductCsvImportService {
             if (pivot.productTagsHasCreatedAt) payload.created_at = nowSql
             if (pivot.productTagsHasUpdatedAt) payload.updated_at = nowSql
 
-            await trx.from('product_tags').insert(payload)
+            await trx.insertQuery().table('product_tags').insert(payload)
             stats.tagAttached += 1
           }
         }
@@ -655,7 +655,7 @@ export default class ProductCsvImportService {
         // 5) CONCERNS (SYNC sesuai CSV)
         // =========================
         if (pivot.hasProductConcernsTable && pivot.productConcernsOptionCol) {
-          await trx.from('product_concerns').where('product_id', product.id).del()
+          await trx.from('product_concerns').where('product_id', product.id).delete()
 
           // support banyak concern dipisah (| ; ,)
           const concernNames = this.splitList(g.concern || '')
@@ -680,7 +680,7 @@ export default class ProductCsvImportService {
               if (pivot.productConcernsHasCreatedAt) payload.created_at = nowSql
               if (pivot.productConcernsHasUpdatedAt) payload.updated_at = nowSql
 
-              await trx.from('product_concerns').insert(payload)
+              await trx.insertQuery().table('product_concerns').insert(payload)
               stats.concernAttached += 1
             }
           }
