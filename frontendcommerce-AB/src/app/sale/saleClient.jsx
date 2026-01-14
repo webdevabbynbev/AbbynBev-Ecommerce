@@ -39,15 +39,76 @@ function normalizeSaleProduct(raw) {
   };
 }
 
+function normalizeFlashSaleItem(raw) {
+  if (!raw) return raw;
+
+  const source = raw.product ?? raw;
+  const basePrice = Number(
+    source.price ?? source.basePrice ?? source.base_price ?? 0
+  );
+  const comparePrice = Number(
+    source.realprice ??
+      source.oldPrice ??
+      source.original_price ??
+      source.originalPrice ??
+      0
+  );
+  const hasComparePrice = Number.isFinite(comparePrice) && comparePrice > 0;
+  const normalPrice = hasComparePrice ? comparePrice : basePrice;
+  let salePrice = Number(
+    source.salePrice ??
+      source.sale_price ??
+      source.flashSalePrice ??
+      source.flash_sale_price ??
+      source.discountPrice ??
+      source.discount_price ??
+      0
+  );
+  let isSale =
+    Number.isFinite(salePrice) && salePrice > 0 && salePrice < normalPrice;
+
+  if (
+    !isSale &&
+    hasComparePrice &&
+    Number.isFinite(basePrice) &&
+    basePrice > 0 &&
+    comparePrice > basePrice
+  ) {
+    salePrice = basePrice;
+    isSale = true;
+  }
+
+  if (!isSale) return raw;
+
+  const normalizedProduct = {
+    ...source,
+    price: salePrice,
+    realprice: normalPrice,
+    sale: true,
+  };
+
+  if (raw.product) {
+    return {
+      ...raw,
+      product: normalizedProduct,
+    };
+  }
+
+  return normalizedProduct;
+}
+
 export default function SaleClient() {
   const [loading, setLoading] = useState(true);
   const [flashSale, setFlashSale] = useState(null);
   const [productRows, setProductRows] = useState([]);
   const [brands, setBrands] = useState([]);
   const [search, setSearch] = useState("");
-  const [visibleCount, setVisibleCount] = useState(12);
-  const loadMoreRef = useRef(null);
-  const LOAD_STEP = 12;
+  const [visibleSaleCount, setVisibleSaleCount] = useState(12);
+  const [visibleFlashCount, setVisibleFlashCount] = useState(8);
+  const saleLoadRef = useRef(null);
+  const flashLoadRef = useRef(null);
+  const SALE_STEP = 12;
+  const FLASH_STEP = 8;
 
   useEffect(() => {
     let alive = true;
@@ -131,8 +192,8 @@ export default function SaleClient() {
   }, [products, search]);
 
   const visibleFiltered = useMemo(() => {
-    return filtered.slice(0, visibleCount);
-  }, [filtered, visibleCount]);
+    return filtered.slice(0, visibleSaleCount);
+  }, [filtered, visibleSaleCount]);
 
   const flashSaleItems = useMemo(() => {
     if (Array.isArray(flashSale)) return flashSale;
@@ -145,6 +206,13 @@ export default function SaleClient() {
     return Array.isArray(source) ? source : [];
   }, [flashSale]);
 
+  const normalizedFlashSaleItems = useMemo(() => {
+    return flashSaleItems.map(normalizeFlashSaleItem);
+  }, [flashSaleItems]);
+  const visibleFlashItems = useMemo(() => {
+    return normalizedFlashSaleItems.slice(0, visibleFlashCount);
+  }, [normalizedFlashSaleItems, visibleFlashCount]);
+
   const skeleton_card = 24;
   const totalProducts = products.length;
   const totalBrands = brands.length;
@@ -156,19 +224,23 @@ export default function SaleClient() {
     : `${visibleProducts} produk siap diburu.`;
 
   useEffect(() => {
-    setVisibleCount(LOAD_STEP);
+    setVisibleSaleCount(SALE_STEP);
   }, [search, products]);
 
   useEffect(() => {
-    const target = loadMoreRef.current;
+    setVisibleFlashCount(FLASH_STEP);
+  }, [flashSaleItems]);
+
+  useEffect(() => {
+    const target = saleLoadRef.current;
     if (!target || loading) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
         if (entry?.isIntersecting) {
-          setVisibleCount((prev) =>
-            Math.min(prev + LOAD_STEP, filtered.length)
+          setVisibleSaleCount((prev) =>
+            Math.min(prev + SALE_STEP, filtered.length)
           );
         }
       },
@@ -178,6 +250,26 @@ export default function SaleClient() {
     observer.observe(target);
     return () => observer.disconnect();
   }, [filtered.length, loading]);
+
+  useEffect(() => {
+    const target = flashLoadRef.current;
+    if (!target || loading) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry?.isIntersecting) {
+          setVisibleFlashCount((prev) =>
+            Math.min(prev + FLASH_STEP, normalizedFlashSaleItems.length)
+          );
+        }
+      },
+      { rootMargin: "200px" }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [normalizedFlashSaleItems.length, loading]);
 
   return (
     <div className="w-full">
@@ -334,9 +426,9 @@ export default function SaleClient() {
                   <RegularCardSkeleton key={`flash-skel-${idx}`} />
                 ))}
               </div>
-            ) : flashSaleItems.length > 0 ? (
+            ) : normalizedFlashSaleItems.length > 0 ? (
               <div className="grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-4">
-                {flashSaleItems.slice(0, 10).map((item, idx) => (
+                {visibleFlashItems.map((item, idx) => (
                   <div
                     key={item?.id ?? item?.slug ?? `flash-${idx}`}
                     className="relative overflow-hidden rounded-2xl"
@@ -344,7 +436,7 @@ export default function SaleClient() {
                     <span className="pointer-events-none absolute top-0 left-0 z-10 flex h-[26px] items-center rounded-br-lg bg-[#AE2D68] px-2 text-[10px] font-bold uppercase tracking-wide text-[#F6F6F6]">
                       Flash Sale
                     </span>
-                    <FlashSaleCard item={item} />
+                    <FlashSaleCard product={item} />
                   </div>
                 ))}
               </div>
@@ -354,6 +446,9 @@ export default function SaleClient() {
               </div>
             )}
           </div>
+          {!loading && normalizedFlashSaleItems.length > visibleFlashCount ? (
+            <div ref={flashLoadRef} className="h-10 w-full" />
+          ) : null}
         </section>
       ) : null}
 
@@ -386,8 +481,8 @@ export default function SaleClient() {
               </p>
             )}
           </div>
-          {!loading && filtered.length > visibleCount ? (
-            <div ref={loadMoreRef} className="h-10 w-full" />
+          {!loading && filtered.length > visibleSaleCount ? (
+            <div ref={saleLoadRef} className="h-10 w-full" />
           ) : null}
         </div>
       </section>
