@@ -81,7 +81,7 @@ export default function DiscountFormPage({ mode }: Props) {
         setBrandOptions(
           rows2.map((b: any) => ({
             value: Number(b.id),
-            label: `${b.name ?? b.title ?? "Brand"} (id:${b.id})`,
+            label: `${b.name ?? b.title ?? "Brand"}`,
           }))
         );
       } catch (e2: any) {
@@ -108,7 +108,7 @@ export default function DiscountFormPage({ mode }: Props) {
       setProductOptions(
         rows.map((p: any) => ({
           value: Number(p.id),
-          label: `${p.name ?? "Produk"} (id:${p.id})`,
+          label: `${p.name ?? "Produk"} `,
         }))
       );
     } catch (e1: any) {
@@ -121,7 +121,7 @@ export default function DiscountFormPage({ mode }: Props) {
         setProductOptions(
           products.map((p: any) => ({
             value: Number(p.id),
-            label: `${p.name ?? "Produk"} (id:${p.id})`,
+            label: `${p.name ?? "Produk"}`,
           }))
         );
       } catch (e2: any) {
@@ -154,7 +154,8 @@ export default function DiscountFormPage({ mode }: Props) {
       setVariantOptions(
         rows.map((v: any) => ({
           value: Number(v.id), // attribute_value_id
-          label: `${v.attributeName ?? "Atribut"}: ${v.value ?? "-"} (id:${v.id})`,
+          label: `${v.value}`,
+
         }))
       );
     } catch (e: any) {
@@ -166,21 +167,25 @@ export default function DiscountFormPage({ mode }: Props) {
   };
 
   const searchCustomers = async (keyword: string) => {
-    setCustomerLoading(true);
-    try {
-      const resp: any = await http.get(
-        `/admin/customers?q=${encodeURIComponent(keyword)}&page=1&per_page=10`
-      );
-      const users = resp?.data?.serve?.data ?? [];
-      setCustomerOptions(
-        users.map((u: any) => ({
-          value: Number(u.id),
-          label: `${u.firstName ?? ""} ${u.lastName ?? ""} • ${u.email ?? ""}`.trim(),
-        }))
-      );
-    } finally {
-      setCustomerLoading(false);
-    }
+  const q = String(keyword ?? "").trim()
+  setCustomerLoading(true)
+  try {
+    const resp: any = await http.get(
+      `/admin/customers?q=${encodeURIComponent(q)}&page=1&per_page=10`
+    )
+    const users = resp?.data?.serve?.data ?? []
+    setCustomerOptions(
+      users.map((u: any) => ({
+        value: Number(u.id),
+        label: `${u.firstName ?? ""} ${u.lastName ?? ""} • ${u.email ?? ""}`.trim(),
+      }))
+    )
+  } catch (e: any) {
+    setCustomerOptions([])
+    message.error(e?.response?.data?.message ?? "Gagal ambil customer")
+  } finally {
+    setCustomerLoading(false)
+  }
   };
 
   const mapApiToForm = (data: any) => {
@@ -411,7 +416,7 @@ export default function DiscountFormPage({ mode }: Props) {
                     { value: 1, label: "Pesanan Minimal" },
                     { value: 4, label: "Brand" },
                     { value: 5, label: "Produk" },
-                    { value: 3, label: "Varian Produk (Attribute Values)" },
+                    { value: 3, label: "Varian Produk" },
                   ]}
                 />
               </Form.Item>
@@ -504,10 +509,13 @@ export default function DiscountFormPage({ mode }: Props) {
                     showSearch
                     filterOption={false}
                     onSearch={searchCustomers}
+                    onFocus={() => searchCustomers("")}
+                    onDropdownVisibleChange={(open) => open && searchCustomers("")}
                     options={customerOptions}
                     loading={customerLoading}
                     placeholder="Cari nama/email..."
                   />
+
                 </Form.Item>
               ) : null}
             </Card>

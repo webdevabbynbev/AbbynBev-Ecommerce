@@ -16,6 +16,7 @@ export default class ProductVariant extends BaseModel {
   @column()
   declare barcode: string
 
+  // DB kamu price = string (sesuai yang sebelumnya)
   @column()
   declare price: string
 
@@ -43,24 +44,22 @@ export default class ProductVariant extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true, columnName: 'updated_at' })
   declare updatedAt: DateTime
 
-  // =========================
-  // RELATIONS
-  // =========================
   @belongsTo(() => Product, { foreignKey: 'productId' })
   declare product: BelongsTo<typeof Product>
 
-  // NOTE: ini jalan kalau tabel product_medias punya kolom variant_id
+  // jalan kalau product_medias punya kolom variant_id
   @hasMany(() => ProductMedia, { foreignKey: 'variantId' })
   declare medias: HasMany<typeof ProductMedia>
 
-  // ✅ OPSI B: attribute_values nempel langsung ke variant pakai product_variant_id
+
   @hasMany(() => AttributeValue, { foreignKey: 'productVariantId' })
   declare attributes: HasMany<typeof AttributeValue>
 
-  // =========================
-  // SCOPES
-  // =========================
   public static active = scope((query) => {
     query.whereNull('product_variants.deleted_at')
+  })
+
+  public static trashed = scope((query) => {
+    query.whereNotNull('product_variants.deleted_at')
   })
 }

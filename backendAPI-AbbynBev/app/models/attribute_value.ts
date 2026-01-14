@@ -15,7 +15,10 @@ export default class AttributeValue extends BaseModel {
   @column({ columnName: 'attribute_id' })
   declare attributeId: number
 
-  // ✅ Opsi B: nempel langsung ke 1 variant
+  /**
+   * ✅ OPSI B:
+   * attribute_values.product_variant_id nempel langsung ke 1 variant
+   */
   @column({ columnName: 'product_variant_id' })
   declare productVariantId: number | null
 
@@ -41,11 +44,15 @@ export default class AttributeValue extends BaseModel {
   // SCOPES
   // =========================
   public static active = scope((query) => {
-    query.whereNull('deleted_at')
+    query.whereNull('attribute_values.deleted_at')
   })
 
   public static trashed = scope((query) => {
-    query.whereNotNull('deleted_at')
+    query.whereNotNull('attribute_values.deleted_at')
+  })
+
+  public static forVariant = scope((query, productVariantId: number) => {
+    query.where('attribute_values.product_variant_id', productVariantId)
   })
 
   // =========================

@@ -1,5 +1,6 @@
 import ProductOnline from '#models/product_online'
 import type { HttpContext } from '@adonisjs/core/http'
+import { DiscountPricingService } from '#services/discount/discount_pricing_service'
 
 export default class ProductsController {
   public async get({ response, request }: HttpContext) {
@@ -48,8 +49,6 @@ export default class ProductsController {
                 .select(['id', 'price', 'stock', 'product_id'])
                 .whereNull('product_variants.deleted_at')
             })
-            // NOTE: untuk listing, biarkan ini dulu.
-            // kalau kamu mau listing pakai image dari variant, baru preload variants.medias (lebih berat)
             .preload('medias')
             .preload('categoryType')
             .preload('brand')
@@ -62,6 +61,12 @@ export default class ProductsController {
         .paginate(page, perPage)
 
       const { meta, data } = productsQuery.toJSON()
+
+      const svc = new DiscountPricingService()
+      const products = (data as any[]).map((row) => row?.product).filter(Boolean)
+      if (products.length) {
+        await svc.attachExtraDiscount(products as any[])
+      }
 
       return response.status(200).send({
         message: 'success',
@@ -111,25 +116,22 @@ export default class ProductsController {
             })
             .preload('variants', (variantLoader) => {
               variantLoader
+                .whereNull('product_variants.deleted_at')
                 .preload('medias', (mq) => {
                   mq.apply((scopes) => scopes.active())
                   mq.orderBy('slot', 'asc')
                 })
+                // ✅ OPSI B: attributes ambil dari attribute_values langsung (NO pivot)
                 .preload('attributes', (attributeLoader) => {
                   attributeLoader
                     .whereNull('attribute_values.deleted_at')
-                    .whereRaw('variant_attributes.deleted_at is null')
-                    .preload('attribute', (q) => q.whereNull('attributes.deleted_at'))
+                    .preload('attribute', (aq) => aq.whereNull('attributes.deleted_at'))
                 })
             })
             .preload('discounts', (query) =>
               query.where('start_date', '<=', dateString).where('end_date', '>=', dateString)
             )
-
-            // ❗️INI BOLEH kamu hapus kalau product.medias memang selalu kosong (product_id NULL)
-            // tapi biarin juga gak masalah, cuma tidak kepakai di FE variant image
             .preload('medias')
-
             .preload('categoryType')
             .preload('brand')
             .preload('persona')
@@ -146,8 +148,11 @@ export default class ProductsController {
         })
       }
 
-      // ✅ FIX 2: bikin field variantItems supaya FE kamu gampang ambil images per variant
       const p = productOnline.product.toJSON()
+
+      const svc = new DiscountPricingService()
+      await svc.attachExtraDiscount([p as any])
+
       const variants = Array.isArray(p?.variants) ? p.variants : []
 
       const variantItems = variants.map((v: any) => {
@@ -160,7 +165,7 @@ export default class ProductsController {
           price: Number(v.price || 0),
           stock: Number(v.stock || 0),
           images,
-          image: images[0] || p.image, // thumbnail utama variant
+          image: images[0] || p.image,
         }
       })
 
@@ -168,7 +173,7 @@ export default class ProductsController {
         message: 'success',
         serve: {
           ...p,
-          variantItems, // ✅ FE kamu pakai ini untuk gambar
+          variantItems,
         },
       })
     } catch (error: any) {
