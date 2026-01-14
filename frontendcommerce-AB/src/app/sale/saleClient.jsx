@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   Button,
@@ -12,13 +12,13 @@ import {
   RegularCard,
   TxtField,
   Filter,
+  FlashSaleCard,
   RegularCardSkeleton,
 } from "@/components";
 
 import { getFlashSale, getSale } from "@/services/api/promo.services";
 import { normalizeProduct } from "@/services/api/normalizers/product";
 import { getBrands } from "@/services/api/brands.services";
-import { FlashSaleCarousel } from "@/components/carousel/flashSaleCarousel";
 
 function normalizeSaleProduct(raw) {
   const base = normalizeProduct(raw);
@@ -45,6 +45,9 @@ export default function SaleClient() {
   const [productRows, setProductRows] = useState([]);
   const [brands, setBrands] = useState([]);
   const [search, setSearch] = useState("");
+  const [visibleCount, setVisibleCount] = useState(12);
+  const loadMoreRef = useRef(null);
+  const LOAD_STEP = 12;
 
   useEffect(() => {
     let alive = true;
@@ -127,6 +130,21 @@ export default function SaleClient() {
     return rows;
   }, [products, search]);
 
+  const visibleFiltered = useMemo(() => {
+    return filtered.slice(0, visibleCount);
+  }, [filtered, visibleCount]);
+
+  const flashSaleItems = useMemo(() => {
+    if (Array.isArray(flashSale)) return flashSale;
+    const source =
+      flashSale?.products ??
+      flashSale?.items ??
+      flashSale?.list ??
+      flashSale?.data ??
+      [];
+    return Array.isArray(source) ? source : [];
+  }, [flashSale]);
+
   const skeleton_card = 24;
   const totalProducts = products.length;
   const totalBrands = brands.length;
@@ -136,6 +154,30 @@ export default function SaleClient() {
     : totalProducts === 0
     ? "Belum ada sale aktif saat ini."
     : `${visibleProducts} produk siap diburu.`;
+
+  useEffect(() => {
+    setVisibleCount(LOAD_STEP);
+  }, [search, products]);
+
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    if (!target || loading) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry?.isIntersecting) {
+          setVisibleCount((prev) =>
+            Math.min(prev + LOAD_STEP, filtered.length)
+          );
+        }
+      },
+      { rootMargin: "200px" }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [filtered.length, loading]);
 
   return (
     <div className="w-full">
@@ -227,7 +269,46 @@ export default function SaleClient() {
           </div>
         </div>
       </section>
+      <section className="mx-auto w-full max-w-7xl px-6 mt-10">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-1 flex-col gap-3 sm:flex-row">
+            <TxtField
+              placeholder="Cari produk sale..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              iconLeftName="MagnifyingGlass"
+              className="w-full"
+            />
 
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button
+                  variant="tertiary"
+                  className="w-fit px-6 sm:w-auto lg:hidden"
+                >
+                  Filter
+                </Button>
+              </DialogTrigger>
+
+              <DialogContent className="flex max-h-[80vh] w-full flex-col overflow-y-auto overflow-x-hidden custom-scrollbar sm:max-w-100">
+                <DialogHeader>
+                  <DialogTitle>Filter</DialogTitle>
+                </DialogHeader>
+                <Filter
+                  brands={brands}
+                  showBrandFilter={true}
+                  className="w-full pb-10"
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-2xl bg-secondary-50 px-4 py-3 text-xs font-semibold text-primary-700 sm:justify-end">
+            <span>Total produk: {loading ? "-" : totalProducts}</span>
+            <span className="hidden sm:inline">|</span>
+            <span>Terlihat: {loading ? "-" : visibleProducts}</span>
+          </div>
+        </div>
+      </section>
       {flashSale ? (
         <section className="mx-auto w-full max-w-7xl px-6 py-10">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -247,65 +328,37 @@ export default function SaleClient() {
             </div>
           </div>
           <div className="mt-6">
-            <FlashSaleCarousel />
+            {loading ? (
+              <div className="grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-4">
+                {Array.from({ length: 10 }).map((_, idx) => (
+                  <RegularCardSkeleton key={`flash-skel-${idx}`} />
+                ))}
+              </div>
+            ) : flashSaleItems.length > 0 ? (
+              <div className="grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-4">
+                {flashSaleItems.slice(0, 10).map((item, idx) => (
+                  <div
+                    key={item?.id ?? item?.slug ?? `flash-${idx}`}
+                    className="relative overflow-hidden rounded-2xl"
+                  >
+                    <span className="pointer-events-none absolute top-0 left-0 z-10 flex h-[26px] items-center rounded-br-lg bg-[#AE2D68] px-2 text-[10px] font-bold uppercase tracking-wide text-[#F6F6F6]">
+                      Flash Sale
+                    </span>
+                    <FlashSaleCard item={item} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-secondary-100 bg-white/80 px-6 py-4 text-sm text-neutral-500">
+                Belum ada flash sale aktif.
+              </div>
+            )}
           </div>
         </section>
       ) : null}
 
       <section className="mx-auto flex w-full max-w-7xl flex-col justify-between lg:flex-row">
-        <div className="hidden w-75 lg:sticky lg:top-24 lg:block lg:h-fit lg:pl-10 lg:pr-2 lg:py-6">
-          <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-              Filter
-            </p>
-            <Filter
-              brands={brands}
-              showBrandFilter={true}
-              className="w-full py-6"
-            />
-          </div>
-        </div>
-
         <div className="flex-1 p-6">
-          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-1 flex-col gap-3 sm:flex-row">
-              <TxtField
-                placeholder="Cari produk sale..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                iconLeftName="MagnifyingGlass"
-                className="w-full"
-              />
-
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="tertiary"
-                    className="w-fit px-6 sm:w-auto lg:hidden"
-                  >
-                    Filter
-                  </Button>
-                </DialogTrigger>
-
-                <DialogContent className="flex max-h-[80vh] w-full flex-col overflow-y-auto overflow-x-hidden custom-scrollbar sm:max-w-100">
-                  <DialogHeader>
-                    <DialogTitle>Filter</DialogTitle>
-                  </DialogHeader>
-                  <Filter
-                    brands={brands}
-                    showBrandFilter={true}
-                    className="w-full pb-10"
-                  />
-                </DialogContent>
-              </Dialog>
-            </div>
-            <div className="flex items-center justify-between gap-3 rounded-2xl bg-secondary-50 px-4 py-3 text-xs font-semibold text-primary-700 sm:justify-end">
-              <span>Total produk: {loading ? "-" : totalProducts}</span>
-              <span className="hidden sm:inline">|</span>
-              <span>Terlihat: {loading ? "-" : visibleProducts}</span>
-            </div>
-          </div>
-
           <div
             id="sale-products"
             className="scroll-mt-28 grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-4"
@@ -319,7 +372,7 @@ export default function SaleClient() {
                 Belum ada sale yang aktif.
               </p>
             ) : filtered.length > 0 ? (
-              filtered.map((product, idx) => (
+              visibleFiltered.map((product, idx) => (
                 <RegularCard
                   key={`${product.id ?? "product"}-${
                     product.slug ?? product.sku ?? idx
@@ -333,6 +386,9 @@ export default function SaleClient() {
               </p>
             )}
           </div>
+          {!loading && filtered.length > visibleCount ? (
+            <div ref={loadMoreRef} className="h-10 w-full" />
+          ) : null}
         </div>
       </section>
     </div>
