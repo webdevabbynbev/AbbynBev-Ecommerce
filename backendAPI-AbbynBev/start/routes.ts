@@ -11,8 +11,6 @@ import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
 import { Role } from '#enums/role'
 
-import DiscountOptionsController from '#controllers/cms/promotions/discount_options_controller'
-
 // =========================
 // CMS / ADMIN CONTROLLERS (DECLARE ONCE ONLY)
 // =========================
@@ -126,9 +124,10 @@ const FeRamadanSpinController = () =>
 const OrdersController = () => import('#controllers/frontend/orders/orders_controller')
 const FeDiscountsController = () => import('#controllers/frontend/discounts/discounts_controller')
 
+// CMS discounts
 const CmsDiscountsController = () => import('#controllers/cms/promotions/discounts_controller')
-const CmsDiscountOptionsController = () => import('#controllers/cms/promotions/discount_options_controller')
-
+const CmsDiscountOptionsController = () =>
+  import('#controllers/cms/promotions/discount_options_controller')
 
 // =========================
 // POS CONTROLLERS
@@ -165,14 +164,6 @@ router
     router.post('/auth/login-admin', [AuthSessionsController, 'loginAdmin'])
     router.post('/auth/login-cashier', [AuthSessionsController, 'loginCashier'])
     router.post('/auth/forgot', [AuthPasswordResetController, 'requestForgotPassword'])
-    
-router.group(() => {
-  router.get('/discount-options/brands', [DiscountOptionsController, 'brands'])
-  router.get('/discount-options/products', [DiscountOptionsController, 'products'])
-  router.get('/discount-options/variants', [DiscountOptionsController, 'variants'])
-})
-.prefix('/api/v1/admin')
-// .middleware(['auth:adm
 
     router
       .get('/auth/forgot-password/:email/verify', [
@@ -180,6 +171,7 @@ router.group(() => {
         'verifyForgotPassword',
       ])
       .as('verifyForgotPassword')
+
     router.post('/auth/reset-password', [AuthPasswordResetController, 'resetPassword'])
     router.post('/upload', [UploadsController, 'upload'])
 
@@ -189,6 +181,7 @@ router.group(() => {
     router
       .group(() => {
         router.get('/ramadan-participants', [CmsRamadanParticipantsController, 'index'])
+
         router
           .group(() => {
             router.get('', [UsersController, 'getAdmin'])
@@ -202,6 +195,7 @@ router.group(() => {
           .prefix('/users')
 
         router.get('/customers', [CustomersController, 'getCustomers'])
+
         router
           .group(() => {
             router.get('', [CategoryTypesController, 'get'])
@@ -290,6 +284,32 @@ router.group(() => {
           })
           .use(middleware.roleAdmin())
           .prefix('/voucher')
+
+        // ✅ DISCOUNTS (CMS) — dipindah ke dalam /api/v1/admin
+        router
+          .group(() => {
+            router.get('', [CmsDiscountsController, 'get'])
+            router.post('', [CmsDiscountsController, 'create'])
+
+            // penting: status dulu, biar gak ketabrak :id
+            router.put('/status', [CmsDiscountsController, 'updateStatus'])
+
+            router.get('/:id', [CmsDiscountsController, 'show'])
+            router.put('/:id', [CmsDiscountsController, 'update'])
+            router.delete('/:id', [CmsDiscountsController, 'delete'])
+          })
+          .use(middleware.roleAdmin())
+          .prefix('/discounts')
+
+        // ✅ DISCOUNT OPTIONS (CMS) — dipindah ke dalam /api/v1/admin
+        router
+          .group(() => {
+            router.get('/brands', [CmsDiscountOptionsController, 'brands'])
+            router.get('/products', [CmsDiscountOptionsController, 'products'])
+            router.get('/variants', [CmsDiscountOptionsController, 'variants'])
+          })
+          .use(middleware.roleAdmin())
+          .prefix('/discount-options')
 
         router
           .group(() => {
@@ -463,6 +483,7 @@ router.group(() => {
             router.delete('/:id', [CmsRamadanRecommendationsController, 'destroy'])
           })
           .prefix('/ramadan-recommendations')
+
         router
           .group(() => {
             router.get('/', [CmsRamadanSpinPrizesController, 'index'])
@@ -478,10 +499,7 @@ router.group(() => {
           'getTotalRegisterUserByPeriod',
         ])
 
-        router.get('/total-transaction', [
-          CmsDashboardTransactionsController,
-          'getTotalTransaction',
-        ])
+        router.get('/total-transaction', [CmsDashboardTransactionsController, 'getTotalTransaction'])
         router.get('/total-transaction-month', [
           CmsDashboardTransactionsController,
           'getTotalTransactionByMonth',
@@ -558,7 +576,6 @@ router.group(() => {
         router.post('/vouchers/validate', [FeVoucherController, 'validate'])
         router.post('/discounts/validate', [FeDiscountsController, 'validate'])
 
-
         router.get('/vouchers/available', [FeVoucherController, 'available'])
         router.get('/vouchers/my', [FeVoucherController, 'my'])
         router.post('/vouchers/:id/claim', [FeVoucherController, 'claim'])
@@ -627,10 +644,7 @@ router.group(() => {
 
     router.put('/transaction/status', [FeTransactionEcommerceController, 'updateWaybillStatus'])
     router.post('/transaction/pickup', [FeTransactionEcommerceController, 'requestPickup'])
-    router.post('/transaction/retrieve', [
-      FeTransactionEcommerceController,
-      'getByTransactionNumber',
-    ])
+    router.post('/transaction/retrieve', [FeTransactionEcommerceController, 'getByTransactionNumber'])
     router.post('/midtrans/callback', [FeTransactionEcommerceController, 'webhookMidtrans'])
 
     // =========================
@@ -660,27 +674,3 @@ router.group(() => {
       .use(middleware.roleCashier())
   })
   .prefix('/api/v1')
-
-  router
-  .group(() => {
-    router.get('', [CmsDiscountsController, 'get'])
-    router.post('', [CmsDiscountsController, 'create'])
-
-    // penting: status dulu, biar gak ketabrak :id
-    router.put('/status', [CmsDiscountsController, 'updateStatus'])
-
-    router.get('/:id', [CmsDiscountsController, 'show'])
-    router.put('/:id', [CmsDiscountsController, 'update'])
-    router.delete('/:id', [CmsDiscountsController, 'delete'])
-  })
-  .use(middleware.roleAdmin())
-  .prefix('/discounts')
-
-router
-  .group(() => {
-    router.get('/brands', [CmsDiscountOptionsController, 'brands'])
-    router.get('/products', [CmsDiscountOptionsController, 'products'])
-    router.get('/variants', [CmsDiscountOptionsController, 'variants'])
-  })
-  .use(middleware.roleAdmin())
-  .prefix('/discount-options')
