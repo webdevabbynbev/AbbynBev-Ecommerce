@@ -1,80 +1,66 @@
 import { DateTime } from 'luxon'
-import {
-  BaseModel,
-  column,
-  belongsTo,
-  manyToMany,
-  scope,
-} from '@adonisjs/lucid/orm'
-import type {
-  BelongsTo,
-  ManyToMany,
-} from '@adonisjs/lucid/types/relations'
+import { BaseModel, belongsTo, column, hasMany, scope } from '@adonisjs/lucid/orm'
+import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 
-import Attribute from './attribute.js'
-import ProductVariant from './product_variant.js'
+import Product from './product.js'
+import ProductMedia from './product_media.js'
+import AttributeValue from './attribute_value.js'
 
-export default class AttributeValue extends BaseModel {
+export default class ProductVariant extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
   @column()
-  declare value: string
+  declare sku: string
 
-  @column({ columnName: 'attribute_id' })
-  declare attributeId: number
+  @column()
+  declare barcode: string
 
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
+  @column()
+  declare price: string
 
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
+  @column()
+  declare stock: number
+
+  @column({ columnName: 'product_id' })
+  declare productId: number | null
+
+  @column()
+  declare width: number | null
+
+  @column()
+  declare height: number | null
+
+  @column()
+  declare length: number | null
 
   @column.dateTime({ columnName: 'deleted_at' })
   declare deletedAt: DateTime | null
 
+  @column.dateTime({ autoCreate: true, columnName: 'created_at' })
+  declare createdAt: DateTime
+
+  @column.dateTime({ autoCreate: true, autoUpdate: true, columnName: 'updated_at' })
+  declare updatedAt: DateTime
+
   // =========================
   // RELATIONS
   // =========================
+  @belongsTo(() => Product, { foreignKey: 'productId' })
+  declare product: BelongsTo<typeof Product>
 
-  @belongsTo(() => Attribute, { foreignKey: 'attributeId' })
-  declare attribute: BelongsTo<typeof Attribute>
+  // NOTE: ini jalan kalau tabel product_medias punya kolom variant_id
+  @hasMany(() => ProductMedia, { foreignKey: 'variantId' })
+  declare medias: HasMany<typeof ProductMedia>
 
-  /**
-   * attribute_values ↔ product_variants
-   * via pivot product_variant_attributes
-   */
-  @manyToMany(() => ProductVariant, {
-    pivotTable: 'product_variant_attributes',
-    pivotForeignKey: 'attribute_value_id',
-    pivotRelatedForeignKey: 'product_variant_id',
-    pivotTimestamps: true,
-  })
-  declare productVariants: ManyToMany<typeof ProductVariant>
+  // ✅ OPSI B: attribute_values nempel langsung ke variant pakai product_variant_id
+  @hasMany(() => AttributeValue, { foreignKey: 'productVariantId' })
+  declare attributes: HasMany<typeof AttributeValue>
 
   // =========================
   // SCOPES
   // =========================
-
   public static active = scope((query) => {
-    query.whereNull('deleted_at')
+    query.whereNull('product_variants.deleted_at')
   })
-
-  public static trashed = scope((query) => {
-    query.whereNotNull('deleted_at')
-  })
-
-  // =========================
-  // HELPERS
-  // =========================
-
-  public async softDelete() {
-    this.deletedAt = DateTime.now()
-    await this.save()
-  }
-
-  public async restore() {
-    this.deletedAt = null
-    await this.save()
-  }
 }

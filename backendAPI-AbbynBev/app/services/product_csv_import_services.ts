@@ -1,4 +1,4 @@
-// app/Services/ProductCsvImportService.ts
+// app/services/product_csv_import_services.ts
 import Database from '@adonisjs/lucid/services/db'
 import csv from 'csv-parser'
 import fs from 'fs'
@@ -21,6 +21,26 @@ import Attribute from '#models/attribute'
 import AttributeValue from '#models/attribute_value'
 
 import { validateProductCsvRow } from '#validators/product_csv.validator'
+
+type ImportError = { row: number | string; name?: string; message: string }
+
+type PivotMeta = {
+  // product_tags
+  hasProductTagsTable: boolean
+  productTagsTagCol: string | null
+  productTagsHasStartDate: boolean
+  productTagsHasEndDate: boolean
+  productTagsHasCreatedAt: boolean
+  productTagsHasUpdatedAt: boolean
+  productTagsHasDeletedAt: boolean
+
+  // product_concerns
+  hasProductConcernsTable: boolean
+  productConcernsOptionCol: string | null
+  productConcernsHasCreatedAt: boolean
+  productConcernsHasUpdatedAt: boolean
+  productConcernsHasDeletedAt: boolean
+}
 
 export default class ProductCsvImportService {
   private slugify(text: string): string {
@@ -55,7 +75,10 @@ export default class ProductCsvImportService {
     const s = String(v || '').trim()
     if (!s) return []
     const sep = s.includes('|') ? '|' : s.includes(';') ? ';' : ','
-    return s.split(sep).map((x) => x.trim()).filter(Boolean)
+    return s
+      .split(sep)
+      .map((x) => x.trim())
+      .filter(Boolean)
   }
 
   private mapStatus(v: string): string {
@@ -82,6 +105,73 @@ export default class ProductCsvImportService {
     }
   }
 
+  private async resolvePivotMeta(): Promise<PivotMeta> {
+    const schema = (Database as any).connection().schema as any
+
+    // ===== product_tags =====
+    const hasProductTagsTable = await schema.hasTable('product_tags')
+    let productTagsTagCol: string | null = null
+    let productTagsHasStartDate = false
+    let productTagsHasEndDate = false
+    let productTagsHasCreatedAt = false
+    let productTagsHasUpdatedAt = false
+    let productTagsHasDeletedAt = false
+
+    if (hasProductTagsTable) {
+      if (await schema.hasColumn('product_tags', 'tag_id')) productTagsTagCol = 'tag_id'
+      else if (await schema.hasColumn('product_tags', 'tags_id')) productTagsTagCol = 'tags_id'
+      else productTagsTagCol = null
+
+      productTagsHasStartDate = await schema.hasColumn('product_tags', 'start_date')
+      productTagsHasEndDate = await schema.hasColumn('product_tags', 'end_date')
+      productTagsHasCreatedAt = await schema.hasColumn('product_tags', 'created_at')
+      productTagsHasUpdatedAt = await schema.hasColumn('product_tags', 'updated_at')
+      productTagsHasDeletedAt = await schema.hasColumn('product_tags', 'deleted_at')
+    }
+
+    // ===== product_concerns =====
+    const hasProductConcernsTable = await schema.hasTable('product_concerns')
+    let productConcernsOptionCol: string | null = null
+    let productConcernsHasCreatedAt = false
+    let productConcernsHasUpdatedAt = false
+    let productConcernsHasDeletedAt = false
+
+    if (hasProductConcernsTable) {
+      const candidates = [
+        'concern_option_id',
+        'concern_options_id',
+        'concern_option_ids',
+        'concern_options_ids',
+      ]
+      for (const c of candidates) {
+        if (await schema.hasColumn('product_concerns', c)) {
+          productConcernsOptionCol = c
+          break
+        }
+      }
+
+      productConcernsHasCreatedAt = await schema.hasColumn('product_concerns', 'created_at')
+      productConcernsHasUpdatedAt = await schema.hasColumn('product_concerns', 'updated_at')
+      productConcernsHasDeletedAt = await schema.hasColumn('product_concerns', 'deleted_at')
+    }
+
+    return {
+      hasProductTagsTable,
+      productTagsTagCol,
+      productTagsHasStartDate,
+      productTagsHasEndDate,
+      productTagsHasCreatedAt,
+      productTagsHasUpdatedAt,
+      productTagsHasDeletedAt,
+
+      hasProductConcernsTable,
+      productConcernsOptionCol,
+      productConcernsHasCreatedAt,
+      productConcernsHasUpdatedAt,
+      productConcernsHasDeletedAt,
+    }
+  }
+
   private async getOrCreateBrandId(name: string, trx: any, cache: Map<string, number>): Promise<number | undefined> {
     const n = String(name || '').trim()
     if (!n) return undefined
@@ -97,11 +187,7 @@ export default class ProductCsvImportService {
     const baseSlug = this.slugify(n) || 'brand'
     const slug = await this.ensureUniqueSlug('brands', baseSlug, trx)
 
-    const created = await Brand.create(
-      { name: n, slug, isActive: 1 as any } as any,
-      { client: trx }
-    )
-
+    const created = await Brand.create({ name: n, slug, isActive: 1 as any } as any, { client: trx })
     cache.set(key, created.id)
     return created.id
   }
@@ -137,10 +223,7 @@ export default class ProductCsvImportService {
       const baseSlug = this.slugify(nm) || 'category'
       const slug = await this.ensureUniqueSlug('category_types', baseSlug, trx)
 
-      node = await CategoryType.create(
-        { name: nm, slug, parentId: parentId ?? null, level } as any,
-        { client: trx }
-      )
+      node = await CategoryType.create({ name: nm, slug, parentId: parentId ?? null, level } as any, { client: trx })
       return node
     }
 
@@ -224,10 +307,7 @@ export default class ProductCsvImportService {
       if (!existingOpt) {
         const baseSlug = this.slugify(opt) || 'concern-option'
         const slug = await this.ensureUniqueSlug('concern_options', baseSlug, trx)
-        existingOpt = await ConcernOption.create(
-          { concernId, name: opt, slug } as any,
-          { client: trx }
-        )
+        existingOpt = await ConcernOption.create({ concernId, name: opt, slug } as any, { client: trx })
       }
 
       optionCache.set(oKey, existingOpt.id)
@@ -237,42 +317,27 @@ export default class ProductCsvImportService {
     return optionIds
   }
 
-  private async getOrCreateVariantNameAttributeValue(
-    variantName: string,
-    trx: any,
-    attrCache: Map<string, number>,
-    valCache: Map<string, number>
-  ): Promise<number | null> {
-    const name = String(variantName || '').trim()
-    if (!name) return null
-
+  private async ensureVarianAttributeId(trx: any, cache: Map<string, number>): Promise<number> {
     const attrName = 'Varian'
-    let attrId = attrCache.get(attrName)
+    let attrId = cache.get(attrName)
+    if (attrId) return attrId
 
-    if (!attrId) {
-      const a = await Attribute.query({ client: trx }).where('name', attrName).first()
-      if (a) attrId = a.id
-      else {
-        const created = await Attribute.create({ name: attrName } as any, { client: trx })
-        attrId = created.id
-      }
-      attrCache.set(attrName, attrId)
+    const a = await Attribute.query({ client: trx }).where('name', attrName).first()
+    if (a) {
+      cache.set(attrName, a.id)
+      return a.id
     }
 
-    const key = `${attrId}:${name.toLowerCase()}`
-    if (valCache.has(key)) return valCache.get(key)!
-
-    let v = await AttributeValue.query({ client: trx })
-      .where('attribute_id', attrId)
-      .where('value', name)
-      .first()
-
-    if (!v) {
-      v = await AttributeValue.create({ attributeId: attrId, value: name } as any, { client: trx })
+    // race-safe
+    try {
+      const created = await Attribute.create({ name: attrName } as any, { client: trx })
+      cache.set(attrName, created.id)
+      return created.id
+    } catch {
+      const again = await Attribute.query({ client: trx }).where('name', attrName).firstOrFail()
+      cache.set(attrName, again.id)
+      return again.id
     }
-
-    valCache.set(key, v.id)
-    return v.id
   }
 
   private async readCsv(filePath: string): Promise<{ rows: any[]; separator: string }> {
@@ -282,20 +347,20 @@ export default class ProductCsvImportService {
     const separator = semiCount > commaCount ? ';' : ','
 
     const rows: any[] = []
+
     await new Promise<void>((resolve, reject) => {
       fs.createReadStream(filePath)
         .pipe(
           csv({
             separator,
-            mapHeaders: ({ header }) =>
-              String(header || '').replace(/^\uFEFF/, '').trim().toLowerCase(),
+            mapHeaders: ({ header }) => String(header || '').replace(/^\uFEFF/, '').trim().toLowerCase(),
             mapValues: ({ value }) => this.normalizeValue(value),
           })
         )
         .on('data', (row) => rows.push(row))
         .on('end', () => resolve())
         .on('error', (err) => reject(err))
-      })
+    })
 
     return { rows, separator }
   }
@@ -304,7 +369,7 @@ export default class ProductCsvImportService {
     return keys.includes('nama produk') && keys.includes('nama varian') && keys.includes('sku master')
   }
 
-  private async importTemplate(rows: any[], errors: any[]): Promise<{ validRows: any[] }> {
+  private async importTemplate(rows: any[], errors: ImportError[]): Promise<{ validRows: any[] }> {
     const validRows: any[] = []
 
     rows.forEach((row, index) => {
@@ -338,9 +403,7 @@ export default class ProductCsvImportService {
         { client: trx }
       )
 
-      const online = await ProductOnline.query({ client: trx })
-        .where('product_id', product.id)
-        .first()
+      const online = await ProductOnline.query({ client: trx }).where('product_id', product.id).first()
       if (!online) {
         await ProductOnline.create(
           { productId: product.id, isActive: true, publishedAt: DateTime.now() as any } as any,
@@ -350,7 +413,10 @@ export default class ProductCsvImportService {
     }
   }
 
-  private async importMaster(rows: any[], errors: any[]): Promise<{
+  private async importMaster(
+    rows: any[],
+    errors: ImportError[]
+  ): Promise<{
     groups: Map<string, any>
     stats: {
       productCreated: number
@@ -376,7 +442,7 @@ export default class ProductCsvImportService {
     }
 
     rows.forEach((raw, i) => {
-      const rowNo = i + 2
+      const rowNo = i + 2 // header = line 1
 
       const brandName = this.pickValue(raw, ['brand'])
       const productName = this.pickValue(raw, ['nama produk'])
@@ -413,21 +479,23 @@ export default class ProductCsvImportService {
         return
       }
 
-      const g = groups.get(key) || {
-        productName,
-        masterSku,
-        brandName,
-        parentCat,
-        sub1,
-        sub2,
-        statusProduk,
-        tags,
-        concern,
-        subConcern,
-        photos: [],
-        basePrice: basePrice || price || 0,
-        variants: [],
-      }
+      const g =
+        groups.get(key) ||
+        ({
+          productName,
+          masterSku,
+          brandName,
+          parentCat,
+          sub1,
+          sub2,
+          statusProduk,
+          tags,
+          concern,
+          subConcern,
+          photos: [],
+          basePrice: basePrice || price || 0,
+          variants: [],
+        } as any)
 
       if (!g.basePrice && (basePrice || price)) g.basePrice = basePrice || price
 
@@ -452,72 +520,259 @@ export default class ProductCsvImportService {
     return { groups, stats }
   }
 
-  private async processMaster(groups: Map<string, any>, stats: any, trx: any, errors: any[]): Promise<void> {
+  // ============================================================
+  // ✅ PROCESS MASTER: Product + Online + Media + Variants + AttributeValues + SYNC Tags & Concerns
+  // ============================================================
+  private async processMaster(groups: Map<string, any>, stats: any, trx: any, errors: ImportError[]): Promise<void> {
+    const pivot = await this.resolvePivotMeta()
+
     const brandCache = new Map<string, number>()
     const categoryCache = new Map<string, number>()
     const tagCache = new Map<string, number>()
     const concernCache = new Map<string, number>()
     const concernOptionCache = new Map<string, number>()
     const attrCache = new Map<string, number>()
-    const attrValCache = new Map<string, number>()
 
-    const usedSku = new Set<string>()
-    const usedBarcode = new Set<string>()
+    const nowSql = DateTime.now().toSQL()
+
+    const varianAttrId = await this.ensureVarianAttributeId(trx, attrCache)
 
     for (const g of groups.values()) {
-      const categoryTypeId = await this.getOrCreateCategoryId(g.parentCat, g.sub1, g.sub2, trx, categoryCache)
-      const brandId = await this.getOrCreateBrandId(g.brandName, trx, brandCache)
+      try {
+        const categoryTypeId = await this.getOrCreateCategoryId(g.parentCat, g.sub1, g.sub2, trx, categoryCache)
+        const brandId = await this.getOrCreateBrandId(g.brandName, trx, brandCache)
 
-      if (!categoryTypeId) {
-        errors.push({ row: '-', name: g.productName, message: 'Gagal membuat/menemukan kategori' })
-        continue
-      }
+        if (!categoryTypeId) {
+          errors.push({ row: '-', name: g.productName, message: 'Gagal membuat/menemukan kategori' })
+          continue
+        }
 
-      let product: any = null
-      if (g.masterSku) {
-        product = await Product.query({ client: trx }).where('master_sku', g.masterSku).first()
-      }
+        // =========================
+        // 1) UPSERT PRODUCT (master_sku utama, fallback name)
+        // =========================
+        let product: any = null
+        if (g.masterSku) {
+          product = await Product.query({ client: trx }).where('master_sku', g.masterSku).first()
+        }
+        if (!product) {
+          product = await Product.query({ client: trx }).where('name', g.productName).first()
+        }
 
-      if (product) {
-        product.name = g.productName
-        product.basePrice = g.basePrice || 0
-        product.categoryTypeId = Number(categoryTypeId)
-        if (brandId) product.brandId = brandId
-        product.status = this.mapStatus(g.statusProduk)
-        await product.save()
-        stats.productUpdated += 1
-      } else {
-        const baseSlug = this.slugify(g.productName) || 'product'
-        const slug = await this.ensureUniqueSlug('products', baseSlug, trx)
+        if (product) {
+          product.name = g.productName
+          product.basePrice = g.basePrice || 0
+          product.categoryTypeId = Number(categoryTypeId)
+          if (brandId) product.brandId = brandId
+          product.status = this.mapStatus(g.statusProduk) as any
+          await product.save()
+          stats.productUpdated += 1
+        } else {
+          const baseSlug = this.slugify(g.productName) || 'product'
+          const slug = await this.ensureUniqueSlug('products', baseSlug, trx)
 
-        product = await Product.create(
-          {
-            name: g.productName,
-            slug,
-            masterSku: g.masterSku || null,
-            description: null,
-            basePrice: g.basePrice || 0,
-            weight: 0,
-            isFlashSale: false,
-            status: this.mapStatus(g.statusProduk),
-            categoryTypeId: Number(categoryTypeId),
-            brandId: brandId,
-          } as any,
-          { client: trx }
-        )
-        stats.productCreated += 1
-      }
+          product = await Product.create(
+            {
+              name: g.productName,
+              slug,
+              masterSku: g.masterSku || null,
+              description: null,
+              basePrice: g.basePrice || 0,
+              weight: 0,
+              isFlashSale: false,
+              status: this.mapStatus(g.statusProduk),
+              categoryTypeId: Number(categoryTypeId),
+              brandId: brandId,
+            } as any,
+            { client: trx }
+          )
+          stats.productCreated += 1
+        }
 
-      const existingOnline = await ProductOnline.query({ client: trx })
- .where('product_id', product.id)
-        .first()
+        // =========================
+        // 2) ENSURE PRODUCT ONLINE
+        // =========================
+        const existingOnline = await ProductOnline.query({ client: trx }).where('product_id', product.id).first()
+        if (!existingOnline) {
+          await ProductOnline.create(
+            { productId: product.id, isActive: true, publishedAt: DateTime.now() as any } as any,
+            { client: trx }
+          )
+          stats.onlineCreated += 1
+        }
 
-      if (!existingOnline) {
-        await ProductOnline.create(
-          { productId: product.id, isActive: true, publishedAt: DateTime.now() as any } as any,
-          { client: trx }
-        )
-        stats.onlineCreated += 1
+        // =========================
+        // 3) PRODUCT MEDIA (skip duplikat)
+        // =========================
+        for (const url of g.photos || []) {
+          const u = String(url || '').trim()
+          if (!u) continue
+
+          const exist = await ProductMedia.query({ client: trx })
+            .where('product_id', product.id)
+            .where('url', u)
+            .first()
+
+          if (!exist) {
+            await ProductMedia.create(
+              {
+                productId: product.id,
+                url: u,
+                altText: g.productName || null,
+                type: 1 as any, // ✅ integer di DB kamu
+              } as any,
+              { client: trx }
+            )
+            stats.mediaCreated += 1
+          }
+        }
+
+        // =========================
+        // 4) TAGS (SYNC sesuai CSV)
+        // =========================
+        if (pivot.hasProductTagsTable && pivot.productTagsTagCol) {
+          await trx.from('product_tags').where('product_id', product.id).del()
+
+          const tagIds = await this.getOrCreateTagIds(g.tags || '', trx, tagCache)
+          const uniqTagIds = Array.from(new Set(tagIds))
+
+          for (const tagId of uniqTagIds) {
+            const payload: any = {
+              product_id: product.id,
+              [pivot.productTagsTagCol]: tagId,
+            }
+            if (pivot.productTagsHasStartDate) payload.start_date = null
+            if (pivot.productTagsHasEndDate) payload.end_date = null
+            if (pivot.productTagsHasDeletedAt) payload.deleted_at = null
+            if (pivot.productTagsHasCreatedAt) payload.created_at = nowSql
+            if (pivot.productTagsHasUpdatedAt) payload.updated_at = nowSql
+
+            await trx.from('product_tags').insert(payload)
+            stats.tagAttached += 1
+          }
+        }
+
+        // =========================
+        // 5) CONCERNS (SYNC sesuai CSV)
+        // =========================
+        if (pivot.hasProductConcernsTable && pivot.productConcernsOptionCol) {
+          await trx.from('product_concerns').where('product_id', product.id).del()
+
+          // support banyak concern dipisah (| ; ,)
+          const concernNames = this.splitList(g.concern || '')
+          const uniqConcernNames = Array.from(new Set(concernNames.map((x) => x.trim()).filter(Boolean)))
+
+          for (const cName of uniqConcernNames) {
+            const optionIds = await this.getOrCreateConcernOptions(
+              cName,
+              g.subConcern || '',
+              trx,
+              concernCache,
+              concernOptionCache
+            )
+            const uniqOptIds = Array.from(new Set(optionIds))
+
+            for (const optId of uniqOptIds) {
+              const payload: any = {
+                product_id: product.id,
+                [pivot.productConcernsOptionCol]: optId,
+              }
+              if (pivot.productConcernsHasDeletedAt) payload.deleted_at = null
+              if (pivot.productConcernsHasCreatedAt) payload.created_at = nowSql
+              if (pivot.productConcernsHasUpdatedAt) payload.updated_at = nowSql
+
+              await trx.from('product_concerns').insert(payload)
+              stats.concernAttached += 1
+            }
+          }
+        }
+
+        // =========================
+        // 6) VARIANTS + AttributeValue (opsi B, update by barcode)
+        // =========================
+        // dedupe by barcode (SKU Varian 2) => last row wins
+        const byBarcode = new Map<string, any>()
+        for (const v of g.variants || []) {
+          const b = String(v.sku2 || '').trim()
+          if (!b) {
+            errors.push({ row: v.__row ?? '-', name: g.productName, message: 'SKU Varian 2 (barcode) kosong' })
+            continue
+          }
+          byBarcode.set(b, v)
+        }
+
+        for (const [barcode, v] of byBarcode.entries()) {
+          const sku = String(v.sku1 || '').trim() || barcode
+          const stock = Number(v.stock) || 0
+          const priceNum = Number(v.price || v.basePrice || g.basePrice || 0)
+          const price = String(priceNum)
+          const variantName = String(v.variantName || '').trim() || 'Default'
+
+          // upsert variant
+          let variant = await ProductVariant.query({ client: trx }).where('barcode', barcode).first()
+          if (!variant && sku) variant = await ProductVariant.query({ client: trx }).where('sku', sku).first()
+
+          if (variant) {
+            // NOTE: ini "update & re-assign" jika barcode pernah ada di produk lain (biar row gak ketinggalan)
+            variant.productId = product.id
+            variant.sku = sku
+            variant.barcode = barcode
+            variant.price = price
+            variant.stock = stock
+            await variant.save()
+          } else {
+            variant = await ProductVariant.create(
+              { productId: product.id, sku, barcode, price, stock } as any,
+              { client: trx }
+            )
+            stats.variantCreated += 1
+          }
+
+          // foto variant sebagai media (optional)
+          const pv = String(v.photoVariant || '').trim()
+          if (pv) {
+            const existPV = await ProductMedia.query({ client: trx })
+              .where('product_id', product.id)
+              .where('url', pv)
+              .first()
+
+            if (!existPV) {
+              await ProductMedia.create(
+                {
+                  productId: product.id,
+                  url: pv,
+                  altText: `${g.productName} - ${variantName}`,
+                  type: 1 as any,
+                } as any,
+                { client: trx }
+              )
+              stats.mediaCreated += 1
+            }
+          }
+
+          // AttributeValue (Varian) nempel ke variant
+          const existingAV = await AttributeValue.query({ client: trx })
+            .where('attribute_id', varianAttrId)
+            .where('product_variant_id', variant.id)
+            .first()
+
+          if (existingAV) {
+            existingAV.value = variantName
+            existingAV.deletedAt = null
+            await existingAV.save()
+          } else {
+            await AttributeValue.create(
+              { attributeId: varianAttrId, value: variantName, productVariantId: variant.id } as any,
+              { client: trx }
+            )
+            stats.variantAttrAttached += 1
+          }
+        }
+      } catch (e: any) {
+        errors.push({
+          row: '-',
+          name: g?.productName,
+          message: `Group gagal diproses: ${e?.message || 'unknown error'}`,
+        })
       }
     }
   }
@@ -536,7 +791,7 @@ export default class ProductCsvImportService {
       onlineCreated: number
     }
   }> {
-    const errors: Array<{ row: number | string; name?: string; message: string }> = []
+    const errors: ImportError[] = []
     const { rows } = await this.readCsv(filePath)
 
     if (!rows.length) {
@@ -547,6 +802,7 @@ export default class ProductCsvImportService {
 
     if (isMasterSchema) {
       const { groups, stats } = await this.importMaster(rows, errors)
+
       await Database.transaction(async (trx) => {
         await this.processMaster(groups, stats, trx, errors)
       })
