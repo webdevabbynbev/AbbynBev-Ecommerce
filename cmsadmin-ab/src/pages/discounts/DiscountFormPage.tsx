@@ -44,44 +44,122 @@ export default function DiscountFormPage({ mode }: Props) {
   const fromState = (location.state as any) || null;
 
   // options
-  const [categoryOptions, setCategoryOptions] = useState<{ label: string; value: number }[]>([]);
   const [variantOptions, setVariantOptions] = useState<{ label: string; value: number }[]>([]);
   const [customerOptions, setCustomerOptions] = useState<{ label: string; value: number }[]>([]);
+
+  const [brandOptions, setBrandOptions] = useState<{ label: string; value: number }[]>([]);
+  const [productOptions, setProductOptions] = useState<{ label: string; value: number }[]>([]);
+
   const [variantLoading, setVariantLoading] = useState(false);
   const [customerLoading, setCustomerLoading] = useState(false);
 
-  const fetchCategoryTypes = async () => {
-    const resp: any = await http.get("/admin/category-types/list");
-    const list = resp?.data?.serve ?? [];
-    const flat: { label: string; value: number }[] = [];
-    const walk = (nodes: any[], prefix = "") => {
-      for (const n of nodes) {
-        flat.push({ label: `${prefix}${n.name}`, value: Number(n.id) });
-        if (Array.isArray(n.children) && n.children.length) walk(n.children, prefix + "— ");
+  const [brandLoading, setBrandLoading] = useState(false);
+  const [productLoading, setProductLoading] = useState(false);
+
+  // ✅ BRAND OPTIONS
+  const searchBrands = async (keyword: string) => {
+    const q = String(keyword ?? "").trim(); // boleh kosong
+    setBrandLoading(true);
+    try {
+      const resp: any = await http.get(
+        `/admin/discount-options/brands?q=${encodeURIComponent(q)}&page=1&per_page=20`
+      );
+      const rows = resp?.data?.serve?.data ?? [];
+      setBrandOptions(
+        rows.map((b: any) => ({
+          value: Number(b.id),
+          label: `${b.name ?? "Brand"} (id:${b.id})`,
+        }))
+      );
+    } catch (e1: any) {
+      // fallback
+      try {
+        const resp2: any = await http.get(
+          `/admin/brands?q=${encodeURIComponent(q)}&page=1&per_page=20`
+        );
+        const rows2 = resp2?.data?.serve?.data ?? resp2?.data?.serve ?? [];
+        setBrandOptions(
+          rows2.map((b: any) => ({
+            value: Number(b.id),
+            label: `${b.name ?? b.title ?? "Brand"} (id:${b.id})`,
+          }))
+        );
+      } catch (e2: any) {
+        message.error(
+          e2?.response?.data?.message ??
+            e1?.response?.data?.message ??
+            "Gagal ambil brand"
+        );
       }
-    };
-    walk(list);
-    setCategoryOptions(flat);
+    } finally {
+      setBrandLoading(false);
+    }
   };
 
+  // ✅ PRODUCT OPTIONS
+  const searchProducts = async (keyword: string) => {
+    const q = String(keyword ?? "").trim(); // boleh kosong
+    setProductLoading(true);
+    try {
+      const resp: any = await http.get(
+        `/admin/discount-options/products?q=${encodeURIComponent(q)}&page=1&per_page=20`
+      );
+      const rows = resp?.data?.serve?.data ?? [];
+      setProductOptions(
+        rows.map((p: any) => ({
+          value: Number(p.id),
+          label: `${p.name ?? "Produk"} (id:${p.id})`,
+        }))
+      );
+    } catch (e1: any) {
+      // fallback
+      try {
+        const resp2: any = await http.get(
+          `/admin/product?name=${encodeURIComponent(q)}&page=1&per_page=10`
+        );
+        const products = resp2?.data?.serve?.data ?? [];
+        setProductOptions(
+          products.map((p: any) => ({
+            value: Number(p.id),
+            label: `${p.name ?? "Produk"} (id:${p.id})`,
+          }))
+        );
+      } catch (e2: any) {
+        message.error(
+          e2?.response?.data?.message ??
+            e1?.response?.data?.message ??
+            "Gagal ambil produk"
+        );
+      }
+    } finally {
+      setProductLoading(false);
+    }
+  };
+
+  /**
+   * ✅ VARIANT OPTIONS (NEW)
+   * Sekarang "Varian Produk" di CMS = attribute_values.
+   * Endpoint backend return:
+   *   { id, value, attributeName }
+   * id = attribute_value_id (target_type=5)
+   */
   const searchVariants = async (keyword: string) => {
-    if (!keyword || keyword.length < 2) return;
+    const q = String(keyword ?? "").trim(); // boleh kosong
     setVariantLoading(true);
     try {
       const resp: any = await http.get(
-        `/admin/product?name=${encodeURIComponent(keyword)}&page=1&per_page=10`
+        `/admin/discount-options/variants?q=${encodeURIComponent(q)}&page=1&per_page=30`
       );
-      const products = resp?.data?.serve?.data ?? [];
-      const opts: { label: string; value: number }[] = [];
-      for (const p of products) {
-        for (const v of p.variants ?? []) {
-          opts.push({
-            label: `${p.name} • ${v.sku ?? "-"} • (id:${v.id})`,
-            value: Number(v.id),
-          });
-        }
-      }
-      setVariantOptions(opts);
+      const rows = resp?.data?.serve?.data ?? [];
+      setVariantOptions(
+        rows.map((v: any) => ({
+          value: Number(v.id), // attribute_value_id
+          label: `${v.attributeName ?? "Atribut"}: ${v.value ?? "-"} (id:${v.id})`,
+        }))
+      );
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? "Gagal ambil attribute values");
+      setVariantOptions([]);
     } finally {
       setVariantLoading(false);
     }
@@ -118,7 +196,10 @@ export default function DiscountFormPage({ mode }: Props) {
       applies_to: data?.appliesTo ?? 0,
       min_order_amount: data?.minOrderAmount ? helper.formatRupiah(data.minOrderAmount) : "",
 
-      category_type_ids: data?.categoryTypeIds ?? [],
+      // ✅ targets
+      brand_ids: data?.brandIds ?? [],
+      product_ids: data?.productIds ?? [],
+      // ✅ sekarang variant_ids itu attribute_value_ids
       variant_ids: data?.variantIds ?? [],
 
       eligibility_type: data?.eligibilityType ?? 0,
@@ -142,27 +223,23 @@ export default function DiscountFormPage({ mode }: Props) {
   const loadEdit = async () => {
     if (mode !== "edit") return;
 
-    // kalau backend belum ada endpoint show, minimal pakai state dari list
     if (fromState) {
       form.setFieldsValue(mapApiToForm(fromState));
-      return;
     }
 
-    // OPTIONAL kalau backend ada show:
     try {
       setLoading(true);
       const resp: any = await http.get(`/admin/discounts/${id}`);
       const data = resp?.data?.serve;
       if (data) form.setFieldsValue(mapApiToForm(data));
+    } catch {
+      // aman
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCategoryTypes();
-
-    // default create
     if (mode === "create") {
       form.setFieldsValue({
         value_type: 1,
@@ -170,13 +247,16 @@ export default function DiscountFormPage({ mode }: Props) {
         eligibility_type: 0,
         is_unlimited: 1,
 
-        // ✅ penting: ini yg bikin Switch “nyimpen”
         is_ecommerce: 1,
         is_pos: 1,
         is_active: 1,
 
         no_expiry: 1,
         days_of_week: ["0", "1", "2", "3", "4", "5", "6"],
+
+        brand_ids: [],
+        product_ids: [],
+        variant_ids: [],
       });
     }
 
@@ -184,7 +264,6 @@ export default function DiscountFormPage({ mode }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // WATCHES biar UI dinamis
   const valueType = Form.useWatch("value_type", form) ?? 1;
   const appliesTo = Form.useWatch("applies_to", form) ?? 0;
   const eligibility = Form.useWatch("eligibility_type", form) ?? 0;
@@ -196,10 +275,7 @@ export default function DiscountFormPage({ mode }: Props) {
   const isPos = Form.useWatch("is_pos", form) ?? 1;
 
   const onSubmit = async () => {
-    // ✅ validasi dulu
     await form.validateFields();
-
-    // ✅ ambil semua field (termasuk hidden)
     const values = form.getFieldsValue(true);
 
     const payload: any = { ...values };
@@ -209,9 +285,16 @@ export default function DiscountFormPage({ mode }: Props) {
     if (payload.max_discount) payload.max_discount = onlyDigits(payload.max_discount);
     if (payload.min_order_amount) payload.min_order_amount = onlyDigits(payload.min_order_amount);
 
-    // rules
     if (payload.is_unlimited === 1) payload.qty = null;
     if (payload.no_expiry === 1) payload.expired_at = null;
+
+    // bersihin payload sesuai applies_to
+    if (payload.applies_to !== 1) payload.min_order_amount = "";
+    if (payload.applies_to !== 4) payload.brand_ids = [];
+    if (payload.applies_to !== 5) payload.product_ids = [];
+    if (payload.applies_to !== 3) payload.variant_ids = [];
+
+    if (payload.eligibility_type !== 1) payload.customer_ids = [];
 
     setLoading(true);
     try {
@@ -230,7 +313,7 @@ export default function DiscountFormPage({ mode }: Props) {
 
   return (
     <Form form={form} layout="vertical">
-      {/* ✅ Hidden fields supaya Switch/Checkbox yg diset via setFieldValue ikut kebawa */}
+      {/* Hidden fields */}
       <Form.Item name="is_active" hidden>
         <Input />
       </Form.Item>
@@ -245,7 +328,6 @@ export default function DiscountFormPage({ mode }: Props) {
       </Form.Item>
 
       <Row gutter={16}>
-        {/* LEFT - Main form */}
         <Col xs={24} lg={16}>
           <Card
             title={mode === "edit" ? "Edit Diskon" : "Tambah Diskon"}
@@ -278,7 +360,6 @@ export default function DiscountFormPage({ mode }: Props) {
                   <Form.Item label="Tipe" name="value_type" rules={[{ required: true }]}>
                     <Select
                       onChange={() => {
-                        // bersihin value supaya ga nyangkut format lama
                         form.setFieldValue("value", "");
                         form.setFieldValue("max_discount", "");
                       }}
@@ -320,16 +401,17 @@ export default function DiscountFormPage({ mode }: Props) {
               <Form.Item label="Untuk" name="applies_to" rules={[{ required: true }]}>
                 <Select
                   onChange={() => {
-                    // reset field yg ga kepake biar payload bersih
                     form.setFieldValue("min_order_amount", "");
-                    form.setFieldValue("category_type_ids", []);
+                    form.setFieldValue("brand_ids", []);
+                    form.setFieldValue("product_ids", []);
                     form.setFieldValue("variant_ids", []);
                   }}
                   options={[
                     { value: 0, label: "Semua Pesanan" },
                     { value: 1, label: "Pesanan Minimal" },
-                    { value: 2, label: "Koleksi Produk (Category Types)" },
-                    { value: 3, label: "Varian Produk" },
+                    { value: 4, label: "Brand" },
+                    { value: 5, label: "Produk" },
+                    { value: 3, label: "Varian Produk (Attribute Values)" },
                   ]}
                 />
               </Form.Item>
@@ -349,26 +431,54 @@ export default function DiscountFormPage({ mode }: Props) {
                 </Form.Item>
               ) : null}
 
-              {appliesTo === 2 ? (
-                <Form.Item
-                  label="Pilih Koleksi (Category Types)"
-                  name="category_type_ids"
-                  rules={[{ required: true }]}
-                >
-                  <Select mode="multiple" options={categoryOptions} />
+              {appliesTo === 4 ? (
+                <Form.Item label="Pilih Brand" name="brand_ids" rules={[{ required: true }]}>
+                  <Select
+                    mode="multiple"
+                    showSearch
+                    filterOption={false}
+                    onSearch={searchBrands}
+                    onFocus={() => searchBrands("")}
+                    onDropdownVisibleChange={(open) => open && searchBrands("")}
+                    options={brandOptions}
+                    loading={brandLoading}
+                    placeholder="Klik untuk lihat list, atau ketik untuk cari..."
+                  />
+                </Form.Item>
+              ) : null}
+
+              {appliesTo === 5 ? (
+                <Form.Item label="Pilih Produk" name="product_ids" rules={[{ required: true }]}>
+                  <Select
+                    mode="multiple"
+                    showSearch
+                    filterOption={false}
+                    onSearch={searchProducts}
+                    onFocus={() => searchProducts("")}
+                    onDropdownVisibleChange={(open) => open && searchProducts("")}
+                    options={productOptions}
+                    loading={productLoading}
+                    placeholder="Klik untuk lihat list, atau ketik untuk cari..."
+                  />
                 </Form.Item>
               ) : null}
 
               {appliesTo === 3 ? (
-                <Form.Item label="Pilih Varian Produk" name="variant_ids" rules={[{ required: true }]}>
+                <Form.Item
+                  label="Pilih Attribute Values"
+                  name="variant_ids"
+                  rules={[{ required: true }]}
+                >
                   <Select
                     mode="multiple"
                     showSearch
                     filterOption={false}
                     onSearch={searchVariants}
+                    onFocus={() => searchVariants("")}
+                    onDropdownVisibleChange={(open) => open && searchVariants("")}
                     options={variantOptions}
                     loading={variantLoading}
-                    placeholder="Ketik minimal 2 huruf untuk cari..."
+                    placeholder="Klik untuk lihat list attribute, atau ketik untuk cari..."
                   />
                 </Form.Item>
               ) : null}
@@ -423,7 +533,6 @@ export default function DiscountFormPage({ mode }: Props) {
           </Card>
         </Col>
 
-        {/* RIGHT - Sidebar (iSeller style) */}
         <Col xs={24} lg={8}>
           <div
             style={{
@@ -471,7 +580,6 @@ export default function DiscountFormPage({ mode }: Props) {
                 <Input type="date" />
               </Form.Item>
 
-              {/* ✅ jangan pakai valuePropName checked karena value kita 1/0 */}
               <div style={{ marginBottom: 10 }}>
                 <Checkbox
                   checked={noExpiry === 1}

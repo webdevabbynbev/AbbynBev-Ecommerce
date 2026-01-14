@@ -120,6 +120,8 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [csvMode, setCsvMode] = useState<'template' | 'master' | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const rowsPerPage = 10 // You can adjust this value as needed
 
   useEffect(() => {
     if (!open) resetState()
@@ -135,6 +137,7 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
     setProgress(0)
     setLoading(false)
     setCsvMode(null)
+    setCurrentPage(1)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -435,7 +438,7 @@ export default function ProductCsvUpload({ open, onOpenChange, onSuccess }: Prop
                 </tbody>
               </table>
               <div style={{ padding: 10, fontSize: 12, color: '#777' }}>
-                Preview menampilkan {currentRows.length} baris dari halaman {currentPage}.
+                Preview menampilkan {currentRows.length} baris dari halaman {currentPage} (total {preview.length} baris).
               </div>
               {/* Pagination */}
               {totalPages > 1 && (
