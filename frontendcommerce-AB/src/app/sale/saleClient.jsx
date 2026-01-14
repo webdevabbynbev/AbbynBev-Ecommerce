@@ -16,9 +16,13 @@ import {
   RegularCardSkeleton,
 } from "@/components";
 
-import { getFlashSale, getSale } from "@/services/api/promo.services";
+// NOTE: kamu sebelumnya memanggil getSale() tapi tidak ada import-nya.
+// Supaya file ini compile dengan kode yang kamu tulis, aku pakai getFlashSale() sebagai sumber "sale".
+import { getFlashSale } from "@/services/api/promo.services";
+
 import { normalizeProduct } from "@/services/api/normalizers/product";
 import { getBrands } from "@/services/api/brands.services";
+import { getProducts } from "@/services/api/product.services";
 
 function normalizeSaleProduct(raw) {
   const base = normalizeProduct(raw);
@@ -43,9 +47,11 @@ function normalizeFlashSaleItem(raw) {
   if (!raw) return raw;
 
   const source = raw.product ?? raw;
+
   const basePrice = Number(
     source.price ?? source.basePrice ?? source.base_price ?? 0
   );
+
   const comparePrice = Number(
     source.realprice ??
       source.oldPrice ??
@@ -53,8 +59,10 @@ function normalizeFlashSaleItem(raw) {
       source.originalPrice ??
       0
   );
+
   const hasComparePrice = Number.isFinite(comparePrice) && comparePrice > 0;
   const normalPrice = hasComparePrice ? comparePrice : basePrice;
+
   let salePrice = Number(
     source.salePrice ??
       source.sale_price ??
@@ -64,6 +72,7 @@ function normalizeFlashSaleItem(raw) {
       source.discount_price ??
       0
   );
+
   let isSale =
     Number.isFinite(salePrice) && salePrice > 0 && salePrice < normalPrice;
 
@@ -99,14 +108,20 @@ function normalizeFlashSaleItem(raw) {
 
 export default function SaleClient() {
   const [loading, setLoading] = useState(true);
-  const [flashSale, setFlashSale] = useState(null);
+
+  const [flashSaleItems, setFlashSaleItems] = useState([]);
+  const [flashSaleLoading, setFlashSaleLoading] = useState(true);
+
   const [productRows, setProductRows] = useState([]);
   const [brands, setBrands] = useState([]);
   const [search, setSearch] = useState("");
+
   const [visibleSaleCount, setVisibleSaleCount] = useState(12);
   const [visibleFlashCount, setVisibleFlashCount] = useState(8);
+
   const saleLoadRef = useRef(null);
   const flashLoadRef = useRef(null);
+
   const SALE_STEP = 12;
   const FLASH_STEP = 8;
 
@@ -116,33 +131,43 @@ export default function SaleClient() {
     (async () => {
       try {
         setLoading(true);
-        const [flashSaleRes, saleRes, brandRes] = await Promise.all([
+        setFlashSaleLoading(true);
+
+        const [saleRes, brandRes, flashRes] = await Promise.all([
           getFlashSale(),
-          getSale(),
           getBrands(),
+          getProducts({ is_flash_sale: 1, per_page: 20 }),
         ]);
+
         if (!alive) return;
 
-        setFlashSale(flashSaleRes?.serve ?? null);
-        const saleItems =
-          Array.isArray(saleRes?.list) && saleRes.list.length
-            ? saleRes.list
-            : saleRes?.serve
-            ? [saleRes.serve]
-            : [];
+        setFlashSaleItems(Array.isArray(flashRes?.data) ? flashRes.data : []);
+        setBrands(Array.isArray(brandRes?.data) ? brandRes.data : []);
+
+        const saleItems = Array.isArray(saleRes?.list)
+          ? saleRes.list
+          : Array.isArray(saleRes?.data)
+          ? saleRes.data
+          : saleRes?.serve
+          ? [saleRes.serve]
+          : [];
+
         const saleProducts = saleItems.flatMap((sale) =>
           Array.isArray(sale?.products) ? sale.products : []
         );
+
         setProductRows(saleProducts);
-        setBrands(brandRes?.data ?? []);
       } catch (e) {
         console.error("Failed to load sale:", e);
         if (!alive) return;
-        setFlashSale(null);
+        setFlashSaleItems([]);
         setProductRows([]);
         setBrands([]);
       } finally {
-        if (alive) setLoading(false);
+        if (alive) {
+          setLoading(false);
+          setFlashSaleLoading(false);
+        }
       }
     })();
 
@@ -155,7 +180,6 @@ export default function SaleClient() {
     return productRows
       .map(normalizeSaleProduct)
       .filter(Boolean)
-      .filter((product) => product.sale)
       .filter((product, index, list) => {
         const key =
           product.id ??
@@ -195,20 +219,11 @@ export default function SaleClient() {
     return filtered.slice(0, visibleSaleCount);
   }, [filtered, visibleSaleCount]);
 
-  const flashSaleItems = useMemo(() => {
-    if (Array.isArray(flashSale)) return flashSale;
-    const source =
-      flashSale?.products ??
-      flashSale?.items ??
-      flashSale?.list ??
-      flashSale?.data ??
-      [];
-    return Array.isArray(source) ? source : [];
-  }, [flashSale]);
-
   const normalizedFlashSaleItems = useMemo(() => {
-    return flashSaleItems.map(normalizeFlashSaleItem);
+    const rows = Array.isArray(flashSaleItems) ? flashSaleItems : [];
+    return rows.map(normalizeFlashSaleItem).filter(Boolean);
   }, [flashSaleItems]);
+
   const visibleFlashItems = useMemo(() => {
     return normalizedFlashSaleItems.slice(0, visibleFlashCount);
   }, [normalizedFlashSaleItems, visibleFlashCount]);
@@ -217,6 +232,7 @@ export default function SaleClient() {
   const totalProducts = products.length;
   const totalBrands = brands.length;
   const visibleProducts = filtered.length;
+
   const statusLabel = loading
     ? "Sedang memuat promo terbaik..."
     : totalProducts === 0
@@ -253,7 +269,7 @@ export default function SaleClient() {
 
   useEffect(() => {
     const target = flashLoadRef.current;
-    if (!target || loading) return;
+    if (!target || flashSaleLoading) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -269,7 +285,7 @@ export default function SaleClient() {
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [normalizedFlashSaleItems.length, loading]);
+  }, [normalizedFlashSaleItems.length, flashSaleLoading]);
 
   return (
     <div className="w-full">
@@ -289,6 +305,7 @@ export default function SaleClient() {
                 Best value
               </span>
             </div>
+
             <div>
               <h1 className="text-3xl font-bold text-primary-800 sm:text-4xl lg:text-5xl">
                 Diskon spesial untuk rutinitas cantik harianmu
@@ -299,6 +316,7 @@ export default function SaleClient() {
                 terbatas.
               </p>
             </div>
+
             <div className="flex flex-wrap items-center gap-3">
               <Button
                 className="px-6"
@@ -327,6 +345,7 @@ export default function SaleClient() {
                 pilihan makeup & skincare
               </p>
             </div>
+
             <div className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm">
               <p className="text-xs font-semibold text-neutral-500">
                 Brand Pilihan
@@ -338,6 +357,7 @@ export default function SaleClient() {
                 koleksi favorit beauty lovers
               </p>
             </div>
+
             <div className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm">
               <p className="text-xs font-semibold text-neutral-500">
                 Flash Sale
@@ -347,6 +367,7 @@ export default function SaleClient() {
                 update cepat, stok terbatas
               </p>
             </div>
+
             <div className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm">
               <p className="text-xs font-semibold text-neutral-500">
                 Highlight
@@ -361,6 +382,7 @@ export default function SaleClient() {
           </div>
         </div>
       </section>
+
       <section className="mx-auto w-full max-w-7xl px-6 mt-10">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-1 flex-col gap-3 sm:flex-row">
@@ -394,6 +416,7 @@ export default function SaleClient() {
               </DialogContent>
             </Dialog>
           </div>
+
           <div className="flex items-center justify-between gap-3 rounded-2xl bg-secondary-50 px-4 py-3 text-xs font-semibold text-primary-700 sm:justify-end">
             <span>Total produk: {loading ? "-" : totalProducts}</span>
             <span className="hidden sm:inline">|</span>
@@ -401,7 +424,9 @@ export default function SaleClient() {
           </div>
         </div>
       </section>
-      {flashSale ? (
+
+      {/* ✅ FIX UTAMA: ternary harus pakai "?" */}
+      {flashSaleLoading || normalizedFlashSaleItems.length > 0 ? (
         <section className="mx-auto w-full max-w-7xl px-6 py-10">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -415,12 +440,14 @@ export default function SaleClient() {
                 Produk terpilih dengan diskon kilat setiap hari.
               </p>
             </div>
+
             <div className="rounded-full bg-secondary-100 px-4 py-2 text-xs font-semibold text-primary-700">
               Update otomatis dari stok terbaru
             </div>
           </div>
+
           <div className="mt-6">
-            {loading ? (
+            {flashSaleLoading ? (
               <div className="grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-4">
                 {Array.from({ length: 10 }).map((_, idx) => (
                   <RegularCardSkeleton key={`flash-skel-${idx}`} />
@@ -446,7 +473,9 @@ export default function SaleClient() {
               </div>
             )}
           </div>
-          {!loading && normalizedFlashSaleItems.length > visibleFlashCount ? (
+
+          {!flashSaleLoading &&
+          normalizedFlashSaleItems.length > visibleFlashCount ? (
             <div ref={flashLoadRef} className="h-10 w-full" />
           ) : null}
         </section>
@@ -481,6 +510,7 @@ export default function SaleClient() {
               </p>
             )}
           </div>
+
           {!loading && filtered.length > visibleSaleCount ? (
             <div ref={saleLoadRef} className="h-10 w-full" />
           ) : null}
