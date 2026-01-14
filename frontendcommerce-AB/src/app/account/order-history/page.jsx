@@ -8,6 +8,7 @@ import { n } from "@/utils/number";
 
 const FILTER_TABS = [
   { key: "all", label: "All" },
+  { key: "notPaid", label: "Not Paid" },
   { key: "ongoing", label: "Ongoing" },
   { key: "success", label: "Success" },
   { key: "cancelled", label: "Cancelled" },
@@ -201,41 +202,44 @@ export default function OrderHistoryPage() {
           </h2>
 
           {/* Filter Tabs */}
-          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:flex lg:items-center">
-            {FILTER_TABS.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setFilter(tab.key)}
-                className={`px-4 py-2 text-sm font-medium rounded-full transition-all text-center ${filter === tab.key
-                    ? "bg-pink-600 text-white"
-                    : "bg-white text-gray-600 border border-gray-200 hover:border-pink-300"
-                  }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <div className="mb-6 flex items-center gap-3 max-w-md lg:max-w-none">
+            {/* Scrollable on mobile/tablet, wrap on desktop */}
+            <div className="flex-1 overflow-x-auto lg:overflow-visible scrollbar-hide">
+              <div className="flex gap-3 min-w-max pb-2 lg:pb-0 lg:min-w-0 lg:flex-wrap">
+                {FILTER_TABS.map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setFilter(tab.key)}
+                    className={`px-4 py-2 text-sm font-medium rounded-full transition-all whitespace-nowrap ${filter === tab.key
+                      ? "bg-primary-700 text-white"
+                      : "bg-white text-gray-600 border border-gray-200 hover:border-pink-300"
+                      }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-            {/* Refresh button */}
+            {/* Refresh button - always visible on the right */}
             <button
               onClick={loadOrders}
               disabled={loading}
               className="
-      col-span-2
-      sm:col-span-3
-      lg:col-span-1
-      lg:ml-auto
-      px-4 py-2
-      text-sm font-medium
-      rounded-full
-      border border-gray-200
-      hover:border-pink-300
-      bg-white
-      text-gray-600
-    "
+                flex-shrink-0
+                px-4 py-2
+                text-sm font-medium
+                rounded-full
+                border border-gray-200
+                hover:border-pink-300
+                bg-white
+                text-gray-600
+              "
             >
               {loading ? "Loading..." : "Refresh"}
             </button>
           </div>
+
 
 
           {errorMsg && (

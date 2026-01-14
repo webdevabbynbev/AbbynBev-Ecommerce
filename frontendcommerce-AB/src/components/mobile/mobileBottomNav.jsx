@@ -107,7 +107,7 @@ export function MobileBottomNav({ className = "" }) {
                         : "text-primary-700 font-normal"
                     )}
                   >
-                    Profile
+                    Account
                   </span>
                 </button>
               </SheetTrigger>
