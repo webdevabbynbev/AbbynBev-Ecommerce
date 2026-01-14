@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { loginUser, regis, OtpRegis, LoginGoogle } from "@/services/auth";
+import { loginUser, regis, OtpRegis, LoginGoogle, getUser } from "@/services/auth";
 import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
@@ -175,9 +175,9 @@ export function LoginRegisModalForm() {
 
       const data = await LoginGoogle(credentialToken, mode, acceptPrivacy);
 
-      const user = data?.serve?.data;
       const isNewUser = !!data?.serve?.is_new_user;
       const needsProfile = !!data?.serve?.needs_profile_completion;
+      const { user } = await getUser();
 
       if (user) {
         login({ user });
