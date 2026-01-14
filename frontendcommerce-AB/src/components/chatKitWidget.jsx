@@ -13,9 +13,9 @@ const getSessionId = () => {
 export function ChatkitWidget() {
   const sessionId = useMemo(() => getSessionId(), []);
   const apiUrl = useMemo(() => {
-    const base = process.env.NEXT_PUBLIC_CHATKIT_API_BASE;
-    if (!base) return "/api/v1/chatkit";
-    return `${base.replace(/\/+$/, "")}/chatkit`;
+    const base =
+      process.env.NEXT_PUBLIC_CHATKIT_API_BASE || "http://localhost:3333";
+    return `${base.replace(/\/+$/, "")}/api/v1/chatkit`;
   }, []);
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -85,7 +85,7 @@ export function ChatkitWidget() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-6 right-6 z-[60]">
       {isOpen ? (
         <div className="w-80 rounded-2xl bg-white shadow-xl border border-slate-200 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 bg-black text-white">

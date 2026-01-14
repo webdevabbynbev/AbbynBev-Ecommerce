@@ -25,21 +25,12 @@ export default class ChatkitController {
 
       const result = await axios.post(
         forwardUrl,
-        {
-          message,
-          session_id: sessionId || undefined,
-          metadata,
-        },
-        {
-          timeout: 15000,
-        }
+        { message, session_id: sessionId || undefined, metadata },
+        { timeout: 60000 }
       )
       return response.status(200).send({
-        message: 'Chatkit response',
-        serve: {
-          output_text: result.data?.output_text || '',
-          category: result.data?.category || null,
-        },
+        output_text: result.data?.output_text || '',
+        category: result.data?.category || null,
       })
     } catch (error) {
       return response.status(500).send({
