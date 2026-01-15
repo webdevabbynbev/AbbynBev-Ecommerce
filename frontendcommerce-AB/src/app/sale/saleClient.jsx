@@ -16,10 +16,10 @@ import {
   RegularCardSkeleton,
 } from "@/components";
 
-import { getFlashSale, getSale } from "@/services/api/promo.services";
+import { getSale } from "@/services/api/promo.services";
 import { normalizeProduct } from "@/services/api/normalizers/product";
 import { getBrands } from "@/services/api/brands.services";
-import { getProducts } from "@/services/api/product.services";
+import { getApi } from "@/services/api/client";
 
 function normalizeSaleProduct(raw) {
   const base = normalizeProduct(raw);
@@ -46,10 +46,7 @@ function normalizeFlashSaleItem(raw) {
 
   const source = raw.product ?? raw;
 
-  const basePrice = Number(
-    source.price ?? source.basePrice ?? source.base_price ?? 0
-  );
-
+  // Try to find original price
   const comparePrice = Number(
     source.realprice ??
       source.oldPrice ??
@@ -58,11 +55,22 @@ function normalizeFlashSaleItem(raw) {
       0
   );
 
-  const hasComparePrice = Number.isFinite(comparePrice) && comparePrice > 0;
-  const normalPrice = hasComparePrice ? comparePrice : basePrice;
+  // Try to find base price
+  const currentPrice = Number(
+    source.price ?? source.basePrice ?? source.base_price ?? 0
+  );
 
+  // Determine normal (original) price
+  let normalPrice = currentPrice;
+  if (comparePrice > 0 && comparePrice > currentPrice) {
+    normalPrice = comparePrice;
+  }
+
+  // Determine sale price
   let salePrice = Number(
-    source.salePrice ??
+    source.flashPrice ??
+      source.flash_price ??
+      source.salePrice ??
       source.sale_price ??
       source.flashSalePrice ??
       source.flash_sale_price ??
@@ -71,26 +79,20 @@ function normalizeFlashSaleItem(raw) {
       0
   );
 
-  let isSale =
-    Number.isFinite(salePrice) && salePrice > 0 && salePrice < normalPrice;
-
-  // fallback: kalau basePrice lebih kecil dari comparePrice, anggap basePrice itu harga diskon
-  if (
-    !isSale &&
-    hasComparePrice &&
-    Number.isFinite(basePrice) &&
-    basePrice > 0 &&
-    comparePrice > basePrice
-  ) {
-    salePrice = basePrice;
-    isSale = true;
+  // Fallback: if salePrice is 0 but we have a comparePrice > currentPrice, assume currentPrice is the sale price
+  if (salePrice === 0 && comparePrice > 0 && comparePrice > currentPrice) {
+    salePrice = currentPrice;
   }
+
+  const isSale =
+    Number.isFinite(salePrice) && salePrice > 0 && salePrice < normalPrice;
 
   if (!isSale) return raw;
 
   const normalizedProduct = {
     ...source,
-    price: salePrice,
+    price: normalPrice, // FlashSaleCard expects 'price' to be original price
+    flashPrice: salePrice, // FlashSaleCard expects 'flashPrice'
     realprice: normalPrice,
     sale: true,
   };
@@ -120,8 +122,6 @@ export default function SaleClient() {
   // Flash sale: meta/serve dari getFlashSale()
   const [flashSale, setFlashSale] = useState(null);
 
-  // Flash sale: list item dari getProducts({is_flash_sale:1})
-  const [flashSaleItems, setFlashSaleItems] = useState([]);
   const [flashSaleLoading, setFlashSaleLoading] = useState(true);
 
   // Sale products dari getSale()
@@ -151,13 +151,11 @@ export default function SaleClient() {
         setLoading(true);
         setFlashSaleLoading(true);
 
-        const [flashSaleRes, saleRes, brandRes, flashProductsRes] =
-          await Promise.all([
-            getFlashSale(), // meta/serve flash sale
-            getSale(), // list sale
-            getBrands(), // brands
-            getProducts({ is_flash_sale: 1, per_page: 20 }), // list item flash sale
-          ]);
+        const [flashSaleRes, saleRes, brandRes] = await Promise.all([
+          getApi("/flashsale"), // meta/serve flash sale
+          getSale(), // list sale
+          getBrands(), // brands
+        ]);
 
         if (!alive) return;
 
@@ -182,19 +180,11 @@ export default function SaleClient() {
         );
 
         setProductRows(saleProducts);
-
-        // flash sale items dari getProducts (prioritas)
-        const flashFromProducts = Array.isArray(flashProductsRes?.data)
-          ? flashProductsRes.data
-          : [];
-
-        setFlashSaleItems(flashFromProducts);
       } catch (e) {
         console.error("Failed to load sale/flash sale:", e);
         if (!alive) return;
 
         setFlashSale(null);
-        setFlashSaleItems([]);
         setProductRows([]);
         setBrands([]);
       } finally {
@@ -263,7 +253,20 @@ export default function SaleClient() {
   // ==== FLASH SALE: gabungkan sumber item (dari state flashSaleItems + fallback dari flashSale meta)
   const derivedFlashItemsFromMeta = useMemo(() => {
     if (!flashSale) return [];
-    if (Array.isArray(flashSale)) return flashSale;
+
+    // If flashSale is array (list of campaigns), flatten products
+    if (Array.isArray(flashSale)) {
+      return flashSale.flatMap((campaign) => {
+        const products = campaign.products || [];
+        return products.map((p) => ({
+          ...p,
+          // Map pivot data
+          flashPrice:
+            p.flash_price ?? p.meta?.pivot_flash_price ?? p.pivot?.flash_price,
+          stock: p.stock ?? p.meta?.pivot_stock ?? p.pivot?.stock,
+        }));
+      });
+    }
 
     const source =
       flashSale?.products ??
@@ -276,13 +279,12 @@ export default function SaleClient() {
   }, [flashSale]);
 
   const mergedFlashItems = useMemo(() => {
-    const a = Array.isArray(flashSaleItems) ? flashSaleItems : [];
     const b = Array.isArray(derivedFlashItemsFromMeta)
       ? derivedFlashItemsFromMeta
       : [];
 
     // gabung + dedupe
-    const merged = [...a, ...b];
+    const merged = [...b];
     const seen = new Set();
 
     return merged.filter((item) => {
@@ -291,7 +293,7 @@ export default function SaleClient() {
       seen.add(key);
       return true;
     });
-  }, [flashSaleItems, derivedFlashItemsFromMeta]);
+  }, [derivedFlashItemsFromMeta]);
 
   const normalizedFlashSaleItems = useMemo(() => {
     return mergedFlashItems.map(normalizeFlashSaleItem).filter(Boolean);
