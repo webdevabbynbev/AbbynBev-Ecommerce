@@ -35,7 +35,7 @@ export default function AccountTabs({ slug }) {
       <TabsList
         className="
           flex flex-row lg:flex-col gap-1
-          h-fit w-[220px]
+          h-fit w-55
           items-start
           rounded-xl border p-4 space-y-1
           bg-white shadow-sm
