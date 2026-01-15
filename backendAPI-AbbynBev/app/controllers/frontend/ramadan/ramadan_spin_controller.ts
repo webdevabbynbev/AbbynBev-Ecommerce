@@ -144,9 +144,31 @@ export default class RamadanSpinController {
     }
     const chosen = this.pickPrize(availablePrizes)
     if (!chosen) return response.badRequest({ message: 'Hadiah tidak tersedia.' })
-    const transaction = await RamadanSpinTransaction.create({
-      userId: user.id,
-      prizeId: chosen.id,
+
+    const transaction = await db.transaction(async (trx) => {
+      const createdTransaction = await RamadanSpinTransaction.create(
+        {
+          userId: user.id,
+          prizeId: chosen.id,
+        },
+        { client: trx }
+      )
+
+      // Kurangi dailyQuota jika hadiah memiliki quota
+      if (chosen.dailyQuota !== null && Number(chosen.dailyQuota) > 0) {
+        const updatedPrize = await RamadanSpinPrize.query({ client: trx })
+          .where('id', chosen.id)
+          .forUpdate()
+          .first()
+
+        if (updatedPrize) {
+          const newQuota = Math.max(0, Number(updatedPrize.dailyQuota || 0) - 1)
+          updatedPrize.dailyQuota = newQuota
+          await updatedPrize.useTransaction(trx).save()
+        }
+      }
+
+      return createdTransaction
     })
 
     return response.ok({

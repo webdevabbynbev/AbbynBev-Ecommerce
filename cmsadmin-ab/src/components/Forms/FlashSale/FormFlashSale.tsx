@@ -36,6 +36,12 @@ export type FlashSaleRecord = {
     id: number;
     name: string;
     pivot?: { flash_price: number; stock: number };
+    pivot_flash_price?: number | string | null;
+    pivot_stock?: number | string | null;
+    $extras?: {
+      pivot_flash_price?: number | string | null;
+      pivot_stock?: number | string | null;
+    };
   }>;
 };
 
@@ -72,6 +78,12 @@ const getProductList = (serve: any): any[] => {
 
 const dedupeOptions = (arr: Array<{ value: number; label: string }>) =>
   Array.from(new Map(arr.map((x) => [Number(x.value), x])).values());
+
+const toNumberOrFallback = (value: unknown, fallback: number) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+};
+
 
 const FormFlashSale: React.FC<Props> = ({ data, handleClose }) => {
   const [form] = Form.useForm<FormValues>();
@@ -210,8 +222,11 @@ const FormFlashSale: React.FC<Props> = ({ data, handleClose }) => {
     const initialProducts =
       data.products?.map((p) => ({
         product_id: p.id,
-        flash_price: p.pivot?.flash_price ?? 1,
-        stock: p.pivot?.stock ?? 0,
+        flash_price: toNumberOrFallback(
+          p.pivot?.flash_price ?? p.pivot_flash_price ?? p.$extras?.pivot_flash_price,
+          1
+        ),
+        stock: toNumberOrFallback(p.pivot?.stock ?? p.pivot_stock ?? p.$extras?.pivot_stock, 0)
       })) ?? [];
 
     const fromDataOptions = data.products?.map((p) => ({ value: p.id, label: p.name })) ?? [];

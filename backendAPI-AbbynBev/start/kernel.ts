@@ -48,4 +48,5 @@ export const middleware = router.named({
   optionalAuth: () => import('#middleware/optional_auth_middleware'),
   roleAdmin: () => import('#middleware/role_admin_middleware'),
   auth: () => import('#middleware/auth_middleware'),
+  authCookie: () => import('#middleware/auth_cookie_middleware'),
 })

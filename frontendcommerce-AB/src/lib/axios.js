@@ -35,16 +35,18 @@ api.interceptors.response.use(
       clearToken();
       if (typeof window !== "undefined") {
         const path = window.location.pathname;
+        const hasUser = Boolean(localStorage.getItem("user"));
         const isAuthPage =
           path === "/login" ||
           path === "/register" ||
           path.startsWith("/auth") ||
           path === "/sign-in";
 
-        if (!isAuthPage) {
-          alert("Sesi Anda telah berakhir, silahkan login kembali.");
-          window.location.href = "/?session_expired=true";
-          return new Promise(() => {});
+        if (!isAuthPage && hasUser) {
+          if (path !== "/") {
+            window.location.href = "/";
+            return new Promise(() => {});
+          }
         }
       }
     }

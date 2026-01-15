@@ -17,9 +17,11 @@ import Transaction from './transaction.js'
 import TransactionPos from './transaction_pos.js'
 import TransactionEcommerce from './transaction_ecommerce.js'
 import UserAddress from './user_address.js'
+
 // Import Model checkin & exemption
 import RamadanCheckin from '#models/ramadan_checkin'
 import RamadanCheckinExemption from '#models/ramadan_checkin_exemption'
+import RamadanSpinTransaction from '#models/ramadan_spin_transaction'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['email'],
@@ -191,4 +193,9 @@ export default class User extends compose(CustomBaseModel, AuthFinder) {
     foreignKey: 'userId',
   })
   declare ramadanExemptions: HasMany<typeof RamadanCheckinExemption>
+
+  @hasMany(() => RamadanSpinTransaction, {
+    foreignKey: 'userId',
+  })
+  declare ramadanSpinTransactions: HasMany<typeof RamadanSpinTransaction>
 }

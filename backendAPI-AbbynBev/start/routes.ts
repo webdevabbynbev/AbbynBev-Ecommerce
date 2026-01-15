@@ -2,24 +2,27 @@
 |--------------------------------------------------------------------------
 | Routes file
 |--------------------------------------------------------------------------
-|
-| The routes file is used for defining the HTTP routes.
-|
+| - Konsep tetap sama seperti punyamu (struktur besar tidak diubah)
+| - Hanya FRONTEND yang pakai cookie (authCookie -> auth api guard)
+| - Admin/Cashier/CMS tetap bearer token (Authorization header) seperti sekarang
+|--------------------------------------------------------------------------
 */
 
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
 import { Role } from '#enums/role'
 
-
 // =========================
 // CMS / ADMIN CONTROLLERS (DECLARE ONCE ONLY)
 // =========================
 
 // events
-const CmsRamadanParticipantsController = () => import('#controllers/cms/events/ramadan/ramadan_participants_controller')
-const CmsRamadanRecommendationsController = () => import('#controllers/cms/events/ramadan/ramadan_recommendations_controller')
-const CmsRamadanSpinPrizesController = () => import('#controllers/cms/events/ramadan/ramadan_spin_prizes_controller')
+const CmsRamadanParticipantsController = () =>
+  import('#controllers/cms/events/ramadan/ramadan_participants_controller')
+const CmsRamadanRecommendationsController = () =>
+  import('#controllers/cms/events/ramadan/ramadan_recommendations_controller')
+const CmsRamadanSpinPrizesController = () =>
+  import('#controllers/cms/events/ramadan/ramadan_spin_prizes_controller')
 // users
 const UsersController = () => import('#controllers/cms/users/admin_users_controller')
 const CustomersController = () => import('#controllers/cms/users/customers_controller')
@@ -31,16 +34,23 @@ const CmsTagController = () => import('#controllers/cms/catalog/tags_controller'
 const CmsBrandController = () => import('#controllers/cms/catalog/brands_controller')
 const CmsPersonaController = () => import('#controllers/cms/catalog/personas_controller')
 const CmsConcernController = () => import('#controllers/cms/catalog/concerns_controller')
-const CmsConcernOptionController = () => import('#controllers/cms/catalog/concern_options_controller')
-const CmsProfileCategoriesController = () => import('#controllers/cms/catalog/profile_categories_controller')
-const CmsProfileCategoryOptionsController = () => import('#controllers/cms/catalog/profile_category_options_controller')
+const CmsConcernOptionController = () =>
+  import('#controllers/cms/catalog/concern_options_controller')
+const CmsProfileCategoriesController = () =>
+  import('#controllers/cms/catalog/profile_categories_controller')
+const CmsProfileCategoryOptionsController = () =>
+  import('#controllers/cms/catalog/profile_category_options_controller')
 
 // catalog/products
 const ProductController = () => import('#controllers/cms/catalog/products/products_controller')
-const ProductCsvImportController = () => import('#controllers/cms/catalog/products/product_csv_import_controller')
-const ProductFlashsaleController = () => import('#controllers/cms/catalog/products/product_flashsale_controller')
-const ProductPositionsController = () => import('#controllers/cms/catalog/products/product_positions_controller')
-const ProductPublicationsController = () => import('#controllers/cms/catalog/products/product_publications_controller')
+const ProductCsvImportController = () =>
+  import('#controllers/cms/catalog/products/product_csv_import_controller')
+const ProductFlashsaleController = () =>
+  import('#controllers/cms/catalog/products/product_flashsale_controller')
+const ProductPositionsController = () =>
+  import('#controllers/cms/catalog/products/product_positions_controller')
+const ProductPublicationsController = () =>
+  import('#controllers/cms/catalog/products/product_publications_controller')
 
 // promotions
 const VouchersController = () => import('#controllers/cms/promotions/vouchers_controller')
@@ -48,31 +58,39 @@ const CmsFlashSaleController = () => import('#controllers/cms/promotions/flashsa
 const CmsSaleController = () => import('#controllers/cms/promotions/sales_controller')
 
 // inventory
-const CmsStockMovementsController = () => import('#controllers/cms/inventory/stock_movements_controller')
-const CmsProductOnlinesController = () => import('#controllers/cms/inventory/product_onlines_controller')
+const CmsStockMovementsController = () =>
+  import('#controllers/cms/inventory/stock_movements_controller')
+const CmsProductOnlinesController = () =>
+  import('#controllers/cms/inventory/product_onlines_controller')
 
 // content
 const SettingCmsController = () => import('#controllers/cms/content/setting_cms_controller')
-const SettingsPoliciesController = () => import('#controllers/cms/content/settings/policies_controller')
+const SettingsPoliciesController = () =>
+  import('#controllers/cms/content/settings/policies_controller')
 const SettingsPagesController = () => import('#controllers/cms/content/settings/pages_controller')
 const FaqsController = () => import('#controllers/cms/content/faqs_controller')
 const BannerController = () => import('#controllers/cms/content/banners/banners_controller')
-const BannerOrdersController = () => import('#controllers/cms/content/banners/banner_orders_controller')
+const BannerOrdersController = () =>
+  import('#controllers/cms/content/banners/banner_orders_controller')
 
 // orders
-const CmsSupportTicketController = () => import('#controllers/cms/orders/support_tickets_controller')
+const CmsSupportTicketController = () =>
+  import('#controllers/cms/orders/support_tickets_controller')
 const CmsReviewsController = () => import('#controllers/cms/orders/reviews_controller')
 const CmsTransactionsController = () => import('#controllers/cms/orders/transactions_controller')
 
 // analytics/dashboard
-const CmsDashboardUsersController = () => import('#controllers/cms/analytics/dashboard/users_controller')
-const CmsDashboardTransactionsController = () => import('#controllers/cms/analytics/dashboard/transactions_controller')
-const CmsDashboardProductsController = () => import('#controllers/cms/analytics/dashboard/products_controller')
-const CmsDashboardCartsController = () => import('#controllers/cms/analytics/dashboard/carts_controller')
+const CmsDashboardUsersController = () =>
+  import('#controllers/cms/analytics/dashboard/users_controller')
+const CmsDashboardTransactionsController = () =>
+  import('#controllers/cms/analytics/dashboard/transactions_controller')
+const CmsDashboardProductsController = () =>
+  import('#controllers/cms/analytics/dashboard/products_controller')
+const CmsDashboardCartsController = () =>
+  import('#controllers/cms/analytics/dashboard/carts_controller')
 
 // system
 const CmsActivityLogsController = () => import('#controllers/cms/system/activity_logs_controller')
-
 
 // =========================
 // FRONTEND CONTROLLERS
@@ -102,9 +120,9 @@ const FeTransactionEcommerceController = () =>
   import('#controllers/frontend/transaction/transaction_commerces_controller')
 const FeRamadanCheckinsController = () =>
   import('#controllers/frontend/ramadan/ramadan_checkins_controller')
-const FeRamadanSpinController = () =>
-  import('#controllers/frontend/ramadan/ramadan_spin_controller')
+const FeRamadanSpinController = () => import('#controllers/frontend/ramadan/ramadan_spin_controller')
 const OrdersController = () => import('#controllers/frontend/orders/orders_controller')
+const FeChatkitController = () => import('#controllers/frontend/chatkit/chatkit_controller')
 
 // =========================
 // POS CONTROLLERS
@@ -136,10 +154,15 @@ router
     router.post('/auth/register/google', [AuthSessionsController, 'registerGoogle'])
     router.post('/auth/register', [AuthRegistrationController, 'register'])
     router.post('/auth/verify-register', [AuthRegistrationController, 'verifyRegisterOtp'])
+
+    // customer login (sets cookie)
     router.post('/auth/login', [AuthSessionsController, 'login'])
     router.post('/auth/verify-login', [AuthSessionsController, 'verifyLoginOtp'])
+
+    // admin/cashier login (Bearer token)
     router.post('/auth/login-admin', [AuthSessionsController, 'loginAdmin'])
     router.post('/auth/login-cashier', [AuthSessionsController, 'loginCashier'])
+
     router.post('/auth/forgot', [AuthPasswordResetController, 'requestForgotPassword'])
 
     router
@@ -148,6 +171,7 @@ router
         'verifyForgotPassword',
       ])
       .as('verifyForgotPassword')
+
     router.post('/auth/reset-password', [AuthPasswordResetController, 'resetPassword'])
     router.post('/upload', [UploadsController, 'upload'])
 
@@ -157,6 +181,7 @@ router
     router
       .group(() => {
         router.get('/ramadan-participants', [CmsRamadanParticipantsController, 'index'])
+
         router
           .group(() => {
             router.get('', [UsersController, 'getAdmin'])
@@ -170,6 +195,7 @@ router
           .prefix('/users')
 
         router.get('/customers', [CustomersController, 'getCustomers'])
+
         router
           .group(() => {
             router.get('', [CategoryTypesController, 'get'])
@@ -300,6 +326,7 @@ router
           .use(middleware.roleAdmin())
           .prefix('/support-tickets')
 
+        // CMS permission routes (Bearer token) — tetap pakai auth, tapi guard-nya dibuat eksplisit api
         router
           .group(() => {
             router.get('', [CmsTagController, 'get'])
@@ -308,7 +335,7 @@ router
             router.put('/:slug', [CmsTagController, 'update'])
             router.delete('/:slug', [CmsTagController, 'delete'])
           })
-          .use([middleware.auth(), middleware.rolePermission([Role.GUDANG])])
+          .use([middleware.auth({ guards: ['api'] }), middleware.rolePermission([Role.GUDANG])])
           .prefix('/tags')
 
         router
@@ -331,7 +358,7 @@ router
             router.put('/:slug', [CmsPersonaController, 'update'])
             router.delete('/:slug', [CmsPersonaController, 'delete'])
           })
-          .use([middleware.auth(), middleware.rolePermission([Role.GUDANG])])
+          .use([middleware.auth({ guards: ['api'] }), middleware.rolePermission([Role.GUDANG])])
           .prefix('/personas')
 
         router
@@ -446,10 +473,7 @@ router
           'getTotalRegisterUserByPeriod',
         ])
 
-        router.get('/total-transaction', [
-          CmsDashboardTransactionsController,
-          'getTotalTransaction',
-        ])
+        router.get('/total-transaction', [CmsDashboardTransactionsController, 'getTotalTransaction'])
         router.get('/total-transaction-month', [
           CmsDashboardTransactionsController,
           'getTotalTransactionByMonth',
@@ -499,9 +523,21 @@ router
     router.get('/tags', [FeTagsController, 'list'])
     router.get('/tags/:slug', [FeTagsController, 'show'])
     router.post('/support-tickets', [FeSupportTicketController, 'create'])
+    router.post('/chatkit', [FeChatkitController, 'run'])
+
+    // Reviews: GET public, action protected by cookie-auth
+    router
+      .group(() => {
+        router.get('', [FeReviewController, 'get'])
+
+        router.post('', [FeReviewController, 'create'])
+        router.post('/:id/toggle-like', [FeReviewController, 'toggleLike'])
+      })
+      .prefix('/reviews')
+      .use([middleware.authCookie(), middleware.auth({ guards: ['api'] })])
 
     // =========================
-    // FRONTEND AUTH ROUTES
+    // FRONTEND AUTH ROUTES (COOKIE AUTH)
     // =========================
     router
       .group(() => {
@@ -535,20 +571,10 @@ router
           'getProductRecommendations',
         ])
       })
-      .use(middleware.auth({ guards: ['api'] }))
-
-    router
-      .group(() => {
-        router.get('', [FeReviewController, 'get'])
-        router.post('', [FeReviewController, 'create']).use(middleware.auth({ guards: ['api'] }))
-        router
-          .post('/:id/toggle-like', [FeReviewController, 'toggleLike'])
-          .use(middleware.auth({ guards: ['api'] }))
-      })
-      .prefix('/reviews')
+      .use([middleware.authCookie(), middleware.auth({ guards: ['api'] })])
 
     // =========================
-    // CART ROUTES (AUTH REQUIRED)
+    // CART ROUTES (AUTH REQUIRED) - COOKIE AUTH
     // =========================
     router
       .group(() => {
@@ -564,10 +590,10 @@ router
         router.patch('/cart', [FeTransactionCartController, 'update'])
         router.delete('/cart', [FeTransactionCartController, 'delete'])
       })
-      .use(middleware.auth({ guards: ['api'] }))
+      .use([middleware.authCookie(), middleware.auth({ guards: ['api'] })])
 
     // =========================
-    // TRANSACTION ROUTES (AUTH REQUIRED)
+    // TRANSACTION ROUTES (AUTH REQUIRED) - COOKIE AUTH
     // =========================
     router
       .group(() => {
@@ -575,10 +601,10 @@ router
         router.post('/transaction', [FeTransactionEcommerceController, 'create'])
         router.post('/transaction/confirm', [FeTransactionEcommerceController, 'confirmOrder'])
       })
-      .use(middleware.auth({ guards: ['api'] }))
+      .use([middleware.authCookie(), middleware.auth({ guards: ['api'] })])
 
     // =========================
-    // RAMADAN CHECK-IN (AUTH REQUIRED)
+    // RAMADAN CHECK-IN (AUTH REQUIRED) - COOKIE AUTH
     // =========================
     router
       .group(() => {
@@ -588,7 +614,7 @@ router
         router.get('/ramadan/spin/status', [FeRamadanSpinController, 'status'])
         router.post('/ramadan/spin', [FeRamadanSpinController, 'spin'])
       })
-      .use(middleware.auth({ guards: ['api'] }))
+      .use([middleware.authCookie(), middleware.auth({ guards: ['api'] })])
 
     router.put('/transaction/status', [FeTransactionEcommerceController, 'updateWaybillStatus'])
     router.post('/transaction/pickup', [FeTransactionEcommerceController, 'requestPickup'])
@@ -599,7 +625,7 @@ router
     router.post('/midtrans/callback', [FeTransactionEcommerceController, 'webhookMidtrans'])
 
     // =========================
-    // ORDERS (AUTH REQUIRED)
+    // ORDERS (AUTH REQUIRED) - COOKIE AUTH
     // =========================
     router
       .group(() => {
@@ -611,7 +637,7 @@ router
           'refreshTracking',
         ])
       })
-      .use(middleware.auth())
+      .use([middleware.authCookie(), middleware.auth({ guards: ['api'] })])
 
     // =========================
     // POS CASHIER ROUTES
