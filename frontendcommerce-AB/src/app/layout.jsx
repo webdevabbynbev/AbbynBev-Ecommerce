@@ -2,7 +2,7 @@ import { Plus_Jakarta_Sans, Damion } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 
-import { Footer, MobileBottomNav } from "../components";
+import { Footer, MobileBottomNav, ChatkitWidget } from "../components";
 import GoogleProvider from "@/components/googleProvider/googleProvider";
 import { AuthProvider } from "@/context/AuthContext";
 import { WishlistProvider } from "@/context/WishlistContext";
@@ -92,6 +92,7 @@ export default function RootLayout({ children }) {
 
               <Toaster position="top-center" />
               <MobileBottomNav />
+              <ChatkitWidget/>
               <Footer />
             </WishlistProvider>
           </AuthProvider>

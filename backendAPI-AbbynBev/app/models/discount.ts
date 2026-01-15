@@ -1,16 +1,12 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, hasMany, scope } from '@adonisjs/lucid/orm'
-import type { HasMany } from '@adonisjs/lucid/types/relations'
-
-import DiscountTarget from '#models/discount_target'
-import DiscountRedemption from '#models/discount_redemption'
+import { BaseModel, column, scope } from '@adonisjs/lucid/orm'
 
 export default class Discount extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
   @column()
-  declare name: string | null
+  declare name: string
 
   @column()
   declare code: string
@@ -18,79 +14,84 @@ export default class Discount extends BaseModel {
   @column()
   declare description: string | null
 
-  @column()
-  declare valueType: number // 1 percentage, 2 nominal
+  @column({ columnName: 'value_type' })
+  declare valueType: number
 
   @column()
-  declare value: string // decimal biasanya kebaca string (aman)
+  declare value: number
 
-  @column()
-  declare maxDiscount: string | null
+  @column({ columnName: 'max_discount' })
+  declare maxDiscount: number | null
 
-  @column()
-  declare appliesTo: number // 0 all, 1 min_order, 2 collection, 3 variant
+  @column({ columnName: 'applies_to' })
+  declare appliesTo: number
 
-  @column()
-  declare minOrderAmount: string | null
+  @column({ columnName: 'min_order_amount' })
+  declare minOrderAmount: number | null
 
-  @column()
+  @column({ columnName: 'min_order_qty' })
   declare minOrderQty: number | null
 
-  @column()
-  declare eligibilityType: number // 0 all, 1 users, 2 groups
+  @column({ columnName: 'eligibility_type' })
+  declare eligibilityType: number | null
 
-  @column()
+  @column({ columnName: 'usage_limit' })
   declare usageLimit: number | null
 
-  @column()
-  declare usageCount: number
+  // ======================
+  // SCHEDULE (buat service)
+  // ======================
+  @column.dateTime({ columnName: 'start_date' })
+  declare startDate: DateTime | null
 
-  @column()
-  declare reservedCount: number
+  @column.dateTime({ columnName: 'end_date' })
+  declare endDate: DateTime | null
 
-  @column()
-  declare isActive: number
+  /**
+   * Bitmask hari (1<<weekday). Kalau kolom ini belum ada di DB, biarin aja null.
+   * Service akan fallback ke 127 (everyday).
+   */
+  @column({ columnName: 'days_of_week_mask' })
+  declare daysOfWeekMask: number | null
 
-  @column()
-  declare isEcommerce: number
+  @column({ columnName: 'usage_count' })
+  declare usageCount: number | null
 
-  @column()
-  declare isPos: number
+  @column({ columnName: 'reserved_count' })
+  declare reservedCount: number | null
 
-  @column.dateTime()
-  declare startedAt: DateTime | null
+  // ======================
+  // STATUS / SOFT DELETE
+  // ======================
+  @column({
+    columnName: 'is_active',
+    consume: (v) => Boolean(Number(v)),
+    prepare: (v) => (v ? 1 : 0),
+  })
+  declare isActive: boolean
 
-  @column.dateTime()
-  declare expiredAt: DateTime | null
-
-  @column()
-  declare daysOfWeekMask: number
-
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
-
-  @column.dateTime()
+  @column.dateTime({ columnName: 'deleted_at' })
   declare deletedAt: DateTime | null
 
-  @hasMany(() => DiscountTarget, { foreignKey: 'discountId' })
-  declare targets: HasMany<typeof DiscountTarget>
+  @column.dateTime({ autoCreate: true, columnName: 'created_at' })
+  declare createdAt: DateTime
 
-  @hasMany(() => DiscountRedemption, { foreignKey: 'discountId' })
-  declare redemptions: HasMany<typeof DiscountRedemption>
+  @column.dateTime({ autoCreate: true, autoUpdate: true, columnName: 'updated_at' })
+  declare updatedAt: DateTime
 
-  public static active = scope((query) => query.whereNull('deleted_at'))
-  public static trashed = scope((query) => query.whereNotNull('deleted_at'))
-
-  public async softDelete() {
-    this.deletedAt = DateTime.now()
-    await this.save()
+  // ======================
+  // ALIAS biar cocok sama DiscountPricingService
+  // ======================
+  public get startedAt() {
+    return this.startDate
   }
 
-  public async restore() {
-    this.deletedAt = null
-    await this.save()
+  public get expiredAt() {
+    return this.endDate
   }
+
+  // ======================
+  // SCOPES
+  // ======================
+  public static active = scope((q) => q.whereNull('discounts.deleted_at'))
 }

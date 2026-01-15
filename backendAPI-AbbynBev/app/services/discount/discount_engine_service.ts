@@ -17,7 +17,7 @@ export class DiscountEngineService {
     if (discount.expiredAt && now > discount.expiredAt) return false
 
     const mask = discount.daysOfWeekMask ?? 127
-    // luxon weekday: Mon=1..Sun=7 => Sun kita set bit=1
+    // luxon weekday: Mon=1..Sun=7 => Sun kita set bit=1, Mon=2, Tue=4, ...
     const bit = now.weekday === 7 ? 1 : 1 << now.weekday
     return (mask & bit) === bit
   }
@@ -48,6 +48,7 @@ export class DiscountEngineService {
         const qty = Number(c.qty || 0)
         const price = Number(c.price || 0)
         const disc = Number(c.discount || 0)
+
         return {
           variantId: c.productVariantId as number,
           qty,
@@ -80,19 +81,18 @@ export class DiscountEngineService {
       return { eligibleSubtotal: subTotal, subTotal }
     }
 
-    // COLLECTION (category_type)
+    // COLLECTION (category_type) - optional/legacy
     if (appliesTo === 2) {
       const targets = await DiscountTarget.query()
         .where('discount_id', discount.id)
         .where('target_type', 1)
 
       const targetCategoryIds = new Set<number>(targets.map((t) => t.targetId))
-      if (targetCategoryIds.size === 0) return { eligibleSubtotal: 0, subTotal, reason: 'NO_TARGETS' as const }
+      if (targetCategoryIds.size === 0)
+        return { eligibleSubtotal: 0, subTotal, reason: 'NO_TARGETS' as const }
 
       const variantIds = items.map((i) => i.variantId)
-      const variants = await ProductVariant.query()
-        .whereIn('id', variantIds)
-        .preload('product')
+      const variants = await ProductVariant.query().whereIn('id', variantIds).preload('product')
 
       const eligibleVariantIds = new Set<number>()
       for (const v of variants) {
@@ -108,14 +108,95 @@ export class DiscountEngineService {
       return { eligibleSubtotal, subTotal }
     }
 
-    // VARIANT
-    if (appliesTo === 3) {
+    // BRAND
+    if (appliesTo === 4) {
       const targets = await DiscountTarget.query()
+        .where('discount_id', discount.id)
+        .where('target_type', 3)
+
+      const targetBrandIds = new Set<number>(targets.map((t) => t.targetId))
+      if (targetBrandIds.size === 0)
+        return { eligibleSubtotal: 0, subTotal, reason: 'NO_TARGETS' as const }
+
+      const variantIds = items.map((i) => i.variantId)
+      const variants = await ProductVariant.query().whereIn('id', variantIds).preload('product')
+
+      const eligibleVariantIds = new Set<number>()
+      for (const v of variants) {
+        if (v.product && targetBrandIds.has(v.product.brandId)) {
+          eligibleVariantIds.add(v.id)
+        }
+      }
+
+      const eligibleSubtotal = items
+        .filter((i) => eligibleVariantIds.has(i.variantId))
+        .reduce((a, b) => a + b.lineTotal, 0)
+
+      return { eligibleSubtotal, subTotal }
+    }
+
+    // PRODUCT
+    if (appliesTo === 5) {
+      const targets = await DiscountTarget.query()
+        .where('discount_id', discount.id)
+        .where('target_type', 4)
+
+      const targetProductIds = new Set<number>(targets.map((t) => t.targetId))
+      if (targetProductIds.size === 0)
+        return { eligibleSubtotal: 0, subTotal, reason: 'NO_TARGETS' as const }
+
+      const variantIds = items.map((i) => i.variantId)
+      const variants = await ProductVariant.query().whereIn('id', variantIds)
+
+      const eligibleVariantIds = new Set<number>()
+      for (const v of variants) {
+        if (targetProductIds.has(v.productId)) {
+          eligibleVariantIds.add(v.id)
+        }
+      }
+
+      const eligibleSubtotal = items
+        .filter((i) => eligibleVariantIds.has(i.variantId))
+        .reduce((a, b) => a + b.lineTotal, 0)
+
+      return { eligibleSubtotal, subTotal }
+    }
+
+    // VARIANT (NEW: attribute_values)
+    if (appliesTo === 3) {
+      // 1) NEW: target_type = 5 (attribute_value_id)
+      const attrTargets = await DiscountTarget.query()
+        .where('discount_id', discount.id)
+        .where('target_type', 5)
+
+      const targetAttrValueIds = new Set<number>(attrTargets.map((t) => t.targetId))
+
+      if (targetAttrValueIds.size > 0) {
+        // mapping attribute_value_id -> product_variant_id lewat pivot variant_attributes
+        const rows = await db
+          .from('variant_attributes')
+          .whereIn('attribute_value_id', Array.from(targetAttrValueIds))
+          .select('product_variant_id')
+
+        const eligibleVariantIds = new Set<number>(
+          rows.map((r: any) => Number(r.product_variant_id)).filter((x: number) => Number.isFinite(x))
+        )
+
+        const eligibleSubtotal = items
+          .filter((i) => eligibleVariantIds.has(i.variantId))
+          .reduce((a, b) => a + b.lineTotal, 0)
+
+        return { eligibleSubtotal, subTotal }
+      }
+
+      // 2) LEGACY fallback: target_type = 2 (product_variant_id)
+      const legacyTargets = await DiscountTarget.query()
         .where('discount_id', discount.id)
         .where('target_type', 2)
 
-      const targetVariantIds = new Set<number>(targets.map((t) => t.targetId))
-      if (targetVariantIds.size === 0) return { eligibleSubtotal: 0, subTotal, reason: 'NO_TARGETS' as const }
+      const targetVariantIds = new Set<number>(legacyTargets.map((t) => t.targetId))
+      if (targetVariantIds.size === 0)
+        return { eligibleSubtotal: 0, subTotal, reason: 'NO_TARGETS' as const }
 
       const eligibleSubtotal = items
         .filter((i) => targetVariantIds.has(i.variantId))
@@ -127,18 +208,10 @@ export class DiscountEngineService {
     return { eligibleSubtotal: 0, subTotal, reason: 'UNKNOWN' as const }
   }
 
-  async validateByCode(params: {
-    code: string
-    userId: number
-    channel: Channel
-    carts: TransactionCart[]
-  }) {
+  async validateByCode(params: { code: string; userId: number; channel: Channel; carts: TransactionCart[] }) {
     const code = params.code.trim()
 
-    const discount = await Discount.query()
-      .where('code', code)
-      .whereNull('deleted_at')
-      .first()
+    const discount = await Discount.query().where('code', code).whereNull('deleted_at').first()
 
     if (!discount) throw new Error('DISCOUNT_NOT_FOUND')
     if (!discount.isActive) throw new Error('DISCOUNT_INACTIVE')

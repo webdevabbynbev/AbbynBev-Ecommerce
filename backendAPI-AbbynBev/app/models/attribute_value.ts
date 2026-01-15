@@ -1,9 +1,9 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, belongsTo, scope, manyToMany } from '@adonisjs/lucid/orm'
-import type { BelongsTo, ManyToMany } from '@adonisjs/lucid/types/relations'
+import { BaseModel, column, belongsTo, scope } from '@adonisjs/lucid/orm'
+import type { BelongsTo } from '@adonisjs/lucid/types/relations'
+
 import Attribute from './attribute.js'
 import ProductVariant from './product_variant.js'
-
 
 export default class AttributeValue extends BaseModel {
   @column({ isPrimary: true })
@@ -12,40 +12,52 @@ export default class AttributeValue extends BaseModel {
   @column()
   declare value: string
 
-  @column()
+  @column({ columnName: 'attribute_id' })
   declare attributeId: number
 
-  // ✅ TAMBAH INI (map ke attribute_values.variant_id)
-  @column()
-  declare variantId: number
+  /**
+   * ✅ OPSI B:
+   * attribute_values.product_variant_id nempel langsung ke 1 variant
+   */
+  @column({ columnName: 'product_variant_id' })
+  declare productVariantId: number | null
 
-  @column.dateTime({ autoCreate: true })
+  @column.dateTime({ autoCreate: true, columnName: 'created_at' })
   declare createdAt: DateTime
 
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  @column.dateTime({ autoCreate: true, autoUpdate: true, columnName: 'updated_at' })
   declare updatedAt: DateTime
 
-  @column.dateTime()
+  @column.dateTime({ columnName: 'deleted_at' })
   declare deletedAt: DateTime | null
 
+  // =========================
+  // RELATIONS
+  // =========================
   @belongsTo(() => Attribute, { foreignKey: 'attributeId' })
   declare attribute: BelongsTo<typeof Attribute>
 
-  @manyToMany(() => ProductVariant, {
-  pivotTable: 'variant_attributes',
-  pivotForeignKey: 'attribute_value_id',
-  pivotRelatedForeignKey: 'product_variant_id',
-})
-declare variants: ManyToMany<typeof ProductVariant>
+  @belongsTo(() => ProductVariant, { foreignKey: 'productVariantId' })
+  declare productVariant: BelongsTo<typeof ProductVariant>
 
+  // =========================
+  // SCOPES
+  // =========================
   public static active = scope((query) => {
-    query.whereNull('deleted_at')
+    query.whereNull('attribute_values.deleted_at')
   })
 
   public static trashed = scope((query) => {
-    query.whereNotNull('deleted_at')
+    query.whereNotNull('attribute_values.deleted_at')
   })
 
+  public static forVariant = scope((query, productVariantId: number) => {
+    query.where('attribute_values.product_variant_id', productVariantId)
+  })
+
+  // =========================
+  // HELPERS
+  // =========================
   public async softDelete() {
     this.deletedAt = DateTime.now()
     await this.save()

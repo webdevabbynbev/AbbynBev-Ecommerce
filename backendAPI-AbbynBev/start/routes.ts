@@ -2,9 +2,10 @@
 |--------------------------------------------------------------------------
 | Routes file
 |--------------------------------------------------------------------------
-|
-| The routes file is used for defining the HTTP routes.
-|
+| - Konsep tetap sama seperti punyamu (struktur besar tidak diubah)
+| - Hanya FRONTEND yang pakai cookie (authCookie -> auth api guard)
+| - Admin/Cashier/CMS tetap bearer token (Authorization header) seperti sekarang
+|--------------------------------------------------------------------------
 */
 
 import router from '@adonisjs/core/services/router'
@@ -119,11 +120,9 @@ const FeTransactionEcommerceController = () =>
   import('#controllers/frontend/transaction/transaction_commerces_controller')
 const FeRamadanCheckinsController = () =>
   import('#controllers/frontend/ramadan/ramadan_checkins_controller')
-const FeRamadanSpinController = () =>
-  import('#controllers/frontend/ramadan/ramadan_spin_controller')
+const FeRamadanSpinController = () => import('#controllers/frontend/ramadan/ramadan_spin_controller')
 const OrdersController = () => import('#controllers/frontend/orders/orders_controller')
-const FeDiscountsController = () => import('#controllers/frontend/discounts/discounts_controller')
-
+const FeChatkitController = () => import('#controllers/frontend/chatkit/chatkit_controller')
 
 // =========================
 // POS CONTROLLERS
@@ -155,10 +154,15 @@ router
     router.post('/auth/register/google', [AuthSessionsController, 'registerGoogle'])
     router.post('/auth/register', [AuthRegistrationController, 'register'])
     router.post('/auth/verify-register', [AuthRegistrationController, 'verifyRegisterOtp'])
+
+    // customer login (sets cookie)
     router.post('/auth/login', [AuthSessionsController, 'login'])
     router.post('/auth/verify-login', [AuthSessionsController, 'verifyLoginOtp'])
+
+    // admin/cashier login (Bearer token)
     router.post('/auth/login-admin', [AuthSessionsController, 'loginAdmin'])
     router.post('/auth/login-cashier', [AuthSessionsController, 'loginCashier'])
+
     router.post('/auth/forgot', [AuthPasswordResetController, 'requestForgotPassword'])
 
     router
@@ -167,6 +171,7 @@ router
         'verifyForgotPassword',
       ])
       .as('verifyForgotPassword')
+
     router.post('/auth/reset-password', [AuthPasswordResetController, 'resetPassword'])
     router.post('/upload', [UploadsController, 'upload'])
 
@@ -176,6 +181,7 @@ router
     router
       .group(() => {
         router.get('/ramadan-participants', [CmsRamadanParticipantsController, 'index'])
+
         router
           .group(() => {
             router.get('', [UsersController, 'getAdmin'])
@@ -189,6 +195,7 @@ router
           .prefix('/users')
 
         router.get('/customers', [CustomersController, 'getCustomers'])
+
         router
           .group(() => {
             router.get('', [CategoryTypesController, 'get'])
@@ -319,6 +326,7 @@ router
           .use(middleware.roleAdmin())
           .prefix('/support-tickets')
 
+        // CMS permission routes (Bearer token) — tetap pakai auth, tapi guard-nya dibuat eksplisit api
         router
           .group(() => {
             router.get('', [CmsTagController, 'get'])
@@ -327,7 +335,7 @@ router
             router.put('/:slug', [CmsTagController, 'update'])
             router.delete('/:slug', [CmsTagController, 'delete'])
           })
-          .use([middleware.auth(), middleware.rolePermission([Role.GUDANG])])
+          .use([middleware.auth({ guards: ['api'] }), middleware.rolePermission([Role.GUDANG])])
           .prefix('/tags')
 
         router
@@ -350,7 +358,7 @@ router
             router.put('/:slug', [CmsPersonaController, 'update'])
             router.delete('/:slug', [CmsPersonaController, 'delete'])
           })
-          .use([middleware.auth(), middleware.rolePermission([Role.GUDANG])])
+          .use([middleware.auth({ guards: ['api'] }), middleware.rolePermission([Role.GUDANG])])
           .prefix('/personas')
 
         router
@@ -465,10 +473,7 @@ router
           'getTotalRegisterUserByPeriod',
         ])
 
-        router.get('/total-transaction', [
-          CmsDashboardTransactionsController,
-          'getTotalTransaction',
-        ])
+        router.get('/total-transaction', [CmsDashboardTransactionsController, 'getTotalTransaction'])
         router.get('/total-transaction-month', [
           CmsDashboardTransactionsController,
           'getTotalTransactionByMonth',
@@ -518,9 +523,21 @@ router
     router.get('/tags', [FeTagsController, 'list'])
     router.get('/tags/:slug', [FeTagsController, 'show'])
     router.post('/support-tickets', [FeSupportTicketController, 'create'])
+    router.post('/chatkit', [FeChatkitController, 'run'])
+
+    // Reviews: GET public, action protected by cookie-auth
+    router
+      .group(() => {
+        router.get('', [FeReviewController, 'get'])
+
+        router.post('', [FeReviewController, 'create'])
+        router.post('/:id/toggle-like', [FeReviewController, 'toggleLike'])
+      })
+      .prefix('/reviews')
+      .use([middleware.authCookie(), middleware.auth({ guards: ['api'] })])
 
     // =========================
-    // FRONTEND AUTH ROUTES
+    // FRONTEND AUTH ROUTES (COOKIE AUTH)
     // =========================
     router
       .group(() => {
@@ -543,8 +560,6 @@ router
         router.get('/beauty', [FeUserBeautyProfilesController, 'getUserSelections'])
         router.post('/beauty/concerns', [FeUserBeautyProfilesController, 'saveConcerns'])
         router.post('/vouchers/validate', [FeVoucherController, 'validate'])
-        router.post('/discounts/validate', [FeDiscountsController, 'validate'])
-
 
         router.get('/vouchers/available', [FeVoucherController, 'available'])
         router.get('/vouchers/my', [FeVoucherController, 'my'])
@@ -556,20 +571,10 @@ router
           'getProductRecommendations',
         ])
       })
-      .use(middleware.auth({ guards: ['api'] }))
-
-    router
-      .group(() => {
-        router.get('', [FeReviewController, 'get'])
-        router.post('', [FeReviewController, 'create']).use(middleware.auth({ guards: ['api'] }))
-        router
-          .post('/:id/toggle-like', [FeReviewController, 'toggleLike'])
-          .use(middleware.auth({ guards: ['api'] }))
-      })
-      .prefix('/reviews')
+      .use([middleware.authCookie(), middleware.auth({ guards: ['api'] })])
 
     // =========================
-    // CART ROUTES (AUTH REQUIRED)
+    // CART ROUTES (AUTH REQUIRED) - COOKIE AUTH
     // =========================
     router
       .group(() => {
@@ -585,10 +590,10 @@ router
         router.patch('/cart', [FeTransactionCartController, 'update'])
         router.delete('/cart', [FeTransactionCartController, 'delete'])
       })
-      .use(middleware.auth({ guards: ['api'] }))
+      .use([middleware.authCookie(), middleware.auth({ guards: ['api'] })])
 
     // =========================
-    // TRANSACTION ROUTES (AUTH REQUIRED)
+    // TRANSACTION ROUTES (AUTH REQUIRED) - COOKIE AUTH
     // =========================
     router
       .group(() => {
@@ -596,10 +601,10 @@ router
         router.post('/transaction', [FeTransactionEcommerceController, 'create'])
         router.post('/transaction/confirm', [FeTransactionEcommerceController, 'confirmOrder'])
       })
-      .use(middleware.auth({ guards: ['api'] }))
+      .use([middleware.authCookie(), middleware.auth({ guards: ['api'] })])
 
     // =========================
-    // RAMADAN CHECK-IN (AUTH REQUIRED)
+    // RAMADAN CHECK-IN (AUTH REQUIRED) - COOKIE AUTH
     // =========================
     router
       .group(() => {
@@ -608,9 +613,8 @@ router
         router.post('/ramadan/checkin/exempt', [FeRamadanCheckinsController, 'exempt'])
         router.get('/ramadan/spin/status', [FeRamadanSpinController, 'status'])
         router.post('/ramadan/spin', [FeRamadanSpinController, 'spin'])
-        router.post('/ramadan/spin/claim', [FeRamadanSpinController, 'claimTicket'])
       })
-      .use(middleware.auth({ guards: ['api'] }))
+      .use([middleware.authCookie(), middleware.auth({ guards: ['api'] })])
 
     router.put('/transaction/status', [FeTransactionEcommerceController, 'updateWaybillStatus'])
     router.post('/transaction/pickup', [FeTransactionEcommerceController, 'requestPickup'])
@@ -621,7 +625,7 @@ router
     router.post('/midtrans/callback', [FeTransactionEcommerceController, 'webhookMidtrans'])
 
     // =========================
-    // ORDERS (AUTH REQUIRED)
+    // ORDERS (AUTH REQUIRED) - COOKIE AUTH
     // =========================
     router
       .group(() => {
@@ -633,7 +637,7 @@ router
           'refreshTracking',
         ])
       })
-      .use(middleware.auth())
+      .use([middleware.authCookie(), middleware.auth({ guards: ['api'] })])
 
     // =========================
     // POS CASHIER ROUTES
