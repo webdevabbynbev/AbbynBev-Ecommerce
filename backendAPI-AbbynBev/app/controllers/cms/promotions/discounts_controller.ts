@@ -19,6 +19,19 @@ function toStr(v: any, fallback = '') {
   return s ? s : fallback
 }
 
+/**
+ * convert input (string/number) into number or null
+ * supports "1.234.000" (rupiah formatting) and "1234,50"
+ */
+function toNum(v: any, fallback: number | null = null): number | null {
+  if (v === undefined || v === null) return fallback
+  const s = String(v).trim()
+  if (!s) return fallback
+  const normalized = s.replace(/\./g, '').replace(/,/g, '.')
+  const n = Number(normalized)
+  return Number.isFinite(n) ? n : fallback
+}
+
 function pick(obj: any, ...keys: string[]) {
   for (const k of keys) {
     const v = obj?.[k]
@@ -54,8 +67,7 @@ function daysFromMask(mask: number): number[] {
 
 // NOTE:
 // Form kirim "YYYY-MM-DDTHH:mm" (tanpa TZ).
-// Di controller ini kita pakai Asia/Jakarta lalu "dibulatkan" ke start/end day
-// biar konsisten dengan tampilan periode di CMS (tanggal doang).
+// Disini kita pakai Asia/Jakarta lalu dibulatkan biar konsisten periode di CMS.
 function parseStartDate(dateStr: any): DateTime | null {
   const s = String(dateStr ?? '').trim()
   if (!s) return null
@@ -88,11 +100,6 @@ async function findDiscountByIdentifier(identifier: { id: number | null; code: s
   return null
 }
 
-function toBoolFrom10(v: any, fallback = false) {
-  if (v === undefined) return fallback
-  return toInt(v, fallback ? 1 : 0) === 1
-}
-
 function toIsActive(v: any, fallback = true) {
   // CMS kamu pakai 1 = aktif, 2 = nonaktif
   if (v === undefined) return fallback
@@ -108,53 +115,89 @@ export default class DiscountsController {
       const perPage = toInt(qs.per_page, 10) || 10
 
       const discounts = await Discount.query()
-  .apply((scopes) => scopes.active())
-  .select([
-    'discounts.id',
-    'discounts.name',
-    'discounts.code',
-    'discounts.value_type',
-    'discounts.value',
-    'discounts.max_discount',
-    'discounts.applies_to',
-    'discounts.min_order_amount',
-    'discounts.usage_limit',
-    'discounts.is_active',
-    'discounts.is_ecommerce',
-    'discounts.is_pos',
-    'discounts.started_at',
-    'discounts.expired_at',
-    'discounts.created_at',
-  ])
-  .if(q, (query) => {
-    query.where((sub) => {
-      sub.whereILike('name', `%${q}%`).orWhereILike('code', `%${q}%`)
-    })
-  })
-  .orderBy('created_at', 'desc')
-  .paginate(page, perPage)
-
+        .apply((scopes) => scopes.active())
+        // ✅ jangan pakai alias "as ..."
+        .select([
+          'discounts.id',
+          'discounts.name',
+          'discounts.code',
+          'discounts.description',
+          'discounts.value_type',
+          'discounts.value',
+          'discounts.max_discount',
+          'discounts.applies_to',
+          'discounts.min_order_amount',
+          'discounts.min_order_qty',
+          'discounts.eligibility_type',
+          'discounts.usage_limit',
+          'discounts.is_active',
+          'discounts.is_ecommerce',
+          'discounts.is_pos',
+          'discounts.started_at',
+          'discounts.expired_at',
+          'discounts.days_of_week_mask',
+          'discounts.created_at',
+        ])
+        .if(q, (query) => {
+          query.where((sub) => {
+            sub.whereILike('name', `%${q}%`).orWhereILike('code', `%${q}%`)
+          })
+        })
+        .orderBy('created_at', 'desc')
+        .paginate(page, perPage)
 
       const json = discounts.toJSON()
 
       const data = (json.data ?? []).map((d: any) => {
-        const startedDate = d.startedAt ? DateTime.fromISO(d.startedAt).toISODate() : null
-        const expiredDate = d.expiredAt ? DateTime.fromISO(d.expiredAt).toISODate() : null
+        const startedISO = d.startedAt ?? null
+        const expiredISO = d.expiredAt ?? null
+        const startedDate = startedISO ? DateTime.fromISO(startedISO).toISODate() : null
+        const expiredDate = expiredISO ? DateTime.fromISO(expiredISO).toISODate() : null
 
         return {
-          ...d,
-          startedAt: startedDate,
-          expiredAt: expiredDate,
+          // ✅ identifier wajib ada
+          id: d.id,
+          name: d.name ?? null,
+          code: d.code ?? null,
+
+          description: d.description ?? null,
+
+          // camelCase untuk form
+          valueType: d.valueType,
+          value: d.value,
+          maxDiscount: d.maxDiscount ?? null,
+
+          appliesTo: d.appliesTo,
+          minOrderAmount: d.minOrderAmount ?? null,
+          minOrderQty: d.minOrderQty ?? null,
+
+          eligibilityType: d.eligibilityType,
+          usageLimit: d.usageLimit ?? null,
+
+          isActive: d.isActive ? 1 : 0,
+          isEcommerce: d.isEcommerce ? 1 : 0,
+          isPos: d.isPos ? 1 : 0,
+
+          startedAt: startedISO,
+          expiredAt: expiredISO,
+
+          // snake_case fallback
+          value_type: d.valueType,
+          max_discount: d.maxDiscount ?? null,
+          applies_to: d.appliesTo,
+          min_order_amount: d.minOrderAmount ?? null,
+          min_order_qty: d.minOrderQty ?? null,
+          eligibility_type: d.eligibilityType,
+          usage_limit: d.usageLimit ?? null,
+
+          // CMS kamu 1/2
+          is_active: d.isActive ? 1 : 2,
+          is_ecommerce: d.isEcommerce ? 1 : 0,
+          is_pos: d.isPos ? 1 : 0,
+
+          // periode untuk tabel
           started_at: startedDate,
           expired_at: expiredDate,
-
-          // FE lama kadang expect 1/0
-          isActive: d.isActive ? 1 : 0,
-          is_active: d.isActive ? 1 : 2, // biar nyambung sama CMS (1/2)
-          isEcommerce: d.isEcommerce ? 1 : 0,
-          is_ecommerce: d.isEcommerce ? 1 : 0,
-          isPos: d.isPos ? 1 : 0,
-          is_pos: d.isPos ? 1 : 0,
 
           qty: d.usageLimit ?? null,
         }
@@ -181,8 +224,13 @@ export default class DiscountsController {
 
       const targets = await DiscountTarget.query().where('discount_id', discount.id)
 
-      const categoryTypeIds = targets.filter((t: any) => Number(t.targetType) === 1).map((t: any) => Number(t.targetId))
-      const variantIds = targets.filter((t: any) => Number(t.targetType) === 2).map((t: any) => Number(t.targetId))
+      const categoryTypeIds = targets
+        .filter((t: any) => Number(t.targetType) === 1)
+        .map((t: any) => Number(t.targetId))
+
+      const variantIds = targets
+        .filter((t: any) => Number(t.targetType) === 2)
+        .map((t: any) => Number(t.targetId))
 
       const customerRows = await db.from('discount_customer_users').where('discount_id', discount.id).select('user_id')
       const customerIds = customerRows.map((r: any) => Number(r.user_id))
@@ -200,7 +248,6 @@ export default class DiscountsController {
           started_at: startedDate,
           expired_at: expiredDate,
 
-          // flags as 1/0 (dan 1/2 untuk is_active)
           isActive: discount.isActive ? 1 : 0,
           is_active: discount.isActive ? 1 : 2,
           isEcommerce: discount.isEcommerce ? 1 : 0,
@@ -246,19 +293,18 @@ export default class DiscountsController {
       discount.name = name ? name : null
 
       discount.code = code
-      discount.description = (pick(payload, 'description') ?? null) ? String(pick(payload, 'description')) : null
+      discount.description = pick(payload, 'description') ? String(pick(payload, 'description')) : null
 
       discount.valueType = toInt(pick(payload, 'value_type', 'valueType'), 1)
-      discount.value = String(pick(payload, 'value') ?? '0')
-      discount.maxDiscount = pick(payload, 'max_discount', 'maxDiscount') ? String(pick(payload, 'max_discount', 'maxDiscount')) : null
+      discount.value = Number(toNum(pick(payload, 'value'), 0) ?? 0)
+      discount.maxDiscount = toNum(pick(payload, 'max_discount', 'maxDiscount'), null)
 
       discount.appliesTo = toInt(pick(payload, 'applies_to', 'appliesTo'), 0)
-      discount.minOrderAmount = pick(payload, 'min_order_amount', 'minOrderAmount')
-        ? String(pick(payload, 'min_order_amount', 'minOrderAmount'))
-        : null
+      discount.minOrderAmount = toNum(pick(payload, 'min_order_amount', 'minOrderAmount'), null)
 
-      // optional (kalau suatu saat dipakai)
-      discount.minOrderQty = pick(payload, 'min_order_qty', 'minOrderQty') ? toInt(pick(payload, 'min_order_qty', 'minOrderQty')) : null
+      discount.minOrderQty = pick(payload, 'min_order_qty', 'minOrderQty')
+        ? toInt(pick(payload, 'min_order_qty', 'minOrderQty'))
+        : null
 
       discount.eligibilityType = toInt(pick(payload, 'eligibility_type', 'eligibilityType'), 0)
 
@@ -270,7 +316,6 @@ export default class DiscountsController {
       discount.isPos = toInt(pick(payload, 'is_pos', 'isPos'), 0) === 1
       discount.isActive = toIsActive(pick(payload, 'is_active', 'isActive'), true)
 
-      // schedule
       discount.startedAt = startedAt
 
       const noExpiry = toInt(pick(payload, 'no_expiry', 'noExpiry'), 0) === 1
@@ -281,14 +326,11 @@ export default class DiscountsController {
 
       await discount.save()
 
-      // =====================
-      // targets (category / variant)
-      // =====================
+      // targets
       await DiscountTarget.query({ client: trx }).where('discount_id', discount.id).delete()
 
       const appliesTo = Number(discount.appliesTo)
       if (appliesTo === 2) {
-        // collection/category types
         const ids = uniqNums(pick(payload, 'category_type_ids', 'categoryTypeIds') ?? [])
         if (ids.length) {
           await DiscountTarget.createMany(
@@ -297,7 +339,6 @@ export default class DiscountsController {
           )
         }
       } else if (appliesTo === 3) {
-        // product variants (sesuai form kamu: variant_ids = product_variants.id)
         const ids = uniqNums(pick(payload, 'variant_ids', 'variantIds') ?? [])
         if (ids.length) {
           await DiscountTarget.createMany(
@@ -307,9 +348,7 @@ export default class DiscountsController {
         }
       }
 
-      // =====================
       // customers eligibility
-      // =====================
       await trx.from('discount_customer_users').where('discount_id', discount.id).delete()
       if (Number(discount.eligibilityType) === 1) {
         const customerIds = uniqNums(pick(payload, 'customer_ids', 'customerIds') ?? [])
@@ -374,21 +413,27 @@ export default class DiscountsController {
       if (pick(payload, 'value_type', 'valueType') !== undefined) {
         discount.valueType = toInt(pick(payload, 'value_type', 'valueType'), discount.valueType)
       }
+
       if (pick(payload, 'value') !== undefined) {
-        discount.value = String(pick(payload, 'value') ?? '0')
+        discount.value = Number(toNum(pick(payload, 'value'), 0) ?? 0)
       }
+
       if (pick(payload, 'max_discount', 'maxDiscount') !== undefined) {
-        const md = pick(payload, 'max_discount', 'maxDiscount')
-        discount.maxDiscount = md ? String(md) : null
+        discount.maxDiscount = toNum(pick(payload, 'max_discount', 'maxDiscount'), null)
       }
 
       // conditions
       if (pick(payload, 'applies_to', 'appliesTo') !== undefined) {
         discount.appliesTo = toInt(pick(payload, 'applies_to', 'appliesTo'), discount.appliesTo)
       }
+
       if (pick(payload, 'min_order_amount', 'minOrderAmount') !== undefined) {
-        const moa = pick(payload, 'min_order_amount', 'minOrderAmount')
-        discount.minOrderAmount = moa ? String(moa) : null
+        discount.minOrderAmount = toNum(pick(payload, 'min_order_amount', 'minOrderAmount'), null)
+      }
+
+      if (pick(payload, 'min_order_qty', 'minOrderQty') !== undefined) {
+        const moq = pick(payload, 'min_order_qty', 'minOrderQty')
+        discount.minOrderQty = moq ? toInt(moq) : null
       }
 
       if (pick(payload, 'eligibility_type', 'eligibilityType') !== undefined) {
@@ -433,9 +478,7 @@ export default class DiscountsController {
 
       await discount.save()
 
-      // =====================
       // reset targets
-      // =====================
       await DiscountTarget.query({ client: trx }).where('discount_id', discount.id).delete()
 
       const appliesTo = Number(discount.appliesTo)
@@ -457,9 +500,7 @@ export default class DiscountsController {
         }
       }
 
-      // =====================
       // reset customers
-      // =====================
       await trx.from('discount_customer_users').where('discount_id', discount.id).delete()
       if (Number(discount.eligibilityType) === 1) {
         const customerIds = uniqNums(pick(payload, 'customer_ids', 'customerIds') ?? [])
@@ -528,7 +569,6 @@ export default class DiscountsController {
         return response.badRequest({ message: 'Invalid discount identifier', serve: null })
       }
 
-      // FE bisa kirim 1/0 atau 1/2, kita anggap 1 = aktif
       const isActive = toIsActive(request.input('is_active'), true)
 
       const discount = await findDiscountByIdentifier(identifier, trx)
