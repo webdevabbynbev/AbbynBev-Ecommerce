@@ -195,6 +195,22 @@ export default function SaleClient() {
     return filtered.slice(0, visibleSaleCount);
   }, [filtered, visibleSaleCount]);
 
+  const buildSaleHrefQuery = (product) => {
+    const salePrice = Number(product?.price ?? 0);
+    const realPrice = Number(product?.realprice ?? 0);
+    const params = {};
+
+    if (Number.isFinite(salePrice) && salePrice > 0) {
+      params.salePrice = salePrice;
+    }
+
+    if (Number.isFinite(realPrice) && realPrice > 0) {
+      params.realPrice = realPrice;
+    }
+
+    return Object.keys(params).length ? params : undefined;
+  };
+
   const flashSaleItems = useMemo(() => {
     if (Array.isArray(flashSale)) return flashSale;
     const source =
@@ -473,6 +489,7 @@ export default function SaleClient() {
                     product.slug ?? product.sku ?? idx
                   }`}
                   product={product}
+                  hrefQuery={buildSaleHrefQuery(product)}
                 />
               ))
             ) : (
