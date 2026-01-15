@@ -1,6 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Bouncy } from "ldrs/react";
+import "ldrs/react/Bouncy.css";
+import { FaSprayCanSparkles } from "react-icons/fa6";
+import { BtnIcon, Button, TxtField } from ".";
 
 const getSessionId = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -85,13 +89,13 @@ export function ChatkitWidget() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-[60]">
+    <div className="fixed bottom-6 right-6 z-50 h-auto">
       {isOpen ? (
-        <div className="w-80 rounded-2xl bg-white shadow-xl border border-slate-200 flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 bg-black text-white">
+        <div className="w-100 rounded-2xl bg-primary-50 shadow-xl border border-slate-200 flex flex-col overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-primary-500 via-primary-200 to-secondary-200 text-white">
             <div>
               <p className="text-sm font-semibold">Abby n Bev AI</p>
-              <p className="text-xs text-white/70">Concierge & Advisor</p>
+              <p className="text-xs text-white/70">Beauty Assistant</p>
             </div>
             <button
               type="button"
@@ -115,14 +119,14 @@ export function ChatkitWidget() {
               </div>
             ))}
             {isSending && (
-              <div className="rounded-2xl px-3 py-2 text-sm bg-slate-100 text-slate-600">
-                Lagi mikir dulu ya...
+              <div className="p-4 mx-auto justify-center items-center">
+                <Bouncy size="40" speed="1.2" color="#AE2D68" />
               </div>
             )}
           </div>
           <div className="border-t border-slate-200 px-4 py-3 flex items-center gap-2">
-            <input
-              value={input}
+            <TxtField
+              variant="outline"
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") sendMessage();
@@ -130,24 +134,27 @@ export function ChatkitWidget() {
               placeholder="Tulis pertanyaan kamu..."
               className="flex-1 text-sm rounded-full border border-slate-200 px-3 py-2 focus:outline-none"
             />
-            <button
-              type="button"
+            <BtnIcon
+              variant="primary"
+              size="sm"
+              iconName="ArrowUpLong"
               onClick={sendMessage}
-              disabled={isSending}
-              className="text-sm font-semibold text-white bg-black rounded-full px-4 py-2 disabled:opacity-60"
-            >
-              Send
-            </button>
+              disabled={isSending}            
+              />
+              
           </div>
         </div>
       ) : (
-        <button
-          type="button"
+        <Button
+          variant="primary"
+          size="lg"
           onClick={() => setIsOpen(true)}
           className="bg-black text-white rounded-full px-5 py-3 shadow-lg text-sm font-semibold"
         >
-          Chat Abby n Bev
-        </button>
+          <div className="flex flex-row items-center gap-2">
+            <FaSprayCanSparkles className="h-5 w-5" /> Your Beauty Assistant here!
+          </div>
+        </Button>
       )}
     </div>
   );
