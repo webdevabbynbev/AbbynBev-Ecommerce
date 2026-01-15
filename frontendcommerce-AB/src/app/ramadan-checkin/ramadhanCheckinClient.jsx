@@ -148,7 +148,7 @@ const RecommendationCard = ({ data }) => {
             {data.brand}
           </span>
 
-          <h4 className="text-xs font-bold text-gray-800 line-clamp-2 min-h-[32px] leading-snug mt-1">
+          <h4 className="text-xs font-bold text-gray-800 line-clamp-2 min-h-8 leading-snug mt-1">
             {data.name}
           </h4>
 
@@ -280,7 +280,7 @@ const SpinWheelModal = ({ open, onClose, prizes, tickets, onSpin }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md transition-all">
+    <div className="fixed inset-0 z-70 flex items-center justify-center bg-black/60 p-4 backdrop-blur-md transition-all">
       <div
         className="w-full max-w-[90%] md:max-w-md rounded-3xl md:rounded-[2.5rem] bg-white p-6 md:p-8 shadow-2xl text-center relative overflow-hidden flex flex-col items-center border-4"
         style={{ borderColor: BRAND_BORDER }}
@@ -408,7 +408,7 @@ const OfferModal = ({ open, onClose, recommendations, loading }) => {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-80 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
       <div
         className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border-4 relative"
         style={{ borderColor: BRAND_BORDER }}
@@ -462,7 +462,7 @@ const ClaimTicketModal = ({ open, onSpinNow, onSpinLater, onClose }) => {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[75] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-75 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
       <div
         className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl border-4 relative text-center"
         style={{ borderColor: BRAND_BORDER }}
@@ -884,7 +884,7 @@ export default function RamadanCheckinClient() {
         {successModal.open && (
           <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-0 md:p-4">
             <div
-              className="w-full md:max-w-sm rounded-t-[2rem] md:rounded-[2.5rem] bg-white p-6 md:p-8 shadow-2xl animate-slide-up md:animate-scale-in max-h-[90vh] overflow-y-auto relative border-t-4 md:border-4"
+              className="w-full md:max-w-sm rounded-t-4xl md:rounded-[2.5rem] bg-white p-6 md:p-8 shadow-2xl animate-slide-up md:animate-scale-in max-h-[90vh] overflow-y-auto relative border-t-4 md:border-4"
               style={{ borderColor: BRAND_BORDER }}
             >
               <button
@@ -1049,12 +1049,12 @@ export default function RamadanCheckinClient() {
 
                   <div className="flex items-center self-start sm:self-auto">
                     {isSelectedChecked ? (
-                      <span className="px-4 py-2 bg-gradient-to-r from-green-50 to-green-100 text-green-700 rounded-xl font-extrabold text-xs flex items-center gap-2 border border-green-200">
+                      <span className="px-4 py-2 bg-linear-to-r from-green-50 to-green-100 text-green-700 rounded-xl font-extrabold text-xs flex items-center gap-2 border border-green-200">
                         <CheckCircle2 size={16} className="text-green-600" />
                         Sudah Check-in
                       </span>
                     ) : isSelectedExempt ? (
-                      <span className="px-4 py-2 bg-gradient-to-r from-amber-50 to-amber-100 text-amber-700 rounded-xl font-extrabold text-xs border border-amber-200 flex items-center gap-2">
+                      <span className="px-4 py-2 bg-linear-to-r from-amber-50 to-amber-100 text-amber-700 rounded-xl font-extrabold text-xs border border-amber-200 flex items-center gap-2">
                         <Ban size={14} className="text-amber-600" />
                         Tidak Puasa
                       </span>
@@ -1145,7 +1145,7 @@ export default function RamadanCheckinClient() {
 
                 {/* CALENDAR WRAP */}
                 <div
-                  className="rounded-2xl md:rounded-[2rem] p-4 md:p-8 border-2"
+                  className="rounded-2xl md:rounded-4xl p-4 md:p-8 border-2"
                   style={{
                     background: `linear-gradient(135deg, ${BRAND_SOFT} 0%, ${BRAND_SOFT2} 100%)`,
                     borderColor: BRAND_BORDER,
@@ -1228,7 +1228,7 @@ export default function RamadanCheckinClient() {
                             }
                             ${
                               isChecked
-                                ? "bg-gradient-to-br from-pink-500 to-pink-100 text-white shadow-md shadow-pink-200"
+                                ? "bg-linear-to-br from-pink-500 to-pink-100 text-white shadow-md shadow-pink-200"
                                 : isExempt
                                 ? "bg-amber-100 text-amber-700"
                                 : isDayToday
@@ -1260,7 +1260,7 @@ export default function RamadanCheckinClient() {
 
                   {/* ACTION SECTION */}
                   <div
-                    className={`p-5 md:p-8 rounded-2xl md:rounded-[2rem] transition-all duration-500 ${
+                    className={`p-5 md:p-8 rounded-2xl md:rounded-4xl transition-all duration-500 ${
                       isToday || isSelectedChecked || isSelectedExempt
                         ? "bg-white shadow-xl shadow-gray-100 translate-y-0 opacity-100 border-2"
                         : "bg-gray-100 opacity-50 grayscale translate-y-2"
