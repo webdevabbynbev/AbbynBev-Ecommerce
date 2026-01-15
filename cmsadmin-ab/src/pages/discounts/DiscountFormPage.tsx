@@ -29,8 +29,17 @@ const dayOptions = [
   { label: "Sabtu", value: "6" },
 ];
 
-// helper: bersihin "Rp 1.234.000" -> "1234000"
+// "Rp 1.234.000" -> "1234000"
 const onlyDigits = (v: any) => String(v ?? "").replace(/[^\d]/g, "");
+
+// ISO / mysql datetime -> YYYY-MM-DD (buat <input type="date">)
+const toDateOnly = (v: any): string | null => {
+  const s = String(v ?? "").trim();
+  if (!s) return null;
+  if (s.includes("T") && s.length >= 10) return s.slice(0, 10);
+  if (s.length >= 10) return s.slice(0, 10);
+  return s;
+};
 
 export default function DiscountFormPage({ mode }: Props) {
   const [form] = Form.useForm();
@@ -40,25 +49,20 @@ export default function DiscountFormPage({ mode }: Props) {
 
   const [loading, setLoading] = useState(false);
 
-  // state dari TableDiscount saat klik Edit
   const fromState = (location.state as any) || null;
 
-  // options
   const [variantOptions, setVariantOptions] = useState<{ label: string; value: number }[]>([]);
   const [customerOptions, setCustomerOptions] = useState<{ label: string; value: number }[]>([]);
-
   const [brandOptions, setBrandOptions] = useState<{ label: string; value: number }[]>([]);
   const [productOptions, setProductOptions] = useState<{ label: string; value: number }[]>([]);
 
   const [variantLoading, setVariantLoading] = useState(false);
   const [customerLoading, setCustomerLoading] = useState(false);
-
   const [brandLoading, setBrandLoading] = useState(false);
   const [productLoading, setProductLoading] = useState(false);
 
-  // ✅ BRAND OPTIONS
   const searchBrands = async (keyword: string) => {
-    const q = String(keyword ?? "").trim(); // boleh kosong
+    const q = String(keyword ?? "").trim();
     setBrandLoading(true);
     try {
       const resp: any = await http.get(
@@ -72,7 +76,6 @@ export default function DiscountFormPage({ mode }: Props) {
         }))
       );
     } catch (e1: any) {
-      // fallback
       try {
         const resp2: any = await http.get(
           `/admin/brands?q=${encodeURIComponent(q)}&page=1&per_page=20`
@@ -96,9 +99,8 @@ export default function DiscountFormPage({ mode }: Props) {
     }
   };
 
-  // ✅ PRODUCT OPTIONS
   const searchProducts = async (keyword: string) => {
-    const q = String(keyword ?? "").trim(); // boleh kosong
+    const q = String(keyword ?? "").trim();
     setProductLoading(true);
     try {
       const resp: any = await http.get(
@@ -108,11 +110,10 @@ export default function DiscountFormPage({ mode }: Props) {
       setProductOptions(
         rows.map((p: any) => ({
           value: Number(p.id),
-          label: `${p.name ?? "Produk"} `,
+          label: `${p.name ?? "Produk"}`,
         }))
       );
     } catch (e1: any) {
-      // fallback
       try {
         const resp2: any = await http.get(
           `/admin/product?name=${encodeURIComponent(q)}&page=1&per_page=10`
@@ -136,15 +137,9 @@ export default function DiscountFormPage({ mode }: Props) {
     }
   };
 
-  /**
-   * ✅ VARIANT OPTIONS (NEW)
-   * Sekarang "Varian Produk" di CMS = attribute_values.
-   * Endpoint backend return:
-   *   { id, value, attributeName }
-   * id = attribute_value_id (target_type=5)
-   */
+  // ✅ Variants = attribute_values (target_type=5)
   const searchVariants = async (keyword: string) => {
-    const q = String(keyword ?? "").trim(); // boleh kosong
+    const q = String(keyword ?? "").trim();
     setVariantLoading(true);
     try {
       const resp: any = await http.get(
@@ -153,9 +148,8 @@ export default function DiscountFormPage({ mode }: Props) {
       const rows = resp?.data?.serve?.data ?? [];
       setVariantOptions(
         rows.map((v: any) => ({
-          value: Number(v.id), // attribute_value_id
+          value: Number(v.id),
           label: `${v.value}`,
-
         }))
       );
     } catch (e: any) {
@@ -167,78 +161,98 @@ export default function DiscountFormPage({ mode }: Props) {
   };
 
   const searchCustomers = async (keyword: string) => {
-  const q = String(keyword ?? "").trim()
-  setCustomerLoading(true)
-  try {
-    const resp: any = await http.get(
-      `/admin/customers?q=${encodeURIComponent(q)}&page=1&per_page=10`
-    )
-    const users = resp?.data?.serve?.data ?? []
-    setCustomerOptions(
-      users.map((u: any) => ({
-        value: Number(u.id),
-        label: `${u.firstName ?? ""} ${u.lastName ?? ""} • ${u.email ?? ""}`.trim(),
-      }))
-    )
-  } catch (e: any) {
-    setCustomerOptions([])
-    message.error(e?.response?.data?.message ?? "Gagal ambil customer")
-  } finally {
-    setCustomerLoading(false)
-  }
+    const q = String(keyword ?? "").trim();
+    setCustomerLoading(true);
+    try {
+      const resp: any = await http.get(
+        `/admin/customers?q=${encodeURIComponent(q)}&page=1&per_page=10`
+      );
+      const users = resp?.data?.serve?.data ?? [];
+      setCustomerOptions(
+        users.map((u: any) => ({
+          value: Number(u.id),
+          label: `${u.firstName ?? ""} ${u.lastName ?? ""} • ${u.email ?? ""}`.trim(),
+        }))
+      );
+    } catch (e: any) {
+      setCustomerOptions([]);
+      message.error(e?.response?.data?.message ?? "Gagal ambil customer");
+    } finally {
+      setCustomerLoading(false);
+    }
   };
 
   const mapApiToForm = (data: any) => {
+    const valueType = Number(data?.valueType ?? data?.value_type ?? 1);
+    const appliesTo = Number(data?.appliesTo ?? data?.applies_to ?? 0);
+
+    const started = toDateOnly(data?.startedAt ?? data?.started_at);
+    const expired = toDateOnly(data?.expiredAt ?? data?.expired_at);
+
+    const rawMax = data?.maxDiscount ?? data?.max_discount ?? "";
+    const rawMinOrder = data?.minOrderAmount ?? data?.min_order_amount ?? "";
+
+    const daysRaw = data?.daysOfWeek ?? data?.days_of_week;
+    const days = Array.isArray(daysRaw)
+      ? daysRaw.map(String)
+      : ["0", "1", "2", "3", "4", "5", "6"];
+
     return {
       name: data?.name ?? "",
       code: data?.code ?? "",
       description: data?.description ?? "",
 
-      value_type: data?.valueType ?? 1,
-      value: data?.value ? String(data.value) : "",
-      max_discount: data?.maxDiscount ? helper.formatRupiah(data.maxDiscount) : "",
+      value_type: valueType,
+      value: data?.value !== undefined && data?.value !== null ? String(data.value) : "",
 
-      applies_to: data?.appliesTo ?? 0,
-      min_order_amount: data?.minOrderAmount ? helper.formatRupiah(data.minOrderAmount) : "",
+      max_discount: rawMax ? helper.formatRupiah(String(rawMax)) : "",
 
-      // ✅ targets
-      brand_ids: data?.brandIds ?? [],
-      product_ids: data?.productIds ?? [],
-      // ✅ sekarang variant_ids itu attribute_value_ids
-      variant_ids: data?.variantIds ?? [],
+      applies_to: appliesTo,
 
-      eligibility_type: data?.eligibilityType ?? 0,
-      customer_ids: data?.customerIds ?? [],
+      min_order_amount: rawMinOrder ? helper.formatRupiah(String(rawMinOrder)) : "",
+
+      brand_ids: data?.brandIds ?? data?.brand_ids ?? [],
+      product_ids: data?.productIds ?? data?.product_ids ?? [],
+      variant_ids: data?.variantIds ?? data?.variant_ids ?? [],
+
+      eligibility_type: Number(data?.eligibilityType ?? data?.eligibility_type ?? 0),
+      customer_ids: data?.customerIds ?? data?.customer_ids ?? [],
 
       is_unlimited: data?.qty ? 0 : 1,
       qty: data?.qty ?? null,
-      max_per_user: data?.maxPerUser ?? null,
+      max_per_user: data?.maxPerUser ?? data?.max_per_user ?? null,
 
-      is_ecommerce: data?.isEcommerce ? 1 : 0,
-      is_pos: data?.isPos ? 1 : 0,
-      is_active: data?.isActive ?? 1,
+      is_ecommerce: Number(data?.isEcommerce ?? data?.is_ecommerce ?? 1),
+      is_pos: Number(data?.isPos ?? data?.is_pos ?? 0),
+      is_active: Number(data?.isActive ?? data?.is_active ?? 1),
 
-      started_at: data?.startedAt ?? null,
-      no_expiry: data?.expiredAt ? 0 : 1,
-      expired_at: data?.expiredAt ?? null,
-      days_of_week: data?.daysOfWeek?.map(String) ?? ["0", "1", "2", "3", "4", "5", "6"],
+      started_at: started,
+      no_expiry: expired ? 0 : 1,
+      expired_at: expired,
+      days_of_week: days,
     };
   };
 
   const loadEdit = async () => {
     if (mode !== "edit") return;
 
-    if (fromState) {
-      form.setFieldsValue(mapApiToForm(fromState));
+    const idNum = Number(id);
+    if (!Number.isFinite(idNum) || idNum <= 0) {
+      message.error("Invalid discount id");
+      nav("/discounts");
+      return;
     }
 
+    setLoading(true);
     try {
-      setLoading(true);
-      const resp: any = await http.get(`/admin/discounts/${id}`);
-      const data = resp?.data?.serve;
-      if (data) form.setFieldsValue(mapApiToForm(data));
-    } catch {
-      // aman
+      const resp: any = await http.get(`/admin/discounts/${idNum}`);
+      const serve = resp?.data?.serve;
+      if (serve) {
+        form.setFieldsValue(mapApiToForm(serve));
+      }
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? "Gagal ambil detail diskon");
+      nav("/discounts");
     } finally {
       setLoading(false);
     }
@@ -253,7 +267,7 @@ export default function DiscountFormPage({ mode }: Props) {
         is_unlimited: 1,
 
         is_ecommerce: 1,
-        is_pos: 1,
+        is_pos: 0,
         is_active: 1,
 
         no_expiry: 1,
@@ -262,7 +276,13 @@ export default function DiscountFormPage({ mode }: Props) {
         brand_ids: [],
         product_ids: [],
         variant_ids: [],
+        customer_ids: [],
       });
+    }
+
+    // optional: prefilling cepat dari state
+    if (mode === "edit" && fromState) {
+      form.setFieldsValue(mapApiToForm(fromState));
     }
 
     loadEdit();
@@ -277,23 +297,33 @@ export default function DiscountFormPage({ mode }: Props) {
 
   const isActive = Form.useWatch("is_active", form) ?? 1;
   const isEcommerce = Form.useWatch("is_ecommerce", form) ?? 1;
-  const isPos = Form.useWatch("is_pos", form) ?? 1;
+  const isPos = Form.useWatch("is_pos", form) ?? 0;
 
   const onSubmit = async () => {
-    await form.validateFields();
-    const values = form.getFieldsValue(true);
+    try {
+      await form.validateFields();
+    } catch {
+      message.error("Lengkapi field wajib dulu");
+      return;
+    }
 
+    const values = form.getFieldsValue(true);
     const payload: any = { ...values };
 
-    // normalisasi rupiah
-    if (payload.value_type === 2) payload.value = onlyDigits(payload.value);
+    // normalisasi rupiah -> angka
+    if (payload.value_type === 1) {
+      payload.value = String(payload.value ?? "").trim();
+    } else {
+      payload.value = onlyDigits(payload.value);
+    }
+
     if (payload.max_discount) payload.max_discount = onlyDigits(payload.max_discount);
     if (payload.min_order_amount) payload.min_order_amount = onlyDigits(payload.min_order_amount);
 
     if (payload.is_unlimited === 1) payload.qty = null;
     if (payload.no_expiry === 1) payload.expired_at = null;
 
-    // bersihin payload sesuai applies_to
+    // bersihin sesuai applies_to
     if (payload.applies_to !== 1) payload.min_order_amount = "";
     if (payload.applies_to !== 4) payload.brand_ids = [];
     if (payload.applies_to !== 5) payload.product_ids = [];
@@ -304,13 +334,21 @@ export default function DiscountFormPage({ mode }: Props) {
     setLoading(true);
     try {
       if (mode === "edit") {
-        await http.put(`/admin/discounts/${id}`, payload);
+        const idNum = Number(id);
+        if (!Number.isFinite(idNum) || idNum <= 0) {
+          message.error("Invalid discount id");
+          nav("/discounts");
+          return;
+        }
+        await http.put(`/admin/discounts/${idNum}`, payload);
         message.success("Diskon berhasil diupdate");
       } else {
         await http.post(`/admin/discounts`, payload);
         message.success("Diskon berhasil dibuat");
       }
       nav("/discounts");
+    } catch (e: any) {
+      message.error(e?.response?.data?.message ?? "Gagal simpan diskon");
     } finally {
       setLoading(false);
     }
@@ -515,7 +553,6 @@ export default function DiscountFormPage({ mode }: Props) {
                     loading={customerLoading}
                     placeholder="Cari nama/email..."
                   />
-
                 </Form.Item>
               ) : null}
             </Card>
@@ -556,7 +593,7 @@ export default function DiscountFormPage({ mode }: Props) {
                 <div style={{ fontWeight: 600 }}>{isActive === 1 ? "Aktif" : "Nonaktif"}</div>
                 <Switch
                   checked={isActive === 1}
-                  onChange={(v) => form.setFieldValue("is_active", v ? 1 : 2)}
+                  onChange={(v) => form.setFieldValue("is_active", v ? 1 : 0)}
                 />
               </div>
             </Card>
@@ -579,7 +616,10 @@ export default function DiscountFormPage({ mode }: Props) {
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>Point of Sale</div>
-                <Switch checked={isPos === 1} onChange={(v) => form.setFieldValue("is_pos", v ? 1 : 0)} />
+                <Switch
+                  checked={isPos === 1}
+                  onChange={(v) => form.setFieldValue("is_pos", v ? 1 : 0)}
+                />
               </div>
             </Card>
 

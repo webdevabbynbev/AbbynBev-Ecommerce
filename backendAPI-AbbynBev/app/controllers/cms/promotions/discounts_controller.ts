@@ -16,7 +16,7 @@ function uniqNums(arr: any[]): number[] {
 }
 
 function buildMaskFromDays(days: any[]): number {
-  // CMS: ["0".."6"] => 0=Minggu bit=1, 1=Senin bit=2, dst (sesuai migration)
+  // CMS: ["0".."6"] => 0=Minggu bit=1, 1=Senin bit=2, dst
   const ds = uniqNums(days)
   let mask = 0
   for (const d of ds) {
@@ -50,6 +50,11 @@ function parseEndDate(dateStr: any): DateTime | null {
   return dt.isValid ? dt.endOf('day') : null
 }
 
+function isValidId(id: any) {
+  const n = Number(id)
+  return Number.isFinite(n) && n > 0
+}
+
 export default class DiscountsController {
   public async get({ response, request }: HttpContext) {
     try {
@@ -70,77 +75,97 @@ export default class DiscountsController {
 
       const json = discounts.toJSON()
 
-      // CMS TableDiscount butuh "qty" => kita map dari usageLimit
-      const data = (json.data ?? []).map((d: any) => ({
-        ...d,
-        qty: d.usageLimit ?? null,
-      }))
+      // FE expects startedAt/expiredAt, qty, and numeric flags 1/0
+      const data = (json.data ?? []).map((d: any) => {
+        const startedDate = d.startedAt ? DateTime.fromISO(d.startedAt).toISODate() : null
+        const expiredDate = d.expiredAt ? DateTime.fromISO(d.expiredAt).toISODate() : null
+
+        return {
+          ...d,
+          startedAt: startedDate,
+          expiredAt: expiredDate,
+          started_at: startedDate,
+          expired_at: expiredDate,
+
+          // FE lama biasanya pakai 1/0
+          isActive: d.isActive ? 1 : 0,
+          is_active: d.isActive ? 1 : 0,
+          isEcommerce: d.isEcommerce ? 1 : 0,
+          is_ecommerce: d.isEcommerce ? 1 : 0,
+          isPos: d.isPos ? 1 : 0,
+          is_pos: d.isPos ? 1 : 0,
+
+          qty: d.usageLimit ?? null,
+        }
+      })
 
       return response.ok({
         message: 'success',
-        serve: {
-          data,
-          ...json.meta,
-        },
+        serve: { data, ...json.meta },
       })
     } catch (e: any) {
-      return response.status(500).send({
-        message: e?.message || 'Internal Server Error',
-        serve: null,
-      })
+      return response.status(500).send({ message: e?.message || 'Internal Server Error', serve: null })
     }
   }
 
   public async show({ response, params }: HttpContext) {
     try {
-      const id = Number(params.id)
-      const discount = await Discount.query().where('id', id).whereNull('deleted_at').first()
-
-      if (!discount) {
-        return response.status(404).send({ message: 'Discount not found', serve: null })
+      if (!isValidId(params.id)) {
+        return response.badRequest({ message: 'Invalid discount id', serve: null })
       }
+      const id = Number(params.id)
+
+      const discount = await Discount.query().where('id', id).whereNull('deleted_at').first()
+      if (!discount) return response.status(404).send({ message: 'Discount not found', serve: null })
 
       const targets = await DiscountTarget.query().where('discount_id', discount.id)
 
-      // legacy/optional
-      const categoryTypeIds = targets.filter((t) => t.targetType === 1).map((t) => t.targetId)
+      const categoryTypeIds = targets.filter((t: any) => t.targetType === 1).map((t: any) => t.targetId)
 
-      // ✅ VARIANT: prefer target_type=5 (attribute_value_id), fallback target_type=2 (product_variant_id)
-      const legacyVariantIds = targets.filter((t) => t.targetType === 2).map((t) => t.targetId)
-      const attrValueIds = targets.filter((t) => t.targetType === 5).map((t) => t.targetId)
+      // VARIANT: prefer target_type=5 (attribute_value_id), fallback target_type=2 (product_variant_id)
+      const legacyVariantIds = targets.filter((t: any) => t.targetType === 2).map((t: any) => t.targetId)
+      const attrValueIds = targets.filter((t: any) => t.targetType === 5).map((t: any) => t.targetId)
       const variantIds = attrValueIds.length ? attrValueIds : legacyVariantIds
 
-      // NEW
-      const brandIds = targets.filter((t) => t.targetType === 3).map((t) => t.targetId)
-      const productIds = targets.filter((t) => t.targetType === 4).map((t) => t.targetId)
+      const brandIds = targets.filter((t: any) => t.targetType === 3).map((t: any) => t.targetId)
+      const productIds = targets.filter((t: any) => t.targetType === 4).map((t: any) => t.targetId)
 
-      const customerRows = await db
-        .from('discount_customer_users')
-        .where('discount_id', discount.id)
-        .select('user_id')
-
+      const customerRows = await db.from('discount_customer_users').where('discount_id', discount.id).select('user_id')
       const customerIds = customerRows.map((r: any) => Number(r.user_id))
+
+      const startedDate = discount.startedAt ? discount.startedAt.toISODate() : null
+      const expiredDate = discount.expiredAt ? discount.expiredAt.toISODate() : null
 
       return response.ok({
         message: 'success',
         serve: {
           ...discount.toJSON(),
-          // dipakai CMS DiscountFormPage
+
+          startedAt: startedDate,
+          expiredAt: expiredDate,
+          started_at: startedDate,
+          expired_at: expiredDate,
+
+          isActive: discount.isActive ? 1 : 0,
+          is_active: discount.isActive ? 1 : 0,
+          isEcommerce: discount.isEcommerce ? 1 : 0,
+          is_ecommerce: discount.isEcommerce ? 1 : 0,
+          isPos: discount.isPos ? 1 : 0,
+          is_pos: discount.isPos ? 1 : 0,
+
           categoryTypeIds,
-          variantIds, // ✅ sekarang berisi attribute_value_id kalau target_type=5
+          variantIds,
           brandIds,
           productIds,
           customerIds,
+
           qty: discount.usageLimit ?? null,
           daysOfWeek: daysFromMask(discount.daysOfWeekMask ?? 127),
-          maxPerUser: null, // belum ada kolomnya di schema
+          maxPerUser: null,
         },
       })
     } catch (e: any) {
-      return response.status(500).send({
-        message: e?.message || 'Internal Server Error',
-        serve: null,
-      })
+      return response.status(500).send({ message: e?.message || 'Internal Server Error', serve: null })
     }
   }
 
@@ -149,15 +174,11 @@ export default class DiscountsController {
     try {
       const payload = request.all()
 
-      // basic validation (minimal supaya CMS jalan)
       const code = String(payload.code ?? '').trim()
       if (!code) return response.badRequest({ message: 'code wajib diisi', serve: null })
 
       const startedAt = parseStartDate(payload.started_at)
       if (!startedAt) return response.badRequest({ message: 'started_at wajib diisi', serve: null })
-
-      const valueType = toInt(payload.value_type, 1)
-      const value = String(payload.value ?? '0').trim()
 
       const discount = new Discount()
       discount.useTransaction(trx)
@@ -166,8 +187,8 @@ export default class DiscountsController {
       discount.code = code
       discount.description = payload.description ?? null
 
-      discount.valueType = valueType
-      discount.value = value
+      discount.valueType = toInt(payload.value_type, 1)
+      discount.value = String(payload.value ?? '0')
       discount.maxDiscount = payload.max_discount ? String(payload.max_discount) : null
 
       discount.appliesTo = toInt(payload.applies_to, 0)
@@ -176,13 +197,12 @@ export default class DiscountsController {
 
       discount.eligibilityType = toInt(payload.eligibility_type, 0)
 
-      // qty CMS -> usageLimit DB
       const isUnlimited = toInt(payload.is_unlimited, 1)
       discount.usageLimit = isUnlimited === 1 ? null : payload.qty ? toInt(payload.qty) : null
 
-      discount.isEcommerce = toInt(payload.is_ecommerce, 1)
-      discount.isPos = toInt(payload.is_pos, 0)
-      discount.isActive = toInt(payload.is_active, 1)
+      discount.isEcommerce = toInt(payload.is_ecommerce, 1) === 1
+      discount.isPos = toInt(payload.is_pos, 0) === 1
+      discount.isActive = toInt(payload.is_active, 1) === 1
 
       discount.startedAt = startedAt
       discount.expiredAt = payload.expired_at ? parseEndDate(payload.expired_at) : null
@@ -192,21 +212,20 @@ export default class DiscountsController {
 
       // ----- targets -----
       const appliesTo = Number(discount.appliesTo)
-
       let targetType: number | null = null
       let targetIds: number[] = []
 
       // applies_to:
       // 2 = COLLECTION (target_type=1)
-      // 3 = VARIANT (NEW -> target_type=5 attribute_value_id)
+      // 3 = VARIANT (target_type=5 attribute_value_id)
       // 4 = BRAND (target_type=3)
       // 5 = PRODUCT (target_type=4)
       if (appliesTo === 2) {
         targetType = 1
         targetIds = uniqNums(payload.category_type_ids)
       } else if (appliesTo === 3) {
-        targetType = 5 // ✅ attribute_value_id
-        targetIds = uniqNums(payload.variant_ids) // sekarang isinya attribute_value_ids
+        targetType = 5
+        targetIds = uniqNums(payload.variant_ids)
       } else if (appliesTo === 4) {
         targetType = 3
         targetIds = uniqNums(payload.brand_ids)
@@ -215,13 +234,11 @@ export default class DiscountsController {
         targetIds = uniqNums(payload.product_ids)
       }
 
-      if (targetType !== null) {
-        const rows = targetIds.map((id) => ({
-          discountId: discount.id,
-          targetType,
-          targetId: id,
-        }))
-        if (rows.length) await DiscountTarget.createMany(rows, { client: trx })
+      if (targetType !== null && targetIds.length) {
+        await DiscountTarget.createMany(
+          targetIds.map((id) => ({ discountId: discount.id, targetType, targetId: id })),
+          { client: trx }
+        )
       }
 
       // ----- customer eligibility -----
@@ -246,20 +263,21 @@ export default class DiscountsController {
       })
 
       await trx.commit()
-      return response.ok({ message: 'Sucessfully created.', serve: discount })
+      return response.ok({ message: 'Successfully created.', serve: discount })
     } catch (e: any) {
       await trx.rollback()
-      return response.status(500).send({
-        message: e?.message || 'Internal Server Error',
-        serve: null,
-      })
+      return response.status(500).send({ message: e?.message || 'Internal Server Error', serve: null })
     }
   }
 
   public async update({ response, request, params, auth }: HttpContext) {
     const trx = await db.transaction()
     try {
+      if (!isValidId(params.id)) {
+        return response.badRequest({ message: 'Invalid discount id', serve: null })
+      }
       const id = Number(params.id)
+
       const payload = request.all()
 
       const discount = await Discount.query({ client: trx }).where('id', id).whereNull('deleted_at').first()
@@ -277,11 +295,7 @@ export default class DiscountsController {
       if (payload.value_type !== undefined) discount.valueType = toInt(payload.value_type, discount.valueType)
       if (payload.value !== undefined) discount.value = String(payload.value)
       discount.maxDiscount =
-        payload.max_discount !== undefined
-          ? payload.max_discount
-            ? String(payload.max_discount)
-            : null
-          : discount.maxDiscount
+        payload.max_discount !== undefined ? (payload.max_discount ? String(payload.max_discount) : null) : discount.maxDiscount
 
       if (payload.applies_to !== undefined) discount.appliesTo = toInt(payload.applies_to, discount.appliesTo)
       discount.minOrderAmount =
@@ -291,24 +305,26 @@ export default class DiscountsController {
             : null
           : discount.minOrderAmount
 
-      // ✅ min_order_qty ikut keupdate
       if (payload.min_order_qty !== undefined) {
         discount.minOrderQty = payload.min_order_qty ? toInt(payload.min_order_qty) : null
       }
 
-      if (payload.eligibility_type !== undefined) discount.eligibilityType = toInt(payload.eligibility_type, discount.eligibilityType)
+      if (payload.eligibility_type !== undefined) {
+        discount.eligibilityType = toInt(payload.eligibility_type, discount.eligibilityType)
+      }
 
       const isUnlimited = toInt(payload.is_unlimited, discount.usageLimit === null ? 1 : 0)
       discount.usageLimit = isUnlimited === 1 ? null : payload.qty ? toInt(payload.qty) : null
 
-      if (payload.is_ecommerce !== undefined) discount.isEcommerce = toInt(payload.is_ecommerce, discount.isEcommerce)
-      if (payload.is_pos !== undefined) discount.isPos = toInt(payload.is_pos, discount.isPos)
-      if (payload.is_active !== undefined) discount.isActive = toInt(payload.is_active, discount.isActive)
+      if (payload.is_ecommerce !== undefined) discount.isEcommerce = toInt(payload.is_ecommerce, discount.isEcommerce ? 1 : 0) === 1
+      if (payload.is_pos !== undefined) discount.isPos = toInt(payload.is_pos, discount.isPos ? 1 : 0) === 1
+      if (payload.is_active !== undefined) discount.isActive = toInt(payload.is_active, discount.isActive ? 1 : 0) === 1
 
       if (startedAt) discount.startedAt = startedAt
       discount.expiredAt =
         payload.expired_at !== undefined ? (payload.expired_at ? parseEndDate(payload.expired_at) : null) : discount.expiredAt
-      discount.daysOfWeekMask = payload.days_of_week !== undefined ? buildMaskFromDays(payload.days_of_week) : discount.daysOfWeekMask
+      discount.daysOfWeekMask =
+        payload.days_of_week !== undefined ? buildMaskFromDays(payload.days_of_week) : discount.daysOfWeekMask
 
       await discount.save()
 
@@ -316,7 +332,6 @@ export default class DiscountsController {
       await DiscountTarget.query({ client: trx }).where('discount_id', discount.id).delete()
 
       const appliesTo = Number(discount.appliesTo)
-
       let targetType: number | null = null
       let targetIds: number[] = []
 
@@ -324,8 +339,8 @@ export default class DiscountsController {
         targetType = 1
         targetIds = uniqNums(payload.category_type_ids)
       } else if (appliesTo === 3) {
-        targetType = 5 // ✅ attribute_value_id (FIX)
-        targetIds = uniqNums(payload.variant_ids) // sekarang isinya attribute_value_ids
+        targetType = 5
+        targetIds = uniqNums(payload.variant_ids)
       } else if (appliesTo === 4) {
         targetType = 3
         targetIds = uniqNums(payload.brand_ids)
@@ -334,13 +349,11 @@ export default class DiscountsController {
         targetIds = uniqNums(payload.product_ids)
       }
 
-      if (targetType !== null) {
-        const rows = targetIds.map((id) => ({
-          discountId: discount.id,
-          targetType,
-          targetId: id,
-        }))
-        if (rows.length) await DiscountTarget.createMany(rows, { client: trx })
+      if (targetType !== null && targetIds.length) {
+        await DiscountTarget.createMany(
+          targetIds.map((id) => ({ discountId: discount.id, targetType, targetId: id })),
+          { client: trx }
+        )
       }
 
       // reset customers
@@ -365,25 +378,28 @@ export default class DiscountsController {
       })
 
       await trx.commit()
-      return response.ok({ message: 'Sucessfully updated.', serve: discount })
+      return response.ok({ message: 'Successfully updated.', serve: discount })
     } catch (e: any) {
       await trx.rollback()
-      return response.status(500).send({
-        message: e?.message || 'Internal Server Error',
-        serve: null,
-      })
+      return response.status(500).send({ message: e?.message || 'Internal Server Error', serve: null })
     }
   }
 
   public async delete({ response, params, auth }: HttpContext) {
     const trx = await db.transaction()
     try {
+      if (!isValidId(params.id)) {
+        return response.badRequest({ message: 'Invalid discount id', serve: null })
+      }
       const id = Number(params.id)
-      const discount = await Discount.query({ client: trx }).where('id', id).whereNull('deleted_at').first()
 
+      const discount = await Discount.query({ client: trx }).where('id', id).whereNull('deleted_at').first()
       if (!discount) return response.status(404).send({ message: 'Discount not found', serve: null })
 
-      await discount.softDelete()
+      discount.useTransaction(trx)
+      discount.deletedAt = DateTime.now()
+      await discount.save()
+
 
       // @ts-ignore
       await emitter.emit('set:activity-log', {
@@ -398,18 +414,21 @@ export default class DiscountsController {
       return response.ok({ message: 'Successfully deleted.', serve: true })
     } catch (e: any) {
       await trx.rollback()
-      return response.status(500).send({
-        message: e?.message || 'Internal Server Error',
-        serve: null,
-      })
+      return response.status(500).send({ message: e?.message || 'Internal Server Error', serve: null })
     }
   }
 
   public async updateStatus({ response, request, auth }: HttpContext) {
     const trx = await db.transaction()
     try {
-      const id = Number(request.input('id'))
-      const isActive = toInt(request.input('is_active'), 1)
+      const idRaw = request.input('id')
+      if (!isValidId(idRaw)) {
+        return response.badRequest({ message: 'Invalid discount id', serve: null })
+      }
+      const id = Number(idRaw)
+
+      // FE kirim 1/0
+      const isActive = toInt(request.input('is_active'), 1) === 1
 
       const discount = await Discount.query({ client: trx }).where('id', id).whereNull('deleted_at').first()
       if (!discount) return response.status(404).send({ message: 'Discount not found', serve: null })
@@ -427,13 +446,10 @@ export default class DiscountsController {
       })
 
       await trx.commit()
-      return response.ok({ message: 'Sucessfully updated.', serve: discount })
+      return response.ok({ message: 'Successfully updated.', serve: discount })
     } catch (e: any) {
       await trx.rollback()
-      return response.status(500).send({
-        message: e?.message || 'Internal Server Error',
-        serve: null,
-      })
+      return response.status(500).send({ message: e?.message || 'Internal Server Error', serve: null })
     }
   }
 }
