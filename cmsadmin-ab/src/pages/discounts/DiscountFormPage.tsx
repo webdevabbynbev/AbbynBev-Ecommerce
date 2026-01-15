@@ -41,6 +41,14 @@ const toDateOnly = (v: any): string | null => {
   return s;
 };
 
+const resolveIdentifier = (raw?: string) => {
+  const trimmed = String(raw ?? "").trim();
+  if (!trimmed) return null;
+  const idNum = Number(trimmed);
+  if (Number.isFinite(idNum) && idNum > 0) return String(idNum);
+  return trimmed;
+};
+
 export default function DiscountFormPage({ mode }: Props) {
   const [form] = Form.useForm();
   const nav = useNavigate();
@@ -236,16 +244,16 @@ export default function DiscountFormPage({ mode }: Props) {
   const loadEdit = async () => {
     if (mode !== "edit") return;
 
-    const idNum = Number(id);
-    if (!Number.isFinite(idNum) || idNum <= 0) {
-      message.error("Invalid discount id");
+    const identifier = resolveIdentifier(id);
+    if (!identifier) {
+      message.error("Invalid discount identifier");
       nav("/discounts");
       return;
     }
 
     setLoading(true);
     try {
-      const resp: any = await http.get(`/admin/discounts/${idNum}`);
+      const resp: any = await http.get(`/admin/discounts/${encodeURIComponent(identifier)}`);
       const serve = resp?.data?.serve;
       if (serve) {
         form.setFieldsValue(mapApiToForm(serve));
@@ -334,13 +342,13 @@ export default function DiscountFormPage({ mode }: Props) {
     setLoading(true);
     try {
       if (mode === "edit") {
-        const idNum = Number(id);
-        if (!Number.isFinite(idNum) || idNum <= 0) {
-          message.error("Invalid discount id");
+        const identifier = resolveIdentifier(id);
+        if (!identifier) {
+          message.error("Invalid discount identifier");
           nav("/discounts");
           return;
         }
-        await http.put(`/admin/discounts/${idNum}`, payload);
+        await http.put(`/admin/discounts/${encodeURIComponent(identifier)}`, payload);
         message.success("Diskon berhasil diupdate");
       } else {
         await http.post(`/admin/discounts`, payload);

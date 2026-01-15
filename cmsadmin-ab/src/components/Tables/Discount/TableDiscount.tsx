@@ -57,6 +57,13 @@ const toIdNum = (id: any) => {
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 
+const resolveIdentifier = (r: DiscountRecord) => {
+  const idNum = toIdNum(r.id);
+  if (idNum) return String(idNum);
+  const code = String(r.code ?? "").trim();
+  return code || null;
+};
+
 // ambil nilai pertama yang ada (camelCase / snake_case)
 const pick = <T,>(r: any, ...keys: string[]): T | undefined => {
   for (const k of keys) {
@@ -132,11 +139,13 @@ const TableDiscount: React.FC = () => {
         // kalau id kosong, kasih warning sekali
         if (
   !warnedMissingIdRef.current &&
-  (normalized as DiscountRecord[]).some((r: DiscountRecord) => !toIdNum(r.id))
-) {
+          normalized.some((r: DiscountRecord) => !resolveIdentifier(r))
+        ) {
 
           warnedMissingIdRef.current = true;
-          message.warning("Backend list diskon tidak mengirim field 'id'. Edit/Delete butuh ID.");
+          message.warning(
+            "Identifier diskon tidak tersedia dari API list. Pastikan backend mengirim id atau code."
+          );
         }
       }
     } finally {
@@ -199,7 +208,7 @@ const TableDiscount: React.FC = () => {
       dataIndex: "isActive",
       render: (_: unknown, r) => {
         const active = Number(r.isActive) === 1;
-        const idNum = toIdNum(r.id);
+         const identifier = resolveIdentifier(r);
 
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -209,12 +218,14 @@ const TableDiscount: React.FC = () => {
               placement="left"
               title="Update status?"
               onConfirm={async () => {
-                if (!idNum) {
-                  message.error("ID diskon tidak tersedia dari API list. Fix backend supaya kirim 'id'.");
+                if (!identifier) {
+                  message.error(
+                    "Identifier diskon tidak tersedia dari API list. Fix backend supaya kirim id atau code."
+                  );
                   return;
                 }
                 await http.put("/admin/discounts/status", {
-                  id: idNum,
+                  id: identifier,
                   is_active: active ? 0 : 1, // 1/0
                 });
                 fetchList(params, pagination);
@@ -235,7 +246,7 @@ const TableDiscount: React.FC = () => {
       width: "14%",
       align: "center",
       render: (_: unknown, r) => {
-        const idNum = toIdNum(r.id);
+         const identifier = resolveIdentifier(r);
 
         return (
           <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
@@ -243,11 +254,13 @@ const TableDiscount: React.FC = () => {
               type="primary"
               icon={<EditOutlined />}
               onClick={() => {
-                if (!idNum) {
-                  message.error("ID diskon tidak tersedia dari API list. Fix backend supaya kirim 'id'.");
+                if (!identifier) {
+                  message.error(
+                    "Identifier diskon tidak tersedia dari API list. Fix backend supaya kirim id atau code."
+                  );
                   return;
                 }
-                navigate(`/discounts/${idNum}`, { state: r });
+                 navigate(`/discounts/${encodeURIComponent(identifier)}`, { state: r });
               }}
             >
               Edit
@@ -257,11 +270,13 @@ const TableDiscount: React.FC = () => {
               placement="left"
               title="Delete discount?"
               onConfirm={async () => {
-                if (!idNum) {
-                  message.error("ID diskon tidak tersedia dari API list. Fix backend supaya kirim 'id'.");
+                if (!identifier) {
+                  message.error(
+                    "Identifier diskon tidak tersedia dari API list. Fix backend supaya kirim id atau code."
+                  );
                   return;
                 }
-                await http.delete(`/admin/discounts/${idNum}`);
+                await http.delete(`/admin/discounts/${encodeURIComponent(identifier)}`);
                 fetchList(params, pagination);
               }}
               okText="Yes"

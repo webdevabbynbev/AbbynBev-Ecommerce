@@ -50,9 +50,27 @@ function parseEndDate(dateStr: any): DateTime | null {
   return dt.isValid ? dt.endOf('day') : null
 }
 
-function isValidId(id: any) {
-  const n = Number(id)
-  return Number.isFinite(n) && n > 0
+function normalizeIdentifier(raw: any): { id: number | null; code: string | null } {
+  const trimmed = String(raw ?? '').trim()
+  if (!trimmed) return { id: null, code: null }
+  const idNum = Number(trimmed)
+  if (Number.isFinite(idNum) && idNum > 0) {
+    return { id: idNum, code: null }
+  }
+  return { id: null, code: trimmed }
+}
+
+async function findDiscountByIdentifier(
+  identifier: { id: number | null; code: string | null },
+  trx?: any
+) {
+  if (identifier.id) {
+    return Discount.query({ client: trx }).where('id', identifier.id).whereNull('deleted_at').first()
+  }
+  if (identifier.code) {
+    return Discount.query({ client: trx }).where('code', identifier.code).whereNull('deleted_at').first()
+  }
+  return null
 }
 
 export default class DiscountsController {
@@ -77,11 +95,22 @@ export default class DiscountsController {
 
       // FE expects startedAt/expiredAt, qty, and numeric flags 1/0
       const data = (json.data ?? []).map((d: any) => {
+         const id =
+          Number.isFinite(Number(d?.id)) && Number(d?.id) > 0
+            ? Number(d?.id)
+            : Number.isFinite(Number(d?.discount_id)) && Number(d?.discount_id) > 0
+              ? Number(d?.discount_id)
+              : Number.isFinite(Number(d?.discountId)) && Number(d?.discountId) > 0
+                ? Number(d?.discountId)
+                : null
         const startedDate = d.startedAt ? DateTime.fromISO(d.startedAt).toISODate() : null
         const expiredDate = d.expiredAt ? DateTime.fromISO(d.expiredAt).toISODate() : null
 
         return {
           ...d,
+           id: id ?? d.id ?? null,
+          discountId: id ?? d.discountId ?? null,
+          discount_id: id ?? d.discount_id ?? null,
           startedAt: startedDate,
           expiredAt: expiredDate,
           started_at: startedDate,
@@ -110,12 +139,11 @@ export default class DiscountsController {
 
   public async show({ response, params }: HttpContext) {
     try {
-      if (!isValidId(params.id)) {
-        return response.badRequest({ message: 'Invalid discount id', serve: null })
+         const identifier = normalizeIdentifier(params.id)
+      if (!identifier.id && !identifier.code) {
+        return response.badRequest({ message: 'Invalid discount identifier', serve: null })
       }
-      const id = Number(params.id)
-
-      const discount = await Discount.query().where('id', id).whereNull('deleted_at').first()
+      const discount = await findDiscountByIdentifier(identifier)
       if (!discount) return response.status(404).send({ message: 'Discount not found', serve: null })
 
       const targets = await DiscountTarget.query().where('discount_id', discount.id)
@@ -273,14 +301,15 @@ export default class DiscountsController {
   public async update({ response, request, params, auth }: HttpContext) {
     const trx = await db.transaction()
     try {
-      if (!isValidId(params.id)) {
-        return response.badRequest({ message: 'Invalid discount id', serve: null })
-      }
-      const id = Number(params.id)
+      
 
       const payload = request.all()
+      const identifier = normalizeIdentifier(params.id)
+      if (!identifier.id && !identifier.code) {
+        return response.badRequest({ message: 'Invalid discount identifier', serve: null })
+      }
 
-      const discount = await Discount.query({ client: trx }).where('id', id).whereNull('deleted_at').first()
+      const discount = await findDiscountByIdentifier(identifier, trx)
       if (!discount) return response.status(404).send({ message: 'Discount not found', serve: null })
 
       const oldData = discount.toJSON()
@@ -388,12 +417,11 @@ export default class DiscountsController {
   public async delete({ response, params, auth }: HttpContext) {
     const trx = await db.transaction()
     try {
-      if (!isValidId(params.id)) {
-        return response.badRequest({ message: 'Invalid discount id', serve: null })
+      const identifier = normalizeIdentifier(params.id)
+      if (!identifier.id && !identifier.code) {
+        return response.badRequest({ message: 'Invalid discount identifier', serve: null })
       }
-      const id = Number(params.id)
-
-      const discount = await Discount.query({ client: trx }).where('id', id).whereNull('deleted_at').first()
+      const discount = await findDiscountByIdentifier(identifier, trx)
       if (!discount) return response.status(404).send({ message: 'Discount not found', serve: null })
 
       discount.useTransaction(trx)
@@ -421,16 +449,16 @@ export default class DiscountsController {
   public async updateStatus({ response, request, auth }: HttpContext) {
     const trx = await db.transaction()
     try {
-      const idRaw = request.input('id')
-      if (!isValidId(idRaw)) {
-        return response.badRequest({ message: 'Invalid discount id', serve: null })
+      const identifier = normalizeIdentifier(request.input('id'))
+      if (!identifier.id && !identifier.code) {
+        return response.badRequest({ message: 'Invalid discount identifier', serve: null })
       }
-      const id = Number(idRaw)
+
 
       // FE kirim 1/0
       const isActive = toInt(request.input('is_active'), 1) === 1
 
-      const discount = await Discount.query({ client: trx }).where('id', id).whereNull('deleted_at').first()
+      const discount = await findDiscountByIdentifier(identifier, trx)
       if (!discount) return response.status(404).send({ message: 'Discount not found', serve: null })
 
       discount.isActive = isActive
