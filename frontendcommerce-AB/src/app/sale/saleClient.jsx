@@ -95,6 +95,7 @@ function normalizeFlashSaleItem(raw) {
     flashPrice: salePrice, // FlashSaleCard expects 'flashPrice'
     realprice: normalPrice,
     sale: true,
+    flashSaleId: raw.flashSaleId ?? source.flashSaleId,
   };
 
   if (raw.product) {
@@ -264,6 +265,7 @@ export default function SaleClient() {
           flashPrice:
             p.flash_price ?? p.meta?.pivot_flash_price ?? p.pivot?.flash_price,
           stock: p.stock ?? p.meta?.pivot_stock ?? p.pivot?.stock,
+          flashSaleId: campaign.id,
         }));
       });
     }
@@ -543,7 +545,14 @@ export default function SaleClient() {
                     <span className="pointer-events-none absolute top-0 left-0 z-10 flex h-[26px] items-center rounded-br-lg bg-[#AE2D68] px-2 text-[10px] font-bold uppercase tracking-wide text-[#F6F6F6]">
                       Flash Sale
                     </span>
-                    <FlashSaleCard product={item} />
+                    <FlashSaleCard
+                      product={item}
+                      hrefQuery={{
+                        salePrice: item.flashPrice,
+                        realPrice: item.realprice,
+                        flashSaleId: item.flashSaleId,
+                      }}
+                    />
                   </div>
                 ))}
               </div>

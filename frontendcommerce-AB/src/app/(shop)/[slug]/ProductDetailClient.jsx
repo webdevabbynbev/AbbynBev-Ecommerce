@@ -108,7 +108,7 @@ export default function ProductDetailClient({ product }) {
     product?.price ?? product?.base_price ?? product?.basePrice ?? 0;
 
   const baseRealPrice =
-    product?.realprice ?? product?.base_price ?? product?.basePrice ?? 0;
+    product?.realprice ?? product?.price ?? product?.base_price ?? product?.basePrice ?? 0;
 
   const finalPrice =
     priceOverride ?? selectedVariantObj?.price ?? baseProductPrice;
