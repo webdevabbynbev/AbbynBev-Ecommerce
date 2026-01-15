@@ -7,6 +7,7 @@ import FlashSale from '#models/flashsale'
 import Sale from '#models/sale'
 import { DateTime } from 'luxon'
 import { DiscountPricingService } from '#services/discount/discount_pricing_service'
+import db from '@adonisjs/lucid/services/db'
 
 type PromoKind = 'flash' | 'sale'
 
@@ -271,6 +272,17 @@ export default class HomeController {
   public async getSale({ response }: HttpContext) {
     try {
       const { nowStr } = this.nowWib()
+      const schema = (db as any).connection().schema as any
+      const hasSalesTable = await schema.hasTable('sales')
+
+      if (!hasSalesTable) {
+        return response.status(200).send({
+          message: 'No active sale',
+          serve: null,
+          list: [],
+          meta: { nowStr, timezone: 'Asia/Jakarta' },
+        })
+      }
 
       const active = await Sale.query()
         .where('is_publish', 1 as any)
@@ -338,6 +350,16 @@ export default class HomeController {
   public async getSales({ request, response }: HttpContext) {
     try {
       const { nowStr } = this.nowWib()
+      const schema = (db as any).connection().schema as any
+      const hasSalesTable = await schema.hasTable('sales')
+
+      if (!hasSalesTable) {
+        return response.status(200).send({
+          message: 'Success',
+          serve: [],
+          meta: { nowStr, timezone: 'Asia/Jakarta', total: 0 },
+        })
+      }
       const qs = request.qs()
 
       const includeExpired = qs.include_expired === '1' || qs.include_expired === 'true'

@@ -1,6 +1,6 @@
 "use client";
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { logoutUser } from "@/services/auth";
+import { getUser, logoutUser } from "@/services/auth";
 
 const AuthContext = createContext();
 
@@ -14,13 +14,10 @@ export function AuthProvider({ children }) {
    */
   const login = ({ user }) => {
     setUser(user || null);
-    if (user) localStorage.setItem("user", JSON.stringify(user));
-    else localStorage.removeItem("user");
   };
 
   const clearSession = useCallback(() => {
     setUser(null);
-    localStorage.removeItem("user");
   }, []);
 
   const logout = useCallback(async () => {
@@ -33,41 +30,25 @@ export function AuthProvider({ children }) {
     }
   }, [clearSession]);
 
-  // hydrate from localStorage (buat UI cepat)
+  // hydrate from backend via HttpOnly cookie
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    try {
-      if (storedUser && storedUser !== "undefined") {
-        setUser(JSON.parse(storedUser));
-        return;
-      }
-    } catch (err) {
-      console.error("Failed to parse stored user:", err);
-    }
-    clearSession();
-  }, [clearSession]);
-
-  // sync antar tab
-  useEffect(() => {
-    const onStorage = (event) => {
-      if (event.key !== "user") return;
-      const storedUser = localStorage.getItem("user");
-
-      if (storedUser && storedUser !== "undefined") {
-        try {
-          setUser(JSON.parse(storedUser));
-        } catch {
-          setUser(null);
-          localStorage.removeItem("user");
+    let isMounted = true;
+    const loadUser = async () => {
+      try {
+        const { user: fetchedUser } = await getUser();
+        if (isMounted) setUser(fetchedUser || null);
+      } catch (err) {
+        if (err?.status === 401 && isMounted) {
+          clearSession();
         }
-      } else {
-        setUser(null);
       }
     };
 
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
+    loadUser();
+    return () => {
+      isMounted = false;
+    };
+  }, [clearSession]);
 
   return (
     <AuthContext.Provider value={{ user, login, logout }}>
