@@ -16,10 +16,7 @@ import {
   RegularCardSkeleton,
 } from "@/components";
 
-// NOTE: kamu sebelumnya memanggil getSale() tapi tidak ada import-nya.
-// Supaya file ini compile dengan kode yang kamu tulis, aku pakai getFlashSale() sebagai sumber "sale".
-import { getFlashSale } from "@/services/api/promo.services";
-
+import { getFlashSale, getSale } from "@/services/api/promo.services";
 import { normalizeProduct } from "@/services/api/normalizers/product";
 import { getBrands } from "@/services/api/brands.services";
 import { getProducts } from "@/services/api/product.services";
@@ -30,6 +27,7 @@ function normalizeSaleProduct(raw) {
 
   const normalPrice = Number(raw?.price ?? base.price ?? 0);
   const salePrice = Number(raw?.salePrice ?? raw?.sale_price ?? 0);
+
   const isSale =
     Number.isFinite(salePrice) && salePrice > 0 && salePrice < normalPrice;
 
@@ -76,6 +74,7 @@ function normalizeFlashSaleItem(raw) {
   let isSale =
     Number.isFinite(salePrice) && salePrice > 0 && salePrice < normalPrice;
 
+  // fallback: kalau basePrice lebih kecil dari comparePrice, anggap basePrice itu harga diskon
   if (
     !isSale &&
     hasComparePrice &&
@@ -106,16 +105,35 @@ function normalizeFlashSaleItem(raw) {
   return normalizedProduct;
 }
 
+function buildKey(product) {
+  return (
+    product?.id ??
+    product?.slug ??
+    product?.sku ??
+    `${product?.name ?? "product"}-${product?.brand ?? "brand"}`
+  );
+}
+
 export default function SaleClient() {
   const [loading, setLoading] = useState(true);
 
+  // Flash sale: meta/serve dari getFlashSale()
+  const [flashSale, setFlashSale] = useState(null);
+
+  // Flash sale: list item dari getProducts({is_flash_sale:1})
   const [flashSaleItems, setFlashSaleItems] = useState([]);
   const [flashSaleLoading, setFlashSaleLoading] = useState(true);
 
+  // Sale products dari getSale()
   const [productRows, setProductRows] = useState([]);
+
+  // Brand filter
   const [brands, setBrands] = useState([]);
+
+  // Search
   const [search, setSearch] = useState("");
 
+  // Infinite scroll
   const [visibleSaleCount, setVisibleSaleCount] = useState(12);
   const [visibleFlashCount, setVisibleFlashCount] = useState(8);
 
@@ -133,33 +151,49 @@ export default function SaleClient() {
         setLoading(true);
         setFlashSaleLoading(true);
 
-        const [saleRes, brandRes, flashRes] = await Promise.all([
-          getFlashSale(),
-          getBrands(),
-          getProducts({ is_flash_sale: 1, per_page: 20 }),
-        ]);
+        const [flashSaleRes, saleRes, brandRes, flashProductsRes] =
+          await Promise.all([
+            getFlashSale(), // meta/serve flash sale
+            getSale(), // list sale
+            getBrands(), // brands
+            getProducts({ is_flash_sale: 1, per_page: 20 }), // list item flash sale
+          ]);
 
         if (!alive) return;
 
-        setFlashSaleItems(Array.isArray(flashRes?.data) ? flashRes.data : []);
+        // flash sale meta/serve
+        setFlashSale(flashSaleRes?.serve ?? flashSaleRes ?? null);
+
+        // brands
         setBrands(Array.isArray(brandRes?.data) ? brandRes.data : []);
 
-        const saleItems = Array.isArray(saleRes?.list)
-          ? saleRes.list
-          : Array.isArray(saleRes?.data)
-          ? saleRes.data
-          : saleRes?.serve
-          ? [saleRes.serve]
-          : [];
+        // sale products dari getSale
+        const saleItems =
+          Array.isArray(saleRes?.list) && saleRes.list.length
+            ? saleRes.list
+            : saleRes?.serve
+            ? [saleRes.serve]
+            : Array.isArray(saleRes?.data)
+            ? saleRes.data
+            : [];
 
         const saleProducts = saleItems.flatMap((sale) =>
           Array.isArray(sale?.products) ? sale.products : []
         );
 
         setProductRows(saleProducts);
+
+        // flash sale items dari getProducts (prioritas)
+        const flashFromProducts = Array.isArray(flashProductsRes?.data)
+          ? flashProductsRes.data
+          : [];
+
+        setFlashSaleItems(flashFromProducts);
       } catch (e) {
-        console.error("Failed to load sale:", e);
+        console.error("Failed to load sale/flash sale:", e);
         if (!alive) return;
+
+        setFlashSale(null);
         setFlashSaleItems([]);
         setProductRows([]);
         setBrands([]);
@@ -176,30 +210,21 @@ export default function SaleClient() {
     };
   }, []);
 
+  // ==== SALE: normalize + hanya yang benar-benar sale + dedupe
   const products = useMemo(() => {
     return productRows
       .map(normalizeSaleProduct)
       .filter(Boolean)
+      .filter((p) => p.sale) // ✅ dari kode 1: hanya produk sale
       .filter((product, index, list) => {
-        const key =
-          product.id ??
-          product.slug ??
-          product.sku ??
-          `${product.name ?? "product"}-${product.brand ?? "brand"}`;
-
+        const key = buildKey(product);
         return (
-          list.findIndex((candidate) => {
-            const candidateKey =
-              candidate.id ??
-              candidate.slug ??
-              candidate.sku ??
-              `${candidate.name ?? "product"}-${candidate.brand ?? "brand"}`;
-            return candidateKey === key;
-          }) === index
+          list.findIndex((candidate) => buildKey(candidate) === key) === index
         );
       });
   }, [productRows]);
 
+  // ==== SALE: search filter
   const filtered = useMemo(() => {
     let rows = [...products];
 
@@ -235,15 +260,48 @@ export default function SaleClient() {
     return Object.keys(params).length ? params : undefined;
   };
 
+  // ==== FLASH SALE: gabungkan sumber item (dari state flashSaleItems + fallback dari flashSale meta)
+  const derivedFlashItemsFromMeta = useMemo(() => {
+    if (!flashSale) return [];
+    if (Array.isArray(flashSale)) return flashSale;
+
+    const source =
+      flashSale?.products ??
+      flashSale?.items ??
+      flashSale?.list ??
+      flashSale?.data ??
+      [];
+
+    return Array.isArray(source) ? source : [];
+  }, [flashSale]);
+
+  const mergedFlashItems = useMemo(() => {
+    const a = Array.isArray(flashSaleItems) ? flashSaleItems : [];
+    const b = Array.isArray(derivedFlashItemsFromMeta)
+      ? derivedFlashItemsFromMeta
+      : [];
+
+    // gabung + dedupe
+    const merged = [...a, ...b];
+    const seen = new Set();
+
+    return merged.filter((item) => {
+      const key = buildKey(item?.product ?? item);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [flashSaleItems, derivedFlashItemsFromMeta]);
+
   const normalizedFlashSaleItems = useMemo(() => {
-    const rows = Array.isArray(flashSaleItems) ? flashSaleItems : [];
-    return rows.map(normalizeFlashSaleItem).filter(Boolean);
-  }, [flashSaleItems]);
+    return mergedFlashItems.map(normalizeFlashSaleItem).filter(Boolean);
+  }, [mergedFlashItems]);
 
   const visibleFlashItems = useMemo(() => {
     return normalizedFlashSaleItems.slice(0, visibleFlashCount);
   }, [normalizedFlashSaleItems, visibleFlashCount]);
 
+  // ==== Stats UI
   const skeleton_card = 24;
   const totalProducts = products.length;
   const totalBrands = brands.length;
@@ -255,14 +313,17 @@ export default function SaleClient() {
     ? "Belum ada sale aktif saat ini."
     : `${visibleProducts} produk siap diburu.`;
 
+  // reset visible count saat search/products berubah
   useEffect(() => {
     setVisibleSaleCount(SALE_STEP);
   }, [search, products]);
 
+  // reset visible flash saat data flash berubah
   useEffect(() => {
     setVisibleFlashCount(FLASH_STEP);
-  }, [flashSaleItems]);
+  }, [mergedFlashItems]);
 
+  // ==== Infinite scroll SALE
   useEffect(() => {
     const target = saleLoadRef.current;
     if (!target || loading) return;
@@ -283,6 +344,7 @@ export default function SaleClient() {
     return () => observer.disconnect();
   }, [filtered.length, loading]);
 
+  // ==== Infinite scroll FLASH SALE
   useEffect(() => {
     const target = flashLoadRef.current;
     if (!target || flashSaleLoading) return;
@@ -441,7 +503,7 @@ export default function SaleClient() {
         </div>
       </section>
 
-      {/* ✅ FIX UTAMA: ternary harus pakai "?" */}
+      {/* Flash Sale: tampil saat loading ATAU ada item */}
       {flashSaleLoading || normalizedFlashSaleItems.length > 0 ? (
         <section className="mx-auto w-full max-w-7xl px-6 py-10">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -473,7 +535,7 @@ export default function SaleClient() {
               <div className="grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-4">
                 {visibleFlashItems.map((item, idx) => (
                   <div
-                    key={item?.id ?? item?.slug ?? `flash-${idx}`}
+                    key={buildKey(item?.product ?? item) ?? `flash-${idx}`}
                     className="relative overflow-hidden rounded-2xl"
                   >
                     <span className="pointer-events-none absolute top-0 left-0 z-10 flex h-[26px] items-center rounded-br-lg bg-[#AE2D68] px-2 text-[10px] font-bold uppercase tracking-wide text-[#F6F6F6]">
