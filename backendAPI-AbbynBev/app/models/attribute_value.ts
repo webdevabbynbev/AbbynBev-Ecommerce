@@ -15,10 +15,7 @@ export default class AttributeValue extends BaseModel {
   @column({ columnName: 'attribute_id' })
   declare attributeId: number
 
-  /**
-   * ✅ OPSI B:
-   * attribute_values.product_variant_id nempel langsung ke 1 variant
-   */
+  // ✅ nempel langsung ke variant
   @column({ columnName: 'product_variant_id' })
   declare productVariantId: number | null
 
@@ -49,10 +46,6 @@ export default class AttributeValue extends BaseModel {
 
   public static trashed = scope((query) => {
     query.whereNotNull('attribute_values.deleted_at')
-  })
-
-  public static forVariant = scope((query, productVariantId: number) => {
-    query.where('attribute_values.product_variant_id', productVariantId)
   })
 
   // =========================
