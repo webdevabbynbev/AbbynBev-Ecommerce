@@ -28,6 +28,8 @@ import { getCategories } from "@/services/api/category.services";
 export default function HomeClient() {
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(true);
+  const [bestSellers, setBestSellers] = useState([]);
+  const [bestSellersLoading, setBestSellersLoading] = useState(true);
   const [categories, setCategories] = useState([]);
   const [, setCategoriesLoading] = useState(true);
 
@@ -47,7 +49,6 @@ export default function HomeClient() {
         const level1 = arr.filter(
           (c) => c.level === 1 && (c.parentId == null || c.parent_id == null)
         );
-
         setCategories(level1);
       } catch (err) {
         console.error("getCategories error:", err);
@@ -71,6 +72,25 @@ export default function HomeClient() {
         console.error("getProducts error:", err);
       } finally {
         setProductsLoading(false);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        // ✅ Mengambil data Best Seller: urutkan berdasarkan 'sold' (terjual) secara descending (terbanyak)
+        const { data } = await getProducts({
+          page: 1,
+          per_page: 15,
+          sort_by: "sold",
+          order: "desc",
+        });
+        setBestSellers(data);
+      } catch (err) {
+        console.error("getBestSellers error:", err);
+      } finally {
+        setBestSellersLoading(false);
       }
     })();
   }, []);
@@ -152,8 +172,7 @@ export default function HomeClient() {
     // Data untuk carousel (ambil dari products state)
     // Gunakan slice yang berbeda agar variatif, fallback ke array kosong
     const editorPicks = products.length > 0 ? products.slice(0, 15) : [];
-    const trendingPicks =
-      products.length > 15 ? products.slice(15, 30) : products.slice(0, 15);
+    const trendingPicks = bestSellers;
 
     const bannerUrl =
       "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
@@ -188,7 +207,7 @@ export default function HomeClient() {
             {/* Bagian Kiri Bawah: Carousel */}
             <div className="space-y-2">
               <h4 className="font-damion text-2xl text-primary-700">
-                Editor's Choice
+                New Arrival
               </h4>
               <Carousel
                 opts={{
@@ -247,7 +266,7 @@ export default function HomeClient() {
             {/* Bagian Kanan Bawah: Carousel */}
             <div className="space-y-2">
               <h4 className="font-damion text-2xl text-primary-700">
-                Trending Now
+                Best Seller
               </h4>
               <Carousel
                 opts={{
@@ -256,7 +275,7 @@ export default function HomeClient() {
                 className="w-full relative"
               >
                 <CarouselContent className="-ml-2 md:-ml-4">
-                  {productsLoading
+                  {bestSellersLoading
                     ? Array.from({ length: 3 }).map((_, i) => (
                         <CarouselItem
                           key={`skel-right-${i}`}
