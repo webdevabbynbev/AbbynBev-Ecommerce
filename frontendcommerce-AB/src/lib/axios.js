@@ -1,7 +1,11 @@
 import axios from "axios";
 import { clearToken } from "@/services/authToken";
 
-const baseURL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+const rawBaseURL = process.env.NEXT_PUBLIC_API_URL || "";
+const normalizedBaseURL = rawBaseURL
+  .replace(/\/+$/, "")
+  .replace(/\/api$/i, "");
+const baseURL = normalizedBaseURL;
 
 if (!baseURL) {
   console.warn("NEXT_PUBLIC_API_URL is not set");

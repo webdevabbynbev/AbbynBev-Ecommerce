@@ -1,9 +1,10 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL;
-const BASE = API_BASE
-  ? API_BASE.endsWith("/")
-    ? API_BASE
-    : `${API_BASE}/`
-  : "";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
+const normalizedBase = API_BASE.replace(/\/+$/, "").replace(/\/api$/i, "");
+const BASE = normalizedBase
+  ? normalizedBase.endsWith("/")
+    ? normalizedBase
+    : `${normalizedBase}/`
+    : "";
 
 export async function getApi(path, options = {}) {
   if (!BASE) throw new Error("NEXT_PUBLIC_API_URL belum di-set. Cek .env");
