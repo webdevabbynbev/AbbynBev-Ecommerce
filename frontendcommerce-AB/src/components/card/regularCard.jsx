@@ -7,17 +7,13 @@ import { BtnIconToggle } from "..";
 import { formatToRupiah, slugify, getAverageRating } from "@/utils";
 import { DataReview } from "@/data";
 
-const PLACEHOLDER_IMAGE =
-  "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
-
 export function RegularCard({ product, hrefQuery }) {
   const [wishlist, setWishlist] = useState([]);
 
   if (!product) return null;
 
   const item = useMemo(() => {
-    // support: bisa product normal / bisa row yang punya `.product`
-    const raw = product?.product ?? product;
+    const raw = product;
 
     const id =
       raw.id ??
@@ -32,93 +28,37 @@ export function RegularCard({ product, hrefQuery }) {
 
     const name = raw.name ?? raw.productName ?? raw.title ?? "Unnamed Product";
 
-    const basePrice = Number(
-      raw.basePrice ??
-        raw.base_price ??
-        raw.base ??
-        raw.price ??
-        raw.salePrice ??
-        (Array.isArray(raw.prices) ? raw.prices[0] : undefined) ??
-        0
-    );
-
-    // Harga “saat ini” (kalau normalizer udah override diskon, ini udah final)
-    const currentPrice = Number(
+    const price = Number(
       raw.price ??
-        raw.salePrice ??
-        raw.basePrice ??
-        raw.base_price ??
-        (Array.isArray(raw.prices) ? raw.prices[0] : undefined) ??
-        0
+      raw.base_price ??
+      raw.basePrice ??
+      raw.salePrice ??
+      (Array.isArray(raw.prices) ? raw.prices[0] : undefined) ??
+      0
     );
 
-    // Untuk SALE (harga coret sale)
     const compareAt = Number(
       raw.realprice ??
-        raw.oldPrice ??
-        raw.compareAt ??
-        raw.compare_at ??
-        (Array.isArray(raw.prices) ? raw.prices[1] : undefined) ??
-        NaN
+      raw.oldPrice ??
+      (Array.isArray(raw.prices) ? raw.prices[1] : undefined) ??
+      NaN
     );
-
-    // ===== DISKON ENGINE =====
-    // Prefer dari normalizer: discountPercent, discountCompareAt, discountFinalPrice
-    let discountPercent = Number(raw.discountPercent ?? NaN);
-    let discountCompareAt = Number(raw.discountCompareAt ?? NaN);
-    let discountFinalPrice = Number(raw.discountFinalPrice ?? NaN);
-
-    // Fallback: baca langsung dari backend `extraDiscount` (kalau normalizer belum ngisi field di atas)
-    const extra = raw.extraDiscount ?? null;
-    if (extra) {
-      const eligible = Number(extra.eligibleMinPrice ?? extra.baseMinPrice ?? NaN);
-      const final = Number(extra.finalMinPrice ?? NaN);
-
-      if (
-        Number.isFinite(eligible) &&
-        Number.isFinite(final) &&
-        eligible > 0 &&
-        final > 0 &&
-        eligible > final
-      ) {
-        discountCompareAt = eligible;
-        discountFinalPrice = final;
-
-        const valueType = Number(extra.valueType ?? NaN); // 1=percent
-        const value = Number(extra.value ?? NaN);
-
-        if (valueType === 1 && Number.isFinite(value) && value > 0) {
-          discountPercent = value;
-        } else {
-          discountPercent = ((eligible - final) / eligible) * 100;
-        }
-      }
-    }
-
-    // kalau normalizer belum set discountFinalPrice dan fallback juga gak dapet, anggap currentPrice final
-    if (!Number.isFinite(discountFinalPrice) || discountFinalPrice <= 0) {
-      discountFinalPrice = currentPrice || basePrice;
-    }
 
     const image =
       raw.image ??
       (Array.isArray(raw.images) ? raw.images[0] : null) ??
-      PLACEHOLDER_IMAGE;
+      "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
 
     const slugSource = raw.slug || raw.path || "";
-    const safeSlug = slugSource ? String(slugSource) : slugify(String(name || ""));
+    const safeSlug = slugSource
+      ? String(slugSource)
+      : slugify(String(name || ""));
 
     return {
       id: String(id),
       name,
-      basePrice,
-      price: currentPrice,
+      price,
       compareAt,
-
-      discountPercent,
-      discountCompareAt,
-      discountFinalPrice,
-
       image,
       rating: Number(raw.rating ?? raw.stars ?? 0),
       brand:
@@ -136,45 +76,12 @@ export function RegularCard({ product, hrefQuery }) {
         raw.categoryName ??
         "",
       slug: safeSlug,
-
-      // flag sale dari backend (kalau ada)
       sale: Boolean(raw.sale),
     };
   }, [product]);
 
-  // diskon engine dianggap aktif kalau ada compareAt diskon > final
-  const discountActive =
-    Number.isFinite(item.discountCompareAt) &&
-    Number.isFinite(item.discountFinalPrice) &&
-    item.discountCompareAt > item.discountFinalPrice;
-
-  // SALE aktif kalau: flag sale dari backend, atau compareAt > price
-  // tapi compareAt JANGAN “ngalahin” diskon engine (biar diskon engine gak kebaca sebagai sale)
-  const hasSalePrice = Number.isFinite(item.compareAt) && item.compareAt > item.price;
-  const saleActive = item.sale || (hasSalePrice && !discountActive);
-
-  // badge diskon
-  const computedPercent = discountActive
-    ? Math.round(
-        ((item.discountCompareAt - item.discountFinalPrice) / item.discountCompareAt) * 100
-      )
-    : null;
-
-  const discountBadge =
-    discountActive && Number.isFinite(item.discountPercent) && item.discountPercent > 0
-      ? `-${Math.round(item.discountPercent)}%`
-      : discountActive && computedPercent && computedPercent > 0
-        ? `-${computedPercent}%`
-        : discountActive
-          ? "-DISC"
-          : null;
-
-  // harga tampil & harga coret
-  const displayPrice = discountActive ? item.discountFinalPrice : item.price;
-
-  const strikePrice = saleActive
-    ? (Number.isFinite(item.compareAt) && item.compareAt > item.price ? item.compareAt : NaN)
-    : (discountActive ? item.discountCompareAt : NaN);
+  const hasSale =
+    Number.isFinite(item.compareAt) && item.compareAt > item.price;
 
   useEffect(() => {
     try {
@@ -227,29 +134,21 @@ export function RegularCard({ product, hrefQuery }) {
     <div className="group relative flex h-full w-full flex-col rounded-lg bg-white space-y-4 transition-all overflow-hidden">
       <Link href={href}>
         <div className="image flex w-full items-center justify-center relative">
-          {/* PRIORITAS BADGE:
-              1) SALE/FLASH (existing)
-              2) DISKON (discount engine)
-           */}
-          {saleActive ? (
+          {(item.sale || hasSale) && (
             <img
               src="/sale-tag.svg"
               alt="Sale"
               className="absolute top-0 left-0 z-10 w-10 h-auto"
             />
-          ) : discountActive && discountBadge ? (
-            <span className="absolute top-0 left-0 z-10 flex h-[26px] items-center rounded-br-lg bg-primary-700 px-2 text-[10px] font-bold uppercase tracking-wide text-white">
-              {discountBadge}
-            </span>
-          ) : null}
+          )}
 
           <div
             className={`absolute top-4 right-4 z-10 transition-all duration-200
-            ${
-              isWishlisted
+            ${isWishlisted
                 ? "opacity-100 scale-100 pointer-events-auto"
                 : "opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto"
-            }`}
+              }
+            `}
           >
             <BtnIconToggle
               active={isWishlisted}
@@ -269,7 +168,8 @@ export function RegularCard({ product, hrefQuery }) {
               alt={item.name}
               className="w-full h-auto object-cover"
               onError={(e) => {
-                e.currentTarget.src = PLACEHOLDER_IMAGE;
+                e.currentTarget.src =
+                  "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
               }}
             />
           </div>
@@ -283,18 +183,18 @@ export function RegularCard({ product, hrefQuery }) {
           </div>
 
           <div className="price flex items-center space-x-2">
-            {Number.isFinite(strikePrice) && strikePrice > displayPrice ? (
+            {hasSale ? (
               <>
                 <div className="text-sm font-bold text-primary-700">
-                  {formatToRupiah(displayPrice)}
+                  {formatToRupiah(item.price)}
                 </div>
                 <div className="text-xs font-medium text-neutral-400 line-through">
-                  {formatToRupiah(strikePrice)}
+                  {formatToRupiah(item.compareAt)}
                 </div>
               </>
             ) : (
               <div className="text-base font-bold text-primary-700">
-                {formatToRupiah(displayPrice)}
+                {formatToRupiah(item.price)}
               </div>
             )}
           </div>
@@ -302,7 +202,9 @@ export function RegularCard({ product, hrefQuery }) {
           <div className="rating flex space-x-2 items-center">
             <div className="flex space-x-1 items-center">
               {averageRating === 0 ? (
-                <span className="text-xs text-primary-700 font-light">No rating</span>
+                <span className="text-xs text-primary-700 font-light">
+                  No rating
+                </span>
               ) : (
                 <div className="flex items-center space-x-1 font-bold text-primary-700 text-xs">
                   <span>{averageRating}</span>
