@@ -4,7 +4,120 @@ import { useMemo, useState } from "react";
 import { Bouncy } from "ldrs/react";
 import "ldrs/react/Bouncy.css";
 import { FaSprayCanSparkles } from "react-icons/fa6";
-import { BtnIcon, Button, TxtField } from ".";
+import { BtnIcon, Button, RegularCard, TxtField } from ".";
+
+const LABELS = {
+  concierge: "Abby n Bev – Concierge (TEST)",
+  makeup: "Abby Mode – Makeup Advisor (TEST)",
+  skincare: "Bev Mode – Skincare Advisor (TEST)",
+  cs: "CS Mode – Store Assistant (TEST)",
+};
+
+const parseSections = (outputText = "") => {
+  const chunks = outputText.split(/\n\s*\n/).filter(Boolean);
+  return chunks.map((chunk) => {
+    const [firstLine, ...rest] = chunk.split("\n");
+    const body = rest.length ? rest.join("\n").trim() : "";
+
+    if (firstLine === LABELS.concierge) {
+      return { title: LABELS.concierge, type: "concierge", body };
+    }
+
+    if (firstLine === LABELS.makeup) {
+      return { title: LABELS.makeup, type: "advisor", body };
+    }
+
+    if (firstLine === LABELS.skincare) {
+      return { title: LABELS.skincare, type: "advisor", body };
+    }
+
+    if (firstLine === LABELS.cs) {
+      return { title: LABELS.cs, type: "cs", body };
+    }
+
+    if (firstLine.startsWith("Classify Selected category")) {
+      return { title: firstLine.trim(), type: "meta", body };
+    }
+
+    return { title: null, type: "text", body: chunk.trim() };
+  });
+};
+
+const parseRecommendations = (text = "") => {
+  const lines = text.split("\n");
+  const items = [];
+  const introLines = [];
+  const trailingLines = [];
+  let current = null;
+  let hasList = false;
+  let inTrailing = false;
+
+  const flushCurrent = () => {
+    if (!current) return;
+    const description = current.descriptionLines.join("\n").trim();
+    items.push({
+      name: current.name.trim(),
+      description,
+    });
+    current = null;
+  };
+
+  lines.forEach((line) => {
+    const match = line.match(
+      /^\s*\d+\.\s*(?:\*\*|__)?(.+?)(?:\*\*|__)?\s*(?:-|–|:)\s*(.*)$/
+    );
+
+    if (match) {
+      if (current) flushCurrent();
+      hasList = true;
+      inTrailing = false;
+      current = {
+        name: match[1].trim(),
+        descriptionLines: [match[2].trim()],
+      };
+      return;
+    }
+
+    if (!hasList) {
+      introLines.push(line);
+      return;
+    }
+
+    if (current && !inTrailing) {
+      if (!line.trim()) {
+        flushCurrent();
+        inTrailing = true;
+        return;
+      }
+      current.descriptionLines.push(line.trim());
+      return;
+    }
+
+    trailingLines.push(line);
+  });
+
+  flushCurrent();
+
+  return {
+    introText: introLines.join("\n").trim(),
+    trailingText: trailingLines.join("\n").trim(),
+    items,
+  };
+};
+
+const fetchProductByName = async (name) => {
+  try {
+    const res = await fetch(
+      `/api/products/search?q=${encodeURIComponent(name)}&limit=1`
+    );
+    if (!res.ok) return null;
+    const json = await res.json();
+    return Array.isArray(json?.data) ? json.data[0] : null;
+  } catch (error) {
+    console.error("Chatkit product lookup error:", error);
+    return null;
+  }
+};
 
 const getSessionId = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -30,6 +143,43 @@ export function ChatkitWidget() {
       text: "Hi bestie! Mau tanya makeup, skincare, atau info toko hari ini?",
     },
   ]);
+
+  const buildAssistantMessages = async (outputText) => {
+    const sections = parseSections(outputText);
+    const messagesWithCards = await Promise.all(
+      sections.map(async (section) => {
+        if (section.type === "advisor") {
+          const { introText, trailingText, items } = parseRecommendations(
+            section.body
+          );
+          const products = await Promise.all(
+            items.map((item) => fetchProductByName(item.name))
+          );
+          const recommendations = items.map((item, index) => ({
+            ...item,
+            product: products[index] || null,
+          }));
+
+          return {
+            role: "assistant",
+            title: section.title,
+            text: [introText, trailingText].filter(Boolean).join("\n\n"),
+            recommendations,
+          };
+        }
+
+        return {
+          role: "assistant",
+          title: section.title,
+          text: section.body || "",
+        };
+      })
+    );
+
+    return messagesWithCards.filter(
+      (message) => message.text || (message.recommendations || []).length > 0
+    );
+  };
 
   const sendMessage = async () => {
     const trimmed = input.trim();
@@ -65,13 +215,10 @@ export function ChatkitWidget() {
 
       const data = await res.json();
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          text: data?.output_text || "Maaf bestie, coba lagi ya.",
-        },
-      ]);
+      const outputText = data?.output_text || "Maaf bestie, coba lagi ya.";
+      const assistantMessages = await buildAssistantMessages(outputText);
+
+      setMessages((prev) => [...prev, ...assistantMessages]);
     } catch (error) {
       console.error("Chatkit send error:", error);
       setMessages((prev) => [
@@ -115,7 +262,45 @@ export function ChatkitWidget() {
                     : "bg-slate-100 text-slate-800"
                 }`}
               >
-                {message.text}
+                {message.title && (
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1">
+                    {message.title}
+                  </p>
+                )}
+                {message.text && (
+                  <p className="whitespace-pre-line">{message.text}</p>
+                )}
+                {Array.isArray(message.recommendations) &&
+                  message.recommendations.length > 0 && (
+                    <div className="mt-3 space-y-4">
+                      {message.recommendations.map((item, itemIndex) => (
+                        <div
+                          key={`${item.name}-${itemIndex}`}
+                          className="space-y-2"
+                        >
+                          <div>
+                            <p className="font-semibold">
+                              {itemIndex + 1}. {item.name}
+                            </p>
+                            {item.description && (
+                              <p className="text-xs text-slate-600 whitespace-pre-line">
+                                {item.description}
+                              </p>
+                            )}
+                          </div>
+                          {item.product ? (
+                            <div className="max-w-[220px]">
+                              <RegularCard product={item.product} />
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-400">
+                              Produk belum tersedia di katalog saat ini.
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
               </div>
             ))}
             {isSending && (
@@ -139,9 +324,8 @@ export function ChatkitWidget() {
               size="sm"
               iconName="ArrowUpLong"
               onClick={sendMessage}
-              disabled={isSending}            
-              />
-              
+              disabled={isSending}
+            />
           </div>
         </div>
       ) : (
@@ -152,7 +336,8 @@ export function ChatkitWidget() {
           className="bg-black text-white rounded-full px-5 py-3 shadow-lg text-sm font-semibold"
         >
           <div className="flex flex-row items-center gap-2">
-            <FaSprayCanSparkles className="h-5 w-5" /> Your Beauty Assistant here!
+            <FaSprayCanSparkles className="h-5 w-5" /> Your Beauty Assistant
+            here!
           </div>
         </Button>
       )}

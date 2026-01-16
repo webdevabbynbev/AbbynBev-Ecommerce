@@ -25,6 +25,7 @@ import {
 import { useDebounce } from "../hooks/useDebounce";
 import { getProducts } from "@/services/api/product.services";
 import { getBrands } from "@/services/api/brands.services";
+import { buildPageItems } from "@/lib/pagination";
 
 const BestSellerClient = () => {
   const [products, setProducts] = useState([]);
@@ -32,37 +33,21 @@ const BestSellerClient = () => {
   const [search, setSearch] = useState("");
   const [meta, setMeta] = useState({});
   const debounceSearch = useDebounce(search, 500);
+
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
+
   const itemsPerPage = 20;
   const totalPages = meta?.lastPage || 1;
-  const skeleton_card = itemsPerPage;
+  const skeletonCard = itemsPerPage;
   const currentItems = products;
+
   const paginationLinkBaseClass =
     "bg-transparent border border-transparent font-bold text-primary-700 hover:bg-secondary-100 transition-all duration-200 cursor-pointer";
-  const pageItems = [];
 
-  if (totalPages <= 5) {
-    for (let i = 1; i <= totalPages; i += 1) pageItems.push(i);
-  } else {
-    const showStartEllipsis = currentPage > 3;
-    const showEndEllipsis = currentPage < totalPages - 2;
-    pageItems.push(1);
-
-    if (showStartEllipsis) pageItems.push("start-ellipsis");
-
-    const startPage = Math.max(2, currentPage - 1);
-    const endPage = Math.min(totalPages - 1, currentPage + 1);
-    for (let i = startPage; i <= endPage; i += 1) {
-      pageItems.push(i);
-    }
-
-    if (showEndEllipsis) pageItems.push("end-ellipsis");
-
-    pageItems.push(totalPages);
-  }
+  const pageItems = buildPageItems(currentPage, totalPages);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -98,17 +83,19 @@ const BestSellerClient = () => {
 
   return (
     <div className="flex w-full mx-auto flex-col justify-between xl:max-w-7xl lg:max-w-284 lg:flex-row">
-      <h1 className="sr-only">Produk best seller Abby n Bev yang paling sering diburu.</h1>
+      <h1 className="sr-only">
+        Produk best seller Abby n Bev yang paling sering diburu.
+      </h1>
+
+      {/* FILTER DESKTOP */}
       <div className="hidden w-75 lg:w-75 pl-10 pr-2 py-6 lg:block">
-        <Filter
-          brands={brands}
-          showBrandFilter={true}
-          className="w-full py-24"
-        />
+        <Filter brands={brands} showBrandFilter className="w-full py-24" />
       </div>
 
+      {/* MAIN CONTENT */}
       <div className="flex-1 p-6">
-        <div className="mb-6 flex flex-row gap-3 sm:flex-row sm:items-center">
+        {/* SEARCH + FILTER MOBILE */}
+        <div className="mb-6 flex gap-3 sm:items-center">
           <TxtField
             placeholder="Search products..."
             value={search}
@@ -116,6 +103,7 @@ const BestSellerClient = () => {
             iconLeftName="MagnifyingGlass"
             className="w-full"
           />
+
           <Dialog>
             <DialogTrigger asChild>
               <Button
@@ -125,7 +113,7 @@ const BestSellerClient = () => {
                 Filter
               </Button>
             </DialogTrigger>
-            <DialogContent className="flex max-h-[80vh] w-full flex-col overflow-y-auto overflow-x-hidden custom-scrollbar sm:max-w-100">
+            <DialogContent className="flex max-h-[80vh] w-full flex-col overflow-y-auto custom-scrollbar sm:max-w-100">
               <DialogHeader>
                 <DialogTitle>Filter</DialogTitle>
               </DialogHeader>
@@ -138,9 +126,11 @@ const BestSellerClient = () => {
             </DialogContent>
           </Dialog>
         </div>
+
+        {/* GRID */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {isInitialLoading || isFetching ? (
-            [...Array(skeleton_card)].map((_, i) => (
+            [...Array(skeletonCard)].map((_, i) => (
               <RegularCardSkeleton key={i} />
             ))
           ) : currentItems.length > 0 ? (
@@ -154,6 +144,7 @@ const BestSellerClient = () => {
           )}
         </div>
 
+        {/* PAGINATION */}
         {!isInitialLoading && totalPages > 1 && (
           <Pagination className="mt-12">
             <PaginationContent>
@@ -164,14 +155,15 @@ const BestSellerClient = () => {
                   className={`${paginationLinkBaseClass} ${
                     currentPage === 1 ? "pointer-events-none opacity-50" : ""
                   }`}
-                  onClick={(event) => {
-                    event.preventDefault();
+                  onClick={(e) => {
+                    e.preventDefault();
                     if (currentPage > 1) setCurrentPage((p) => p - 1);
                   }}
                 />
               </PaginationItem>
-              {pageItems.map((item) => (
-                <PaginationItem key={item}>
+
+              {pageItems.map((item, index) => (
+                <PaginationItem key={`${item}-${index}`}>
                   {typeof item === "number" ? (
                     <PaginationLink
                       href="#"
@@ -179,8 +171,8 @@ const BestSellerClient = () => {
                       className={`${paginationLinkBaseClass} ${
                         item === currentPage ? "bg-secondary-100" : ""
                       }`}
-                      onClick={(event) => {
-                        event.preventDefault();
+                      onClick={(e) => {
+                        e.preventDefault();
                         setCurrentPage(item);
                       }}
                     >
@@ -191,6 +183,7 @@ const BestSellerClient = () => {
                   )}
                 </PaginationItem>
               ))}
+
               <PaginationItem>
                 <PaginationNext
                   href="#"
@@ -200,9 +193,10 @@ const BestSellerClient = () => {
                       ? "pointer-events-none opacity-50"
                       : ""
                   }`}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    if (currentPage < totalPages) setCurrentPage((p) => p + 1);
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage < totalPages)
+                      setCurrentPage((p) => p + 1);
                   }}
                 />
               </PaginationItem>
