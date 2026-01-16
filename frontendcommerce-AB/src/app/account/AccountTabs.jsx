@@ -17,12 +17,12 @@ export default function AccountTabs({ slug }) {
     `
     group w-full flex items-center gap-3
     px-3 py-2 rounded-lg text-sm font-medium transition-all
-    ${active
-      ? "bg-primary-700 text-white shadow-md"
-      : "text-gray-700 hover:bg-pink-50 hover:text-pink-600"
+    ${
+      active
+        ? "bg-primary-700 text-white shadow-md"
+        : "text-gray-700 hover:bg-pink-50 hover:text-pink-600"
     }
   `;
-
 
   return (
     <Tabs
@@ -35,7 +35,7 @@ export default function AccountTabs({ slug }) {
       <TabsList
         className="
           flex flex-row lg:flex-col gap-1
-          h-fit w-[220px]
+          h-fit w-55
           items-start
           rounded-xl border p-4 space-y-1
           bg-white shadow-sm
@@ -69,7 +69,6 @@ export default function AccountTabs({ slug }) {
           Voucher
         </button>
       </TabsList>
-
 
       {/* CONTENT */}
       <div className="flex-1 h-auto w-full">

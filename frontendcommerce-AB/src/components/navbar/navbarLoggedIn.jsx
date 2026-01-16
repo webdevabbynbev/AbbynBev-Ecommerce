@@ -18,6 +18,36 @@ import {
 } from "@/components";
 
 import CartButton from "@/components/button/cartButton";
+import ShopByCategoryDropdown from "./categoryDropdown";
+import MegaDropdown from "./megaDropdown";
+
+/* ===================== DROPDOWN DATA ===================== */
+export const shopByConcern = [
+  {
+    label: "Acne",
+    children: [
+      {
+        label: "Oily Skin",
+        children: [{ label: "Acne Cleanser", href: "/concern/acne-cleanser" }],
+      },
+    ],
+  },
+];
+
+export const shopByBrand = [
+  {
+    label: "Local Brand",
+    children: [
+      {
+        label: "Skincare",
+        children: [
+          { label: "Somethinc", href: "/brand/somethinc" },
+          { label: "Avoskin", href: "/brand/avoskin" },
+        ],
+      },
+    ],
+  },
+];
 
 export function NavbarLoggedIn({
   pathname,
@@ -32,6 +62,36 @@ export function NavbarLoggedIn({
   setOpen,
   onLogout,
 }) {
+  // category dari DB
+  const [categoryTypes, setCategoryTypes] = useState([]);
+  const [catLoading, setCatLoading] = useState(false);
+
+  // fetch category dari DB
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      try {
+        setCatLoading(true);
+
+        // pastikan baseURL axios kamu sudah benar (atau ganti ke instance axios internal)
+        const res = await axios.get("/category-types");
+
+        const arr = Array.isArray(res?.data?.serve) ? res.data.serve : [];
+        if (alive) setCategoryTypes(arr);
+      } catch (err) {
+        console.error("Failed to load category-types:", err);
+        if (alive) setCategoryTypes([]);
+      } finally {
+        if (alive) setCatLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   return (
     <>
       {/* ===================== MOBILE ( < lg ) ===================== */}
@@ -69,12 +129,17 @@ export function NavbarLoggedIn({
             />
           </div>
 
+          {/* STATIC LINKS */}
           {links.map((link) => {
-            const isExternal = link.href.startsWith("http");
+            const isExternal =
+              typeof link.href === "string" && link.href.startsWith("http");
             const active = isNavActive(link.href);
+
             const className = clsx(
-              "text-sm items-center transition-colors",
-              active ? "text-primary-700" : "hover:text-primary-500"
+              "whitespace-nowrap text-sm font-medium transition-colors",
+              active
+                ? "text-primary-700"
+                : "text-gray-700 hover:text-primary-500"
             );
 
             if (isExternal) {
@@ -97,6 +162,18 @@ export function NavbarLoggedIn({
               </Link>
             );
           })}
+
+          {/* DROPDOWN MENUS */}
+          <div className="flex items-center">
+            <ShopByCategoryDropdown
+              label="Shop By Category"
+              categories={categoryTypes}
+              loading={catLoading} // opsional kalau component kamu handle state loading
+            />
+
+            <MegaDropdown label="Shop by Concern" items={shopByConcern} />
+            <MegaDropdown label="Shop by Brand" items={shopByBrand} />
+          </div>
         </div>
 
         {/* RIGHT SIDE */}
