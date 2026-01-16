@@ -1,13 +1,5 @@
 import React from "react";
-import {
-  Table,
-  Button,
-  Card,
-  Popconfirm,
-  Image,
-  Tag,
-  message,
-} from "antd";
+import { Table, Button, Card, Popconfirm, Image, Tag, message } from "antd";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import {
   PlusOutlined,
@@ -23,7 +15,7 @@ import placeholder from "../../../assets/img/placeholder.png";
 import http from "../../../api/http";
 import history from "../../../utils/history";
 import { useNavigate } from "react-router-dom";
-import ProductCsvUpload from "../../Product/ProductCsvUpload";
+import ProductCsvUpload from "../../product/ProductCsvUpload";
 
 type MediaItem = {
   url: string;
@@ -219,7 +211,14 @@ const buildColumns = (props: {
     width: 220,
     align: "center",
     render: (_: unknown, record) => (
-      <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          justifyContent: "center",
+          flexWrap: "wrap",
+        }}
+      >
         <Button
           type="primary"
           icon={<EditOutlined />}
@@ -228,7 +227,10 @@ const buildColumns = (props: {
           Edit
         </Button>
 
-        <Button icon={<PictureOutlined />} onClick={() => props.navigate("/products-media")}>
+        <Button
+          icon={<PictureOutlined />}
+          onClick={() => props.navigate("/products-media")}
+        >
           Media
         </Button>
 
@@ -279,7 +281,10 @@ const TableProduct: React.FC = () => {
     fetch(params, pagination);
   }, []);
 
-  const fetch = async (q: QueryParams = params, page?: TablePaginationConfig) => {
+  const fetch = async (
+    q: QueryParams = params,
+    page?: TablePaginationConfig
+  ) => {
     setLoading(true);
     try {
       const query = new URLSearchParams();
@@ -330,9 +335,7 @@ const TableProduct: React.FC = () => {
   return (
     <DndProvider backend={HTML5Backend}>
       {/* FILTER */}
-      <Card style={{ marginTop: 10 }}>
-        {/* ... TIDAK DIUBAH */}
-      </Card>
+      <Card style={{ marginTop: 10 }}>{/* ... TIDAK DIUBAH */}</Card>
 
       {/* ACTION BAR */}
       <Card style={{ marginTop: 10 }}>
@@ -374,6 +377,7 @@ const TableProduct: React.FC = () => {
         dataSource={data}
         pagination={pagination}
         loading={loading}
+        onChange={(newPagination) => fetch(params, newPagination)}
         expandable={{
           expandedRowRender: (record) => (
             <Table<VariantRecord>
@@ -400,11 +404,10 @@ const TableProduct: React.FC = () => {
 
       {/* ✅ CSV MODAL */}
       <ProductCsvUpload
-  open={openCsvUpload}
-  onOpenChange={setOpenCsvUpload}
-  onSuccess={() => fetch(params, pagination)}
-/>
-
+        open={openCsvUpload}
+        onOpenChange={setOpenCsvUpload}
+        onSuccess={() => fetch(params, pagination)}
+      />
     </DndProvider>
   );
 };
