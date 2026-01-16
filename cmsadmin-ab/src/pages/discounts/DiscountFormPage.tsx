@@ -13,6 +13,7 @@ import {
   Switch,
   Divider,
   message,
+  Modal,
 } from "antd";
 import http from "../../api/http";
 import helper from "../../utils/helper";
@@ -355,11 +356,85 @@ export default function DiscountFormPage({ mode }: Props) {
         message.success("Diskon berhasil dibuat");
       }
       nav("/discounts");
-    } catch (e: any) {
-      message.error(e?.response?.data?.message ?? "Gagal simpan diskon");
-    } finally {
-      setLoading(false);
-    }
+   } catch (e: any) {
+  const status = e?.response?.status;
+  const data = e?.response?.data;
+  const serve = data?.serve;
+
+  // ✅ conflict dari backend discounts_controller.ts
+  // return 409 { serve: { code:'PROMO_CONFLICT', conflicts:{flash:[], sale:[]}, canTransfer:true } }
+  if (status === 409 && serve?.code === "PROMO_CONFLICT" && serve?.canTransfer) {
+    const flashIds: number[] = serve?.conflicts?.flash ?? [];
+    const saleIds: number[] = serve?.conflicts?.sale ?? [];
+    const all = Array.from(new Set([...(flashIds || []), ...(saleIds || [])]));
+
+    const preview = all.slice(0, 10).join(", ");
+
+    // biar tombol "Simpan" nggak stuck loading saat modal kebuka
+    setLoading(false);
+
+    Modal.confirm({
+      title: "Produk sedang ikut Flash Sale / Sale",
+      content: (
+        <div>
+          <div style={{ marginBottom: 8 }}>
+            Produk yang kamu pilih sedang <b>aktif</b> di promo lain, jadi tidak bisa digabung dengan Discount.
+          </div>
+
+          <div style={{ marginBottom: 8 }}>
+            Flash Sale: <b>{flashIds.length}</b> • Sale: <b>{saleIds.length}</b>
+          </div>
+
+          {all.length ? (
+            <div style={{ marginBottom: 8 }}>
+              Contoh Product ID: <b>{preview}</b>
+              {all.length > 10 ? " ..." : ""}
+            </div>
+          ) : null}
+
+          <div>
+            Mau <b>dipindahkan ke Discount</b>? (Produk akan dikeluarkan dari promo aktif)
+          </div>
+        </div>
+      ),
+      okText: "Ya / Pindahkan",
+      cancelText: "Tidak",
+      onOk: async () => {
+        setLoading(true);
+        try {
+          const payload2 = { ...payload, transfer: 1 };
+
+          if (mode === "edit") {
+            const identifier = resolveIdentifier(id);
+            if (!identifier) {
+              message.error("Invalid discount identifier");
+              nav("/discounts");
+              return;
+            }
+            await http.put(`/admin/discounts/${encodeURIComponent(identifier)}`, payload2);
+            message.success("Diskon diupdate + produk dipindahkan dari promo aktif");
+          } else {
+            await http.post(`/admin/discounts`, payload2);
+            message.success("Diskon dibuat + produk dipindahkan dari promo aktif");
+          }
+
+          nav("/discounts");
+        } catch (err2: any) {
+          message.error(err2?.response?.data?.message ?? "Gagal transfer & simpan diskon");
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
+
+    return; // penting: stop flow biar tidak message.error default
+  }
+
+  message.error(data?.message ?? "Gagal simpan diskon");
+} finally {
+  setLoading(false);
+}
+
   };
 
   return (

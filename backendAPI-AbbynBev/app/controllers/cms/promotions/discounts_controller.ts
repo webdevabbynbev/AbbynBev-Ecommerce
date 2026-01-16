@@ -129,7 +129,9 @@ async function getActivePromoProductIds(trx: any, productIds: number[]) {
       .where('end_datetime', '>=', nowStr)
       .select('id')
 
-    const flashIds = (flashIdsRows ?? []).map((r: any) => Number(r.id)).filter((x: number) => Number.isFinite(x) && x > 0)
+    const flashIds = (flashIdsRows ?? [])
+      .map((r: any) => Number(r.id))
+      .filter((x: number) => Number.isFinite(x) && x > 0)
 
     if (flashIds.length) {
       const rows = await trx
@@ -156,7 +158,9 @@ async function getActivePromoProductIds(trx: any, productIds: number[]) {
       .where('end_datetime', '>=', nowStr)
       .select('id')
 
-    const saleIds = (saleIdsRows ?? []).map((r: any) => Number(r.id)).filter((x: number) => Number.isFinite(x) && x > 0)
+    const saleIds = (saleIdsRows ?? [])
+      .map((r: any) => Number(r.id))
+      .filter((x: number) => Number.isFinite(x) && x > 0)
 
     if (saleIds.length) {
       const rows = await trx
@@ -194,7 +198,9 @@ async function transferOutFromActivePromos(trx: any, productIds: number[]) {
       .where('end_datetime', '>=', nowStr)
       .select('id')
 
-    const flashIds = (flashIdsRows ?? []).map((r: any) => Number(r.id)).filter((x: number) => Number.isFinite(x) && x > 0)
+    const flashIds = (flashIdsRows ?? [])
+      .map((r: any) => Number(r.id))
+      .filter((x: number) => Number.isFinite(x) && x > 0)
 
     if (flashIds.length) {
       await trx.from('flashsale_products').whereIn('flash_sale_id', flashIds).whereIn('product_id', productIds).delete()
@@ -212,7 +218,9 @@ async function transferOutFromActivePromos(trx: any, productIds: number[]) {
       .where('end_datetime', '>=', nowStr)
       .select('id')
 
-    const saleIds = (saleIdsRows ?? []).map((r: any) => Number(r.id)).filter((x: number) => Number.isFinite(x) && x > 0)
+    const saleIds = (saleIdsRows ?? [])
+      .map((r: any) => Number(r.id))
+      .filter((x: number) => Number.isFinite(x) && x > 0)
 
     if (saleIds.length) {
       await trx.from('sale_products').whereIn('sale_id', saleIds).whereIn('product_id', productIds).delete()
@@ -223,7 +231,7 @@ async function transferOutFromActivePromos(trx: any, productIds: number[]) {
 /**
  * Build list product_id yang akan kena discount (untuk cek konflik promo).
  * - appliesTo 2: category types -> products.category_type_id
- * - appliesTo 3: variants -> product_variants.id -> product_id
+ * - appliesTo 3: variants (CMS kirim attribute_values.id) -> variant_attributes -> product_variants.product_id
  * - appliesTo 4: brand -> products.brand_id
  * - appliesTo 5: products -> product_ids
  * appliesTo 0/1: global/min-order => return []
@@ -237,15 +245,44 @@ async function buildTargetProductIdsForConflict(trx: any, payload: any, appliesT
     const ids = uniqNums(pick(payload, 'category_type_ids', 'categoryTypeIds') ?? [])
     if (!ids.length) return []
     const rows = await trx.from('products').whereIn('category_type_id', ids).select('id')
-    return Array.from(new Set((rows ?? []).map((r: any) => Number(r.id)).filter((x: number) => Number.isFinite(x) && x > 0)))
+    return Array.from(
+      new Set((rows ?? []).map((r: any) => Number(r.id)).filter((x: number) => Number.isFinite(x) && x > 0))
+    )
   }
 
-  // variants (product_variants.id)
+  // variants (CMS: attribute_values.id)
   if (appliesTo === 3) {
     const ids = uniqNums(pick(payload, 'variant_ids', 'variantIds') ?? [])
     if (!ids.length) return []
+
+    // prefer: variant_attributes + product_variants
+    const schema = (db as any).connection().schema as any
+    const hasVariantAttributes = await schema.hasTable('variant_attributes')
+    const hasProductVariants = await schema.hasTable('product_variants')
+
+    if (hasVariantAttributes && hasProductVariants) {
+      const rows = await trx
+        .from('variant_attributes as va')
+        .join('product_variants as pv', 'pv.id', 'va.product_variant_id')
+        .whereIn('va.attribute_value_id', ids)
+        .whereNull('va.deleted_at')
+        .whereNull('pv.deleted_at')
+        .select('pv.product_id')
+
+      return Array.from(
+        new Set(
+          (rows ?? [])
+            .map((r: any) => Number(r.product_id))
+            .filter((x: number) => Number.isFinite(x) && x > 0)
+        )
+      )
+    }
+
+    // fallback legacy: treat ids as product_variants.id (kalau tabel pivot belum ada)
     const rows = await trx.from('product_variants').whereIn('id', ids).select('product_id')
-    return Array.from(new Set((rows ?? []).map((r: any) => Number(r.product_id)).filter((x: number) => Number.isFinite(x) && x > 0)))
+    return Array.from(
+      new Set((rows ?? []).map((r: any) => Number(r.product_id)).filter((x: number) => Number.isFinite(x) && x > 0))
+    )
   }
 
   // brand (optional)
@@ -253,13 +290,15 @@ async function buildTargetProductIdsForConflict(trx: any, payload: any, appliesT
     const ids = uniqNums(pick(payload, 'brand_ids', 'brandIds') ?? [])
     if (!ids.length) return []
     const rows = await trx.from('products').whereIn('brand_id', ids).select('id')
-    return Array.from(new Set((rows ?? []).map((r: any) => Number(r.id)).filter((x: number) => Number.isFinite(x) && x > 0)))
+    return Array.from(
+      new Set((rows ?? []).map((r: any) => Number(r.id)).filter((x: number) => Number.isFinite(x) && x > 0))
+    )
   }
 
   // product (optional)
   if (appliesTo === 5) {
     const ids = uniqNums(pick(payload, 'product_ids', 'productIds') ?? [])
-    return ids
+    return ids.filter((x) => Number.isFinite(x) && x > 0)
   }
 
   return []
@@ -383,8 +422,17 @@ export default class DiscountsController {
         .filter((t: any) => Number(t.targetType) === 1)
         .map((t: any) => Number(t.targetId))
 
+      // ✅ variants: target_type = 5 (attribute_values.id)
       const variantIds = targets
-        .filter((t: any) => Number(t.targetType) === 2)
+        .filter((t: any) => Number(t.targetType) === 5)
+        .map((t: any) => Number(t.targetId))
+
+      const brandIds = targets
+        .filter((t: any) => Number(t.targetType) === 3)
+        .map((t: any) => Number(t.targetId))
+
+      const productIds = targets
+        .filter((t: any) => Number(t.targetType) === 4)
         .map((t: any) => Number(t.targetId))
 
       const customerRows = await db.from('discount_customer_users').where('discount_id', discount.id).select('user_id')
@@ -412,8 +460,13 @@ export default class DiscountsController {
 
           categoryTypeIds,
           variantIds,
+          brandIds,
+          productIds,
+
           category_type_ids: categoryTypeIds,
           variant_ids: variantIds,
+          brand_ids: brandIds,
+          product_ids: productIds,
 
           customerIds,
           customer_ids: customerIds,
@@ -440,7 +493,10 @@ export default class DiscountsController {
       // code optional (kalau FE masih required, ini tetap aman)
       let code = toStr(pick(payload, 'code'), '')
       if (!code) {
-        code = `AUTO-${DateTime.now().setZone('Asia/Jakarta').toFormat('yyLLdd')}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
+        code = `AUTO-${DateTime.now().setZone('Asia/Jakarta').toFormat('yyLLdd')}-${Math.random()
+          .toString(36)
+          .slice(2, 8)
+          .toUpperCase()}`
       }
 
       const startedAtRaw = pick(payload, 'started_at', 'startedAt')
@@ -490,11 +546,11 @@ export default class DiscountsController {
       discount.description = pick(payload, 'description') ? String(pick(payload, 'description')) : null
 
       discount.valueType = toInt(pick(payload, 'value_type', 'valueType'), 1)
-      discount.value = Number(toNum(pick(payload, 'value'), 0) ?? 0) // ✅ number
-      discount.maxDiscount = toNum(pick(payload, 'max_discount', 'maxDiscount'), null) // ✅ number|null
+      discount.value = Number(toNum(pick(payload, 'value'), 0) ?? 0)
+      discount.maxDiscount = toNum(pick(payload, 'max_discount', 'maxDiscount'), null)
 
       discount.appliesTo = appliesTo
-      discount.minOrderAmount = toNum(pick(payload, 'min_order_amount', 'minOrderAmount'), null) // ✅ number|null
+      discount.minOrderAmount = toNum(pick(payload, 'min_order_amount', 'minOrderAmount'), null)
 
       discount.minOrderQty = pick(payload, 'min_order_qty', 'minOrderQty')
         ? toInt(pick(payload, 'min_order_qty', 'minOrderQty'))
@@ -519,7 +575,7 @@ export default class DiscountsController {
       discount.daysOfWeekMask = buildMaskFromDays(pick(payload, 'days_of_week', 'daysOfWeek') ?? [])
 
       // default: auto discount
-      ;(discount as any).isAuto = 1
+      discount.isAuto = true
 
       await discount.save()
 
@@ -535,10 +591,11 @@ export default class DiscountsController {
           )
         }
       } else if (appliesTo === 3) {
+        // ✅ variants in CMS = attribute_values.id
         const ids = uniqNums(pick(payload, 'variant_ids', 'variantIds') ?? [])
         if (ids.length) {
           await DiscountTarget.createMany(
-            ids.map((id) => ({ discountId: discount.id, targetType: 2, targetId: id })),
+            ids.map((id) => ({ discountId: discount.id, targetType: 5, targetId: id })),
             { client: trx }
           )
         }
@@ -613,8 +670,13 @@ export default class DiscountsController {
 
       if (pick(payload, 'code') !== undefined) {
         const cd = toStr(pick(payload, 'code'))
-        // code boleh kosong kalau mau auto, tapi kalau FE masih kirim kosong → generate
-        discount.code = cd || discount.code || `AUTO-${DateTime.now().setZone('Asia/Jakarta').toFormat('yyLLdd')}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
+        discount.code =
+          cd ||
+          discount.code ||
+          `AUTO-${DateTime.now().setZone('Asia/Jakarta').toFormat('yyLLdd')}-${Math.random()
+            .toString(36)
+            .slice(2, 8)
+            .toUpperCase()}`
       }
 
       if (pick(payload, 'description') !== undefined) {
@@ -628,11 +690,11 @@ export default class DiscountsController {
       }
 
       if (pick(payload, 'value') !== undefined) {
-        discount.value = Number(toNum(pick(payload, 'value'), 0) ?? 0) // ✅ number
+        discount.value = Number(toNum(pick(payload, 'value'), 0) ?? 0)
       }
 
       if (pick(payload, 'max_discount', 'maxDiscount') !== undefined) {
-        discount.maxDiscount = toNum(pick(payload, 'max_discount', 'maxDiscount'), null) // ✅ number|null
+        discount.maxDiscount = toNum(pick(payload, 'max_discount', 'maxDiscount'), null)
       }
 
       // conditions
@@ -643,7 +705,7 @@ export default class DiscountsController {
       }
 
       if (pick(payload, 'min_order_amount', 'minOrderAmount') !== undefined) {
-        discount.minOrderAmount = toNum(pick(payload, 'min_order_amount', 'minOrderAmount'), null) // ✅ number|null
+        discount.minOrderAmount = toNum(pick(payload, 'min_order_amount', 'minOrderAmount'), null)
       }
 
       if (pick(payload, 'min_order_qty', 'minOrderQty') !== undefined) {
@@ -734,10 +796,11 @@ export default class DiscountsController {
           )
         }
       } else if (appliesTo === 3) {
+        // ✅ variants in CMS = attribute_values.id
         const ids = uniqNums(pick(payload, 'variant_ids', 'variantIds') ?? [])
         if (ids.length) {
           await DiscountTarget.createMany(
-            ids.map((id) => ({ discountId: discount.id, targetType: 2, targetId: id })),
+            ids.map((id) => ({ discountId: discount.id, targetType: 5, targetId: id })),
             { client: trx }
           )
         }
