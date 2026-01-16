@@ -11,6 +11,7 @@ const nextConfig = {
       { protocol: "http", hostname: "127.0.0.1", pathname: "/uploads/**" },
       { protocol: "https", hostname: "ibyteimg.com", pathname: "/**" },
       { protocol: "https", hostname: "res.cloudinary.com", pathname: "/**" },
+      { protocol: "https", hostname: "blog.abbynbev.com",},
     ],
   },
   async rewrites() {

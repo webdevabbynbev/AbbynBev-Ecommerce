@@ -109,7 +109,7 @@ export default function HomeClient() {
     if (!loading && (!items || items.length === 0)) return null;
 
     return (
-      <div className="xl:max-w-7xl lg:max-w-240 mx-auto px-6 space-y-6">
+      <div className="xl:max-w-7xl lg:max-w-240 mx-auto p-6 space-y-6">
         <h1 className="sr-only">
           Situs Belanja Online Makeup dan Skincare Terbaik Di Indonesia
         </h1>

@@ -184,6 +184,9 @@ Scope:
 Rules:
 - ONLY recommend products where CATEGORY = "makeup".
 - Ignore skincare, hair care, or fragrance products.
+- Use the file search tool before giving recommendations.
+- ONLY recommend products that appear in the file search results.
+- If no matching products are found, say so clearly and ask a brief follow-up question.
 - Recommend max 2–3 products.
 - Shade matching is an estimation; mention lighting disclaimer.
 - Keep explanations short, friendly, and helpful.`,
@@ -208,6 +211,9 @@ Scope:
 Rules:
 - ONLY recommend products where CATEGORY = "skincare".
 - Ignore makeup, hair care, and fragrance products.
+- Use the file search tool before giving recommendations.
+- ONLY recommend products that appear in the file search results.
+- If no matching products are found, say so clearly and ask a brief follow-up question.
 - Ask max 1–2 clarification questions.
 - Do not give medical diagnosis.
 - Suggest patch test if relevant.`,
@@ -268,7 +274,12 @@ export const runWorkflow = async ({ input_as_text }) => {
       throw new Error("Agent result is undefined");
     }
 
-    let responseText = conciergeResult.finalOutput ?? "";
+    const responseParts = [];
+    if (conciergeResult.finalOutput) {
+      responseParts.push(
+        `Abby n Bev – Concierge (TEST)\n${conciergeResult.finalOutput}`
+      );
+    }
 
     const classifyResultTemp = await runner.run(classify, [
       { role: "user", content: [{ type: "input_text", text: input_as_text }] },
@@ -279,6 +290,7 @@ export const runWorkflow = async ({ input_as_text }) => {
     }
 
     const classifyCategory = classifyResultTemp.finalOutput.category;
+    responseParts.push(`Classify Selected category ${classifyCategory}`);
 
     if (classifyCategory === "Makeup") {
       const advisorResult = await runner.run(abbyModeMakeupAdvisorTest, [
@@ -288,7 +300,9 @@ export const runWorkflow = async ({ input_as_text }) => {
         ...advisorResult.newItems.map((item) => item.rawItem)
       );
       if (advisorResult.finalOutput) {
-        responseText = advisorResult.finalOutput ?? responseText;
+        responseParts.push(
+          `Abby Mode – Makeup Advisor (TEST)\n${advisorResult.finalOutput}`
+        );
       }
     } else if (classifyCategory === "Skincare") {
       const advisorResult = await runner.run(bevModeSkincareAdvisorTest, [
@@ -298,7 +312,9 @@ export const runWorkflow = async ({ input_as_text }) => {
         ...advisorResult.newItems.map((item) => item.rawItem)
       );
       if (advisorResult.finalOutput) {
-        responseText = advisorResult.finalOutput ?? responseText;
+        responseParts.push(
+          `Bev Mode – Skincare Advisor (TEST)\n${advisorResult.finalOutput}`
+        );
       }
     } else {
       const advisorResult = await runner.run(csModeStoreAssistantTest, [
@@ -308,12 +324,14 @@ export const runWorkflow = async ({ input_as_text }) => {
         ...advisorResult.newItems.map((item) => item.rawItem)
       );
       if (advisorResult.finalOutput) {
-        responseText = advisorResult.finalOutput ?? responseText;
+        responseParts.push(
+          `CS Mode – Store Assistant (TEST)\n${advisorResult.finalOutput}`
+        );
       }
     }
 
     return {
-      outputText: responseText,
+      outputText: responseParts.filter(Boolean).join("\n\n"),
       category: classifyCategory,
     };
   });

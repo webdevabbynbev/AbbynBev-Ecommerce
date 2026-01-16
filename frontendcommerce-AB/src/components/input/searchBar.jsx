@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { TxtField } from "..";
+import { formatToRupiah } from "@/utils";
 
 export function SearchBar({
   className = "",
@@ -15,6 +16,7 @@ export function SearchBar({
 
   const [value, setValue] = useState("");
   const [items, setItems] = useState([]);
+  const [brands, setBrands] = useState([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -44,6 +46,7 @@ export function SearchBar({
   useEffect(() => {
     if (!trimmed) {
       setItems([]);
+      setBrands([]);
       setOpen(false);
       setLoading(false);
       return;
@@ -68,6 +71,7 @@ export function SearchBar({
 
         const json = await res.json();
         setItems(Array.isArray(json?.data) ? json.data : []);
+        setBrands(Array.isArray(json?.brands) ? json.brands : []);
       } catch (e) {
         // abort normal
       } finally {
@@ -82,6 +86,15 @@ export function SearchBar({
     if (p?.slug) return `/${p.slug}`;
     if (p?.id) return `/${p.id}`;
     return "#";
+  };
+
+  const getBrandHref = (brand) => {
+    if (brand?.slug) return `/brand/${encodeURIComponent(brand.slug)}`;
+    const brandParam = brand?.id || brand?.name || "";
+    const brandQuery = brandParam
+      ? `&brand=${encodeURIComponent(brandParam)}`
+      : "";
+    return `/search?q=${encodeURIComponent(trimmed)}${brandQuery}`;
   };
 
   return (
@@ -110,10 +123,42 @@ export function SearchBar({
 
           {loading ? (
             <div className="p-3 text-sm">Loading...</div>
-          ) : items.length === 0 ? (
+          ) : items.length === 0 && brands.length === 0 ? (
             <div className="p-3 text-sm">Tidak ada suggestion.</div>
           ) : (
             <ul className="max-h-80 overflow-auto">
+              {brands.length > 0 && (
+                <>
+                  <li className="px-3 py-2 text-xs font-semibold text-neutral-500 bg-neutral-50">
+                    Brand
+                  </li>
+                  {brands.slice(0, 3).map((brand) => (
+                    <li key={brand.id || brand.slug || brand.name}>
+                      <button
+                        type="button"
+                        className="w-full px-3 py-3 text-left hover:bg-neutral-50 flex gap-3"
+                        onClick={() => {
+                          router.push(getBrandHref(brand));
+                          setOpen(false);
+                        }}
+                      >
+                        <div className="min-w-0 flex flex-row gap-2 items-center">
+                          <div className="w-10 h-10 rounded-md bg-neutral-100 border flex items-center justify-center text-xs text-neutral-500">
+                            BR
+                          </div>
+
+                          <div className="text-sm font-medium text-primary-700 truncate">
+                            {brand.name}
+                          </div>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </>
+              )}
+              <li className="px-3 py-2 text-xs font-semibold text-neutral-500 bg-neutral-50">
+                Produk
+              </li>
               {items.slice(0, 4).map((p) => (
                 <li key={p.id || p.slug || p.name}>
                   <button
@@ -144,8 +189,7 @@ export function SearchBar({
                         {p.name}
                       </div>
                       <div className="text-xs text-neutral-500 truncate">
-                        {p.brand || ""}
-                        {p.price ? ` • Rp ${p.price}` : ""}
+                        {formatToRupiah(p.price) ? formatToRupiah(p.price) : ""}
                       </div>
                     </div>
                   </button>

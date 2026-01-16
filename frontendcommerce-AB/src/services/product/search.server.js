@@ -23,7 +23,7 @@ export async function searchProductsServer({
   q,
   page = 1,
   per_page = 24,
-  fetch_size = 120,
+  fetch_size = 500,
   brand = null,
 } = {}) {
   const keyword = (q || "").trim();
@@ -51,11 +51,15 @@ export async function searchProductsServer({
     .filter((p) => {
       // keyword filter
       const name = normLower(p?.name);
-      const brandName = normLower(p?.brand);
+      const brandName = normLower(p?.brand ?? p?.brand?.name ?? p?.brand?.brandname);
+      const brandSlug = normLower(p?.brand?.slug ?? p?.brand_slug);
       const sku = normLower(p?.sku);
 
       const okKeyword =
-        name.includes(needle) || brandName.includes(needle) || sku.includes(needle);
+        name.includes(needle) ||
+        brandName.includes(needle) ||
+        brandSlug.includes(needle) ||
+        sku.includes(needle);
 
       if (!okKeyword) return false;
 

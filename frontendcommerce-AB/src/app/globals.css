@@ -5,6 +5,21 @@ html {
   scroll-behavior: smooth;
 }
 
+.wp-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.wp-content p {
+  line-height: 1.7;
+  margin-bottom: 1rem;
+}
+
+.wp-content h2,
+.wp-content h3 {
+  margin-top: 2rem;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 .font-damion { font-family: var(--font-damion), cursive; } 
