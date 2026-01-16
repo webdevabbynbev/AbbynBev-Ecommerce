@@ -6,7 +6,7 @@ import clsx from "clsx";
 import * as FaIcons from "react-icons/fa";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import axios from "axios";
+import axios from "@/lib/axios";
 
 import {
   BtnIcon,
@@ -79,8 +79,7 @@ export function NavbarLoggedIn({
       try {
         setCatLoading(true);
 
-        // ✅ pakai Next API route biar gak 404 di /category-types
-        const res = await axios.get("http://localhost:3000/category-types");
+        const res = await axios.get("/category-types");
 
         // ✅ fleksibel: support beberapa bentuk response
         const raw = res?.data;
