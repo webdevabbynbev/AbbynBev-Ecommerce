@@ -28,8 +28,7 @@ export default class ProductVariantAttributes extends BaseSchema {
         'pva_variant_attr_unique'
       )
 
-      table.timestamp('created_at')
-      table.timestamp('updated_at')
+      table.timestamps(true, true)
     })
   }
 

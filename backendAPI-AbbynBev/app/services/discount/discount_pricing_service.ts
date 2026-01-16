@@ -6,10 +6,11 @@ import DiscountTarget from '#models/discount_target'
 
 export type ExtraDiscountInfo = {
   discountId: number
+  // code tetap dikirim (kalau kamu butuh internal), tapi label public tidak pakai kode
   code: string
   label: string
 
-  valueType: number 
+  valueType: number // 1 percentage, 2 nominal
   value: number
   maxDiscount: number | null
 
@@ -41,6 +42,7 @@ type ProductLike = {
 
   variants?: Array<{ id: number; price: any; deletedAt?: any; deleted_at?: any }>
 
+  // output
   extraDiscount?: ExtraDiscountInfo | null
   [key: string]: any
 }
@@ -48,11 +50,14 @@ type ProductLike = {
 type DiscountCtx = {
   discounts: Discount[]
 
-  categoryTargets: Map<number, Set<number>> 
-  brandTargets: Map<number, Set<number>> 
-  productTargets: Map<number, Set<number>> 
+  categoryTargets: Map<number, Set<number>>
+  brandTargets: Map<number, Set<number>>
+  productTargets: Map<number, Set<number>>
 
   variantEligibleRange: Map<number, Map<number, { min: number; max: number; count: number }>>
+
+  // ✅ produk yang sedang promo Flash/Sale aktif → DISCOUNT tidak boleh nempel
+  blockedProductIds: Set<number>
 }
 
 type CacheValue = { exp: number; data: unknown }
@@ -126,8 +131,11 @@ function computeProductPriceRange(p: ProductLike): { min: number; max: number } 
 
 export class DiscountPricingService {
   private cache = new InMemoryCache()
-
   private TTL_MS = 60_000
+
+  private nowWibStr(now: DateTime) {
+    return now.setZone('Asia/Jakarta').toFormat('yyyy-LL-dd HH:mm:ss')
+  }
 
   private isScheduleValid(discount: Discount, now: DateTime) {
     if (discount.startedAt && now < discount.startedAt) return false
@@ -161,18 +169,18 @@ export class DiscountPricingService {
     return Math.max(0, Math.min(capped, eligibleSubtotal))
   }
 
+  // ✅ label public: tanpa kode (karena auto)
   private buildLabel(discount: Discount) {
-    const code = String(discount.code || '').trim()
     const valueType = Number(discount.valueType)
     const value = Number(discount.value || 0)
-
-    if (valueType === 1) return `Extra ${value}% • KODE: ${code}`
-    return `Extra Rp${value} • KODE: ${code}`
+    if (valueType === 1) return `Diskon ${value}%`
+    return `Diskon Rp${value}`
   }
 
   private async getCtx(now: DateTime): Promise<DiscountCtx> {
     return this.cache.cachedFetch('discount_pricing_ctx', this.TTL_MS, async () => {
       const schema = (db as any).connection().schema as any
+
       const hasDiscountsTable = await schema.hasTable('discounts')
       if (!hasDiscountsTable) {
         return {
@@ -181,15 +189,84 @@ export class DiscountPricingService {
           brandTargets: new Map(),
           productTargets: new Map(),
           variantEligibleRange: new Map(),
+          blockedProductIds: new Set(),
         }
       }
 
-      const discounts = await Discount.query()
+      const nowStr = this.nowWibStr(now)
+
+      // =========================
+      // ✅ blockedProductIds = produk yang sedang promo Flash/Sale aktif
+      // =========================
+      const blockedProductIds = new Set<number>()
+
+      const hasFlashSales = await schema.hasTable('flash_sales')
+      const hasFlashSaleProducts = await schema.hasTable('flashsale_products')
+      if (hasFlashSales && hasFlashSaleProducts) {
+        const rows = await db
+          .from('flashsale_products as fsp')
+          .join('flash_sales as fs', 'fs.id', 'fsp.flash_sale_id')
+          .where('fs.is_publish', 1 as any)
+          .where('fs.start_datetime', '<=', nowStr)
+          .where('fs.end_datetime', '>=', nowStr)
+          .select('fsp.product_id as product_id')
+
+        for (const r of rows as any[]) {
+          const pid = toNumber(r.product_id, 0)
+          if (pid) blockedProductIds.add(pid)
+        }
+      }
+
+      const hasSales = await schema.hasTable('sales')
+      const hasSaleProducts = await schema.hasTable('sale_products')
+      if (hasSales && hasSaleProducts) {
+        const rows = await db
+          .from('sale_products as sp')
+          .join('sales as s', 's.id', 'sp.sale_id')
+          .where('s.is_publish', 1 as any)
+          .where('s.start_datetime', '<=', nowStr)
+          .where('s.end_datetime', '>=', nowStr)
+          .select('sp.product_id as product_id')
+
+        for (const r of rows as any[]) {
+          const pid = toNumber(r.product_id, 0)
+          if (pid) blockedProductIds.add(pid)
+        }
+      }
+
+      // =========================
+      // discounts (aktif & ecommerce)
+      // =========================
+      const hasIsAutoColumn = await (async () => {
+        try {
+          const res: any = await db.rawQuery(
+            `SELECT COUNT(*) AS total
+             FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = 'discounts'
+               AND COLUMN_NAME = 'is_auto'`
+          )
+          const rows = Array.isArray(res) ? res[0] : (res?.rows ?? res)
+          return Number(rows?.[0]?.total ?? 0) > 0
+        } catch {
+          return false
+        }
+      })()
+
+      let q = Discount.query()
         .whereNull('deleted_at')
         .where('is_active', 1 as any)
         .where('is_ecommerce', 1 as any)
-        .where('eligibility_type', 0 as any) // sementara cuma ALL (biar aman tampil di publik)
+        // sementara tampil publik cuma ALL (eligibility_type=0)
+        .where('eligibility_type', 0 as any)
         .orderBy('id', 'desc')
+
+      // ✅ hanya auto discount yg nempel tanpa input kode
+      if (hasIsAutoColumn) {
+        q = q.where('is_auto', 1 as any)
+      }
+
+      const discounts = await q
 
       const active = discounts.filter((d) => this.isScheduleValid(d, now) && this.isUsageAvailable(d))
       const ids = active.map((d) => d.id)
@@ -201,6 +278,7 @@ export class DiscountPricingService {
           brandTargets: new Map(),
           productTargets: new Map(),
           variantEligibleRange: new Map(),
+          blockedProductIds,
         }
       }
 
@@ -208,9 +286,7 @@ export class DiscountPricingService {
       const hasProductVariantsTable = await schema.hasTable('product_variants')
       const hasVariantAttributesTable = await schema.hasTable('variant_attributes')
 
-      const targets = hasDiscountTargetsTable
-        ? await DiscountTarget.query().whereIn('discount_id', ids)
-        : []
+      const targets = hasDiscountTargetsTable ? await DiscountTarget.query().whereIn('discount_id', ids) : []
 
       const categoryTargets = new Map<number, Set<number>>()
       const brandTargets = new Map<number, Set<number>>()
@@ -220,19 +296,21 @@ export class DiscountPricingService {
         const did = toNumber(t.discountId, 0)
         const tid = toNumber(t.targetId, 0)
         const tt = toNumber(t.targetType, 0)
-
         if (!did || !tid) continue
 
+        // 1 = category_type
         if (tt === 1) {
           if (!categoryTargets.has(did)) categoryTargets.set(did, new Set())
           categoryTargets.get(did)!.add(tid)
         }
 
+        // 3 = brand_id
         if (tt === 3) {
           if (!brandTargets.has(did)) brandTargets.set(did, new Set())
           brandTargets.get(did)!.add(tid)
         }
 
+        // 4 = product_id
         if (tt === 4) {
           if (!productTargets.has(did)) productTargets.set(did, new Set())
           productTargets.get(did)!.add(tid)
@@ -241,6 +319,7 @@ export class DiscountPricingService {
 
       const variantEligibleRange = new Map<number, Map<number, { min: number; max: number; count: number }>>()
 
+      // target_type = 2 (product_variants.id)
       const legacyRows =
         hasDiscountTargetsTable && hasProductVariantsTable
           ? await db
@@ -265,6 +344,7 @@ export class DiscountPricingService {
         else mp.set(pid, { min: Math.min(cur.min, price), max: Math.max(cur.max, price), count: cur.count + 1 })
       }
 
+      // target_type = 5 (attribute_value_id via variant_attributes)
       const attrRows =
         hasDiscountTargetsTable && hasVariantAttributesTable && hasProductVariantsTable
           ? await db
@@ -291,14 +371,11 @@ export class DiscountPricingService {
         else mp.set(pid, { min: Math.min(cur.min, price), max: Math.max(cur.max, price), count: cur.count + 1 })
       }
 
-      return { discounts: active, categoryTargets, brandTargets, productTargets, variantEligibleRange }
+      return { discounts: active, categoryTargets, brandTargets, productTargets, variantEligibleRange, blockedProductIds }
     })
   }
 
-  public async attachExtraDiscount<T extends ProductLike>(
-    products: T[],
-    opts?: { now?: DateTime }
-  ): Promise<T[]> {
+  public async attachExtraDiscount<T extends ProductLike>(products: T[], opts?: { now?: DateTime }): Promise<T[]> {
     const now = opts?.now ?? DateTime.now().setZone('Asia/Jakarta')
     const ctx = await this.getCtx(now)
 
@@ -306,6 +383,11 @@ export class DiscountPricingService {
 
     for (const p of products) {
       p.extraDiscount = null
+
+      // ✅ kalau lagi FlashSale/Sale aktif → jangan tempel discount
+      if (ctx.blockedProductIds.has(Number(p.id))) {
+        continue
+      }
 
       const base = computeProductPriceRange(p)
       const brandId = readProductBrandId(p)
@@ -320,22 +402,28 @@ export class DiscountPricingService {
         let eligibleRange = { ...base }
         let eligibleVariantCount: number | null = null
 
+        // 0 = all orders (secara display: semua produk bisa kelihatan diskon)
         if (appliesTo === 0) {
         }
 
+        // 1 = min order (display tetap boleh, tapi secara konsep nanti di checkout yang validasi subtotal)
         else if (appliesTo === 1) {
           const minAmount = d.minOrderAmount ? Number(d.minOrderAmount) : null
           const minQty = d.minOrderQty ?? null
 
+          // karena ini attach di listing produk (tanpa cart),
+          // kita cuma filter yang "jelas-jelas" tidak mungkin, biar tidak misleading:
           if (minAmount !== null && base.min < minAmount) continue
           if (minQty !== null && Number(minQty) > 1) continue
         }
 
+        // 2 = category/collection
         else if (appliesTo === 2) {
           const set = ctx.categoryTargets.get(d.id)
           if (!set || !categoryId || !set.has(categoryId)) continue
         }
 
+        // 3 = variant (target_id = product_variants.id)
         else if (appliesTo === 3) {
           const mp = ctx.variantEligibleRange.get(d.id)
           const row = mp ? mp.get(Number(p.id)) : null
@@ -344,17 +432,17 @@ export class DiscountPricingService {
           eligibleVariantCount = row.count
         }
 
+        // 4 = brand
         else if (appliesTo === 4) {
           const set = ctx.brandTargets.get(d.id)
           if (!set || !brandId || !set.has(brandId)) continue
         }
 
+        // 5 = product
         else if (appliesTo === 5) {
           const set = ctx.productTargets.get(d.id)
           if (!set || !set.has(Number(p.id))) continue
-        }
-
-        else {
+        } else {
           continue
         }
 

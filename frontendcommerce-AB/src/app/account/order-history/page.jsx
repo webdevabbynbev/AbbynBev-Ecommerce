@@ -226,7 +226,7 @@ export default function OrderHistoryPage() {
               onClick={loadOrders}
               disabled={loading}
               className="
-                flex-shrink-0
+                shrink-0
                 px-4 py-2
                 text-sm font-medium
                 rounded-full

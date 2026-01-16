@@ -1,5 +1,5 @@
 import React from "react";
-import { Table, Button, Input, Card, Popconfirm, Tag, Select } from "antd";
+import { Table, Button, Input, Card, Popconfirm, Tag, Select, message } from "antd";
 import type { ColumnsType, TablePaginationConfig, TableProps } from "antd/es/table";
 import { PlusOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import moment from "moment";
@@ -8,29 +8,41 @@ import helper from "../../../utils/helper";
 import { useNavigate } from "react-router-dom";
 
 type DiscountRecord = {
-  id: number | string;
-  name: string | null;
-  code: string;
+  id?: number | string | null;
+
+  name?: string | null;
+  code?: string | null;
   description?: string | null;
 
-  valueType: number; // 1 percentage, 2 nominal
-  value: string; // decimal as string
-  maxDiscount?: string | null;
+  valueType?: number;
+  value?: string | number | null;
+  maxDiscount?: string | number | null;
 
-  appliesTo: number; // 0 all, 1 min_order, 2 collection(category_type), 3 variant
-  minOrderAmount?: string | null;
+  appliesTo?: number;
+  minOrderAmount?: string | number | null;
 
-  isActive: number; // 1 active, 2 inactive
+  isActive?: number;
   startedAt?: string | null;
   expiredAt?: string | null;
 
-  isEcommerce?: number; // 1/0
-  isPos?: number; // 1/0
+  isEcommerce?: number;
+  isPos?: number;
 
-  qty?: number | null; // limit total (optional)
+  qty?: number | null;
+
+  // fallback (kalau backend ngirim snake_case)
+  value_type?: number;
+  max_discount?: string | number | null;
+  applies_to?: number;
+  min_order_amount?: string | number | null;
+  is_active?: number;
+  started_at?: string | null;
+  expired_at?: string | null;
+  is_ecommerce?: number;
+  is_pos?: number;
 };
 
-const appliesLabel = (v: number) => {
+const appliesLabel = (v?: number) => {
   if (v === 0) return "Semua Pesanan";
   if (v === 1) return "Pesanan Minimal";
   if (v === 2) return "Koleksi Produk";
@@ -38,6 +50,53 @@ const appliesLabel = (v: number) => {
   if (v === 4) return "Brand";
   if (v === 5) return "Produk";
   return "-";
+};
+
+const toIdNum = (id: any) => {
+  const n = Number(id);
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+
+const resolveIdentifier = (r: DiscountRecord) => {
+  const idNum = toIdNum(r.id);
+  if (idNum) return String(idNum);
+  const code = String(r.code ?? "").trim();
+  return code || null;
+};
+
+// ambil nilai pertama yang ada (camelCase / snake_case)
+const pick = <T,>(r: any, ...keys: string[]): T | undefined => {
+  for (const k of keys) {
+    const v = r?.[k];
+    if (v !== undefined && v !== null) return v as T;
+  }
+  return undefined;
+};
+
+const normalizeRow = (r: DiscountRecord) => {
+  const valueType = Number(pick<number>(r, "valueType", "value_type") ?? 1);
+  const appliesTo = Number(pick<number>(r, "appliesTo", "applies_to") ?? 0);
+
+  return {
+    ...r,
+    id: pick(r, "id", "discountId", "discount_id") ?? r.id,
+    name: pick(r, "name") ?? r.name ?? null,
+    code: pick(r, "code") ?? r.code ?? null,
+
+    valueType,
+    value: pick(r, "value", "value") ?? r.value ?? null,
+    maxDiscount: pick(r, "maxDiscount", "max_discount") ?? r.maxDiscount ?? null,
+
+    appliesTo,
+    minOrderAmount: pick(r, "minOrderAmount", "min_order_amount") ?? r.minOrderAmount ?? null,
+
+    isActive: Number(pick(r, "isActive", "is_active") ?? 0),
+    isEcommerce: Number(pick(r, "isEcommerce", "is_ecommerce") ?? 0),
+    isPos: Number(pick(r, "isPos", "is_pos") ?? 0),
+
+    startedAt: pick(r, "startedAt", "started_at") ?? r.startedAt ?? null,
+    expiredAt: pick(r, "expiredAt", "expired_at") ?? r.expiredAt ?? null,
+  } as DiscountRecord;
 };
 
 const TableDiscount: React.FC = () => {
@@ -53,6 +112,8 @@ const TableDiscount: React.FC = () => {
   const [loading, setLoading] = React.useState(false);
   const { Search } = Input;
 
+  const warnedMissingIdRef = React.useRef(false);
+
   const fetchList = async (q = params, page = pagination) => {
     setLoading(true);
     try {
@@ -62,12 +123,30 @@ const TableDiscount: React.FC = () => {
 
       const serve = resp?.data?.serve;
       if (serve) {
-        setData(serve.data || []);
+        const rows = Array.isArray(serve.data) ? serve.data : [];
+        const normalized: DiscountRecord[] = rows.map((x: any) => normalizeRow(x as DiscountRecord));
+
+
+        setData(normalized);
+
+        // meta bisa beda nama, ini dibikin fallback
         setPagination({
-          current: Number(serve.currentPage),
-          pageSize: Number(serve.perPage),
-          total: Number(serve.total),
+          current: Number(serve.currentPage ?? serve.current_page ?? 1),
+          pageSize: Number(serve.perPage ?? serve.per_page ?? 10),
+          total: Number(serve.total ?? 0),
         });
+
+        // kalau id kosong, kasih warning sekali
+        if (
+  !warnedMissingIdRef.current &&
+          normalized.some((r: DiscountRecord) => !resolveIdentifier(r))
+        ) {
+
+          warnedMissingIdRef.current = true;
+          message.warning(
+            "Identifier diskon tidak tersedia dari API list. Pastikan backend mengirim id atau code."
+          );
+        }
       }
     } finally {
       setLoading(false);
@@ -84,17 +163,20 @@ const TableDiscount: React.FC = () => {
   };
 
   const columns: ColumnsType<DiscountRecord> = [
-    { title: "Name", dataIndex: "name" },
-    { title: "Code", dataIndex: "code" },
+    { title: "Name", dataIndex: "name", render: (v) => v ?? "-" },
+    { title: "Code", dataIndex: "code", render: (v) => v ?? "-" },
     {
       title: "Value",
       dataIndex: "value",
-      render: (_: unknown, r) =>
-        r.valueType === 1
-          ? `${Number(r.value)}%${
-              r.maxDiscount ? ` (max Rp.${helper.formatRupiah(r.maxDiscount)})` : ""
-            }`
-          : `Rp.${helper.formatRupiah(r.value ?? 0)}`,
+      render: (_: unknown, r) => {
+        const vt = Number(r.valueType ?? 1);
+        const val = r.value ?? 0;
+        const max = r.maxDiscount ?? null;
+
+        return vt === 1
+          ? `${Number(val)}%${max ? ` (max Rp.${helper.formatRupiah(String(max))})` : ""}`
+          : `Rp.${helper.formatRupiah(String(val ?? 0))}`;
+      },
     },
     {
       title: "Untuk",
@@ -106,8 +188,8 @@ const TableDiscount: React.FC = () => {
       dataIndex: "channel",
       render: (_: unknown, r) => (
         <>
-          {r.isEcommerce ? <Tag color="blue">Ecommerce</Tag> : null}
-          {r.isPos ? <Tag color="green">POS</Tag> : null}
+          {Number(r.isEcommerce) === 1 ? <Tag color="blue">Ecommerce</Tag> : null}
+          {Number(r.isPos) === 1 ? <Tag color="green">POS</Tag> : null}
         </>
       ),
     },
@@ -124,59 +206,89 @@ const TableDiscount: React.FC = () => {
     {
       title: "Status",
       dataIndex: "isActive",
-      render: (_: unknown, r) => (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {r.isActive === 1 ? <Tag color="#2db7f5">ACTIVE</Tag> : <Tag color="red">NON ACTIVE</Tag>}
-          <Popconfirm
-            placement="left"
-            title="Update status?"
-            onConfirm={async () => {
-              await http.put("/admin/discounts/status", {
-                id: r.id,
-                is_active: r.isActive === 2 ? 1 : 2,
-              });
-              fetchList(params, pagination);
-            }}
-            okText="Yes"
-            cancelText="No"
-          >
-            <Button type="dashed" size="small">
-              {r.isActive === 2 ? "Set Active" : "Set Non Active"}
-            </Button>
-          </Popconfirm>
-        </div>
-      ),
+      render: (_: unknown, r) => {
+        const active = Number(r.isActive) === 1;
+         const identifier = resolveIdentifier(r);
+
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {active ? <Tag color="#2db7f5">ACTIVE</Tag> : <Tag color="red">NON ACTIVE</Tag>}
+
+            <Popconfirm
+              placement="left"
+              title="Update status?"
+              onConfirm={async () => {
+                if (!identifier) {
+                  message.error(
+                    "Identifier diskon tidak tersedia dari API list. Fix backend supaya kirim id atau code."
+                  );
+                  return;
+                }
+                await http.put("/admin/discounts/status", {
+                  id: identifier,
+                  is_active: active ? 0 : 1, // 1/0
+                });
+                fetchList(params, pagination);
+              }}
+              okText="Yes"
+              cancelText="No"
+            >
+              <Button type="dashed" size="small">
+                {active ? "Set Non Active" : "Set Active"}
+              </Button>
+            </Popconfirm>
+          </div>
+        );
+      },
     },
     {
       title: "#",
       width: "14%",
       align: "center",
-      render: (_: unknown, r) => (
-        <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
-          <Button
-            type="primary"
-            icon={<EditOutlined />}
-            onClick={() => navigate(`/discounts/${r.id}`, { state: r })}
-          >
-            Edit
-          </Button>
+      render: (_: unknown, r) => {
+         const identifier = resolveIdentifier(r);
 
-          <Popconfirm
-            placement="left"
-            title="Delete discount?"
-            onConfirm={async () => {
-              await http.delete(`/admin/discounts/${r.id}`);
-              fetchList(params, pagination);
-            }}
-            okText="Yes"
-            cancelText="No"
-          >
-            <Button danger icon={<DeleteOutlined />}>
-              Delete
+        return (
+          <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
+            <Button
+              type="primary"
+              icon={<EditOutlined />}
+              onClick={() => {
+                if (!identifier) {
+                  message.error(
+                    "Identifier diskon tidak tersedia dari API list. Fix backend supaya kirim id atau code."
+                  );
+                  return;
+                }
+                 navigate(`/discounts/${encodeURIComponent(identifier)}`, { state: r });
+              }}
+            >
+              Edit
             </Button>
-          </Popconfirm>
-        </div>
-      ),
+
+            <Popconfirm
+              placement="left"
+              title="Delete discount?"
+              onConfirm={async () => {
+                if (!identifier) {
+                  message.error(
+                    "Identifier diskon tidak tersedia dari API list. Fix backend supaya kirim id atau code."
+                  );
+                  return;
+                }
+                await http.delete(`/admin/discounts/${encodeURIComponent(identifier)}`);
+                fetchList(params, pagination);
+              }}
+              okText="Yes"
+              cancelText="No"
+            >
+              <Button danger icon={<DeleteOutlined />}>
+                Delete
+              </Button>
+            </Popconfirm>
+          </div>
+        );
+      },
     },
   ];
 
@@ -227,7 +339,8 @@ const TableDiscount: React.FC = () => {
       <Table<DiscountRecord>
         style={{ marginTop: 10 }}
         columns={columns}
-        rowKey={(r) => String(r.id)}
+        // rowKey aman: id > code > index
+        rowKey={(r, idx) => String(r.id ?? r.code ?? idx)}
         dataSource={data}
         pagination={pagination}
         loading={loading}

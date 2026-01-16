@@ -57,6 +57,11 @@ const VouchersController = () => import('#controllers/cms/promotions/vouchers_co
 const CmsFlashSaleController = () => import('#controllers/cms/promotions/flashsales_controller')
 const CmsSaleController = () => import('#controllers/cms/promotions/sales_controller')
 
+// discounts
+const CmsDiscountsController = () => import('#controllers/cms/promotions/discounts_controller')
+const CmsDiscountOptionsController = () =>
+  import('#controllers/cms/promotions/discount_options_controller')
+
 // inventory
 const CmsStockMovementsController = () =>
   import('#controllers/cms/inventory/stock_movements_controller')
@@ -99,6 +104,7 @@ const CmsActivityLogsController = () => import('#controllers/cms/system/activity
 const FeCategoryTypesController = () =>
   import('#controllers/frontend/category/category_types_controller')
 const FeVoucherController = () => import('#controllers/frontend/vouchers/vouchers_controller')
+const FeDiscountsController = () => import('#controllers/frontend/discounts/discounts_controller')
 const FeProductController = () => import('#controllers/frontend/products/products_controller')
 const FeReviewController = () => import('#controllers/frontend/reviews/reviews_controller')
 const FeWishlist = () => import('#controllers/frontend/wishlist/wishlists_controller')
@@ -284,6 +290,29 @@ router
           })
           .use(middleware.roleAdmin())
           .prefix('/voucher')
+
+        // ✅ DISCOUNTS (CMS)
+        router
+          .group(() => {
+            router.put('/status', [CmsDiscountsController, 'updateStatus'])
+            router.get('', [CmsDiscountsController, 'get'])
+            router.get('/:id', [CmsDiscountsController, 'show'])
+            router.post('', [CmsDiscountsController, 'create'])
+            router.put('/:id', [CmsDiscountsController, 'update'])
+            router.delete('/:id', [CmsDiscountsController, 'delete'])
+          })
+          .use(middleware.roleAdmin())
+          .prefix('/discounts')
+
+        // ✅ DISCOUNT OPTIONS (CMS)
+        router
+          .group(() => {
+            router.get('/brands', [CmsDiscountOptionsController, 'brands'])
+            router.get('/products', [CmsDiscountOptionsController, 'products'])
+            router.get('/variants', [CmsDiscountOptionsController, 'variants'])
+          })
+          .use(middleware.roleAdmin())
+          .prefix('/discount-options')
 
         router
           .group(() => {
@@ -560,6 +589,7 @@ router
         router.get('/beauty', [FeUserBeautyProfilesController, 'getUserSelections'])
         router.post('/beauty/concerns', [FeUserBeautyProfilesController, 'saveConcerns'])
         router.post('/vouchers/validate', [FeVoucherController, 'validate'])
+        router.post('/discounts/validate', [FeDiscountsController, 'validate'])
 
         router.get('/vouchers/available', [FeVoucherController, 'available'])
         router.get('/vouchers/my', [FeVoucherController, 'my'])

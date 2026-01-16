@@ -16,13 +16,10 @@ import {
   RegularCardSkeleton,
 } from "@/components";
 
-// NOTE: kamu sebelumnya memanggil getSale() tapi tidak ada import-nya.
-// Supaya file ini compile dengan kode yang kamu tulis, aku pakai getFlashSale() sebagai sumber "sale".
-import { getFlashSale } from "@/services/api/promo.services";
-
+import { getSale } from "@/services/api/promo.services";
 import { normalizeProduct } from "@/services/api/normalizers/product";
 import { getBrands } from "@/services/api/brands.services";
-import { getProducts } from "@/services/api/product.services";
+import { getApi } from "@/services/api/client";
 
 function normalizeSaleProduct(raw) {
   const base = normalizeProduct(raw);
@@ -30,6 +27,7 @@ function normalizeSaleProduct(raw) {
 
   const normalPrice = Number(raw?.price ?? base.price ?? 0);
   const salePrice = Number(raw?.salePrice ?? raw?.sale_price ?? 0);
+
   const isSale =
     Number.isFinite(salePrice) && salePrice > 0 && salePrice < normalPrice;
 
@@ -48,10 +46,7 @@ function normalizeFlashSaleItem(raw) {
 
   const source = raw.product ?? raw;
 
-  const basePrice = Number(
-    source.price ?? source.basePrice ?? source.base_price ?? 0
-  );
-
+  // Try to find original price
   const comparePrice = Number(
     source.realprice ??
       source.oldPrice ??
@@ -60,11 +55,22 @@ function normalizeFlashSaleItem(raw) {
       0
   );
 
-  const hasComparePrice = Number.isFinite(comparePrice) && comparePrice > 0;
-  const normalPrice = hasComparePrice ? comparePrice : basePrice;
+  // Try to find base price
+  const currentPrice = Number(
+    source.price ?? source.basePrice ?? source.base_price ?? 0
+  );
 
+  // Determine normal (original) price
+  let normalPrice = currentPrice;
+  if (comparePrice > 0 && comparePrice > currentPrice) {
+    normalPrice = comparePrice;
+  }
+
+  // Determine sale price
   let salePrice = Number(
-    source.salePrice ??
+    source.flashPrice ??
+      source.flash_price ??
+      source.salePrice ??
       source.sale_price ??
       source.flashSalePrice ??
       source.flash_sale_price ??
@@ -73,27 +79,23 @@ function normalizeFlashSaleItem(raw) {
       0
   );
 
-  let isSale =
-    Number.isFinite(salePrice) && salePrice > 0 && salePrice < normalPrice;
-
-  if (
-    !isSale &&
-    hasComparePrice &&
-    Number.isFinite(basePrice) &&
-    basePrice > 0 &&
-    comparePrice > basePrice
-  ) {
-    salePrice = basePrice;
-    isSale = true;
+  // Fallback: if salePrice is 0 but we have a comparePrice > currentPrice, assume currentPrice is the sale price
+  if (salePrice === 0 && comparePrice > 0 && comparePrice > currentPrice) {
+    salePrice = currentPrice;
   }
+
+  const isSale =
+    Number.isFinite(salePrice) && salePrice > 0 && salePrice < normalPrice;
 
   if (!isSale) return raw;
 
   const normalizedProduct = {
     ...source,
-    price: salePrice,
+    price: normalPrice, // FlashSaleCard expects 'price' to be original price
+    flashPrice: salePrice, // FlashSaleCard expects 'flashPrice'
     realprice: normalPrice,
     sale: true,
+    flashSaleId: raw.flashSaleId ?? source.flashSaleId,
   };
 
   if (raw.product) {
@@ -106,16 +108,33 @@ function normalizeFlashSaleItem(raw) {
   return normalizedProduct;
 }
 
+function buildKey(product) {
+  return (
+    product?.id ??
+    product?.slug ??
+    product?.sku ??
+    `${product?.name ?? "product"}-${product?.brand ?? "brand"}`
+  );
+}
+
 export default function SaleClient() {
   const [loading, setLoading] = useState(true);
 
-  const [flashSaleItems, setFlashSaleItems] = useState([]);
+  // Flash sale: meta/serve dari getFlashSale()
+  const [flashSale, setFlashSale] = useState(null);
+
   const [flashSaleLoading, setFlashSaleLoading] = useState(true);
 
+  // Sale products dari getSale()
   const [productRows, setProductRows] = useState([]);
+
+  // Brand filter
   const [brands, setBrands] = useState([]);
+
+  // Search
   const [search, setSearch] = useState("");
 
+  // Infinite scroll
   const [visibleSaleCount, setVisibleSaleCount] = useState(12);
   const [visibleFlashCount, setVisibleFlashCount] = useState(8);
 
@@ -133,24 +152,29 @@ export default function SaleClient() {
         setLoading(true);
         setFlashSaleLoading(true);
 
-        const [saleRes, brandRes, flashRes] = await Promise.all([
-          getFlashSale(),
-          getBrands(),
-          getProducts({ is_flash_sale: 1, per_page: 20 }),
+        const [flashSaleRes, saleRes, brandRes] = await Promise.all([
+          getApi("/flashsale"), // meta/serve flash sale
+          getSale(), // list sale
+          getBrands(), // brands
         ]);
 
         if (!alive) return;
 
-        setFlashSaleItems(Array.isArray(flashRes?.data) ? flashRes.data : []);
+        // flash sale meta/serve
+        setFlashSale(flashSaleRes?.serve ?? flashSaleRes ?? null);
+
+        // brands
         setBrands(Array.isArray(brandRes?.data) ? brandRes.data : []);
 
-        const saleItems = Array.isArray(saleRes?.list)
-          ? saleRes.list
-          : Array.isArray(saleRes?.data)
-          ? saleRes.data
-          : saleRes?.serve
-          ? [saleRes.serve]
-          : [];
+        // sale products dari getSale
+        const saleItems =
+          Array.isArray(saleRes?.list) && saleRes.list.length
+            ? saleRes.list
+            : saleRes?.serve
+            ? [saleRes.serve]
+            : Array.isArray(saleRes?.data)
+            ? saleRes.data
+            : [];
 
         const saleProducts = saleItems.flatMap((sale) =>
           Array.isArray(sale?.products) ? sale.products : []
@@ -158,9 +182,10 @@ export default function SaleClient() {
 
         setProductRows(saleProducts);
       } catch (e) {
-        console.error("Failed to load sale:", e);
+        console.error("Failed to load sale/flash sale:", e);
         if (!alive) return;
-        setFlashSaleItems([]);
+
+        setFlashSale(null);
         setProductRows([]);
         setBrands([]);
       } finally {
@@ -176,30 +201,21 @@ export default function SaleClient() {
     };
   }, []);
 
+  // ==== SALE: normalize + hanya yang benar-benar sale + dedupe
   const products = useMemo(() => {
     return productRows
       .map(normalizeSaleProduct)
       .filter(Boolean)
+      .filter((p) => p.sale) // ✅ dari kode 1: hanya produk sale
       .filter((product, index, list) => {
-        const key =
-          product.id ??
-          product.slug ??
-          product.sku ??
-          `${product.name ?? "product"}-${product.brand ?? "brand"}`;
-
+        const key = buildKey(product);
         return (
-          list.findIndex((candidate) => {
-            const candidateKey =
-              candidate.id ??
-              candidate.slug ??
-              candidate.sku ??
-              `${candidate.name ?? "product"}-${candidate.brand ?? "brand"}`;
-            return candidateKey === key;
-          }) === index
+          list.findIndex((candidate) => buildKey(candidate) === key) === index
         );
       });
   }, [productRows]);
 
+  // ==== SALE: search filter
   const filtered = useMemo(() => {
     let rows = [...products];
 
@@ -219,15 +235,77 @@ export default function SaleClient() {
     return filtered.slice(0, visibleSaleCount);
   }, [filtered, visibleSaleCount]);
 
+  const buildSaleHrefQuery = (product) => {
+    const salePrice = Number(product?.price ?? 0);
+    const realPrice = Number(product?.realprice ?? 0);
+    const params = {};
+
+    if (Number.isFinite(salePrice) && salePrice > 0) {
+      params.salePrice = salePrice;
+    }
+
+    if (Number.isFinite(realPrice) && realPrice > 0) {
+      params.realPrice = realPrice;
+    }
+
+    return Object.keys(params).length ? params : undefined;
+  };
+
+  // ==== FLASH SALE: gabungkan sumber item (dari state flashSaleItems + fallback dari flashSale meta)
+  const derivedFlashItemsFromMeta = useMemo(() => {
+    if (!flashSale) return [];
+
+    // If flashSale is array (list of campaigns), flatten products
+    if (Array.isArray(flashSale)) {
+      return flashSale.flatMap((campaign) => {
+        const products = campaign.products || [];
+        return products.map((p) => ({
+          ...p,
+          // Map pivot data
+          flashPrice:
+            p.flash_price ?? p.meta?.pivot_flash_price ?? p.pivot?.flash_price,
+          stock: p.stock ?? p.meta?.pivot_stock ?? p.pivot?.stock,
+          flashSaleId: campaign.id,
+        }));
+      });
+    }
+
+    const source =
+      flashSale?.products ??
+      flashSale?.items ??
+      flashSale?.list ??
+      flashSale?.data ??
+      [];
+
+    return Array.isArray(source) ? source : [];
+  }, [flashSale]);
+
+  const mergedFlashItems = useMemo(() => {
+    const b = Array.isArray(derivedFlashItemsFromMeta)
+      ? derivedFlashItemsFromMeta
+      : [];
+
+    // gabung + dedupe
+    const merged = [...b];
+    const seen = new Set();
+
+    return merged.filter((item) => {
+      const key = buildKey(item?.product ?? item);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [derivedFlashItemsFromMeta]);
+
   const normalizedFlashSaleItems = useMemo(() => {
-    const rows = Array.isArray(flashSaleItems) ? flashSaleItems : [];
-    return rows.map(normalizeFlashSaleItem).filter(Boolean);
-  }, [flashSaleItems]);
+    return mergedFlashItems.map(normalizeFlashSaleItem).filter(Boolean);
+  }, [mergedFlashItems]);
 
   const visibleFlashItems = useMemo(() => {
     return normalizedFlashSaleItems.slice(0, visibleFlashCount);
   }, [normalizedFlashSaleItems, visibleFlashCount]);
 
+  // ==== Stats UI
   const skeleton_card = 24;
   const totalProducts = products.length;
   const totalBrands = brands.length;
@@ -239,14 +317,17 @@ export default function SaleClient() {
     ? "Belum ada sale aktif saat ini."
     : `${visibleProducts} produk siap diburu.`;
 
+  // reset visible count saat search/products berubah
   useEffect(() => {
     setVisibleSaleCount(SALE_STEP);
   }, [search, products]);
 
+  // reset visible flash saat data flash berubah
   useEffect(() => {
     setVisibleFlashCount(FLASH_STEP);
-  }, [flashSaleItems]);
+  }, [mergedFlashItems]);
 
+  // ==== Infinite scroll SALE
   useEffect(() => {
     const target = saleLoadRef.current;
     if (!target || loading) return;
@@ -267,6 +348,7 @@ export default function SaleClient() {
     return () => observer.disconnect();
   }, [filtered.length, loading]);
 
+  // ==== Infinite scroll FLASH SALE
   useEffect(() => {
     const target = flashLoadRef.current;
     if (!target || flashSaleLoading) return;
@@ -425,7 +507,7 @@ export default function SaleClient() {
         </div>
       </section>
 
-      {/* ✅ FIX UTAMA: ternary harus pakai "?" */}
+      {/* Flash Sale: tampil saat loading ATAU ada item */}
       {flashSaleLoading || normalizedFlashSaleItems.length > 0 ? (
         <section className="mx-auto w-full max-w-7xl px-6 py-10">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -457,13 +539,20 @@ export default function SaleClient() {
               <div className="grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-4">
                 {visibleFlashItems.map((item, idx) => (
                   <div
-                    key={item?.id ?? item?.slug ?? `flash-${idx}`}
+                    key={buildKey(item?.product ?? item) ?? `flash-${idx}`}
                     className="relative overflow-hidden rounded-2xl"
                   >
                     <span className="pointer-events-none absolute top-0 left-0 z-10 flex h-[26px] items-center rounded-br-lg bg-[#AE2D68] px-2 text-[10px] font-bold uppercase tracking-wide text-[#F6F6F6]">
                       Flash Sale
                     </span>
-                    <FlashSaleCard product={item} />
+                    <FlashSaleCard
+                      product={item}
+                      hrefQuery={{
+                        salePrice: item.flashPrice,
+                        realPrice: item.realprice,
+                        flashSaleId: item.flashSaleId,
+                      }}
+                    />
                   </div>
                 ))}
               </div>
@@ -502,6 +591,7 @@ export default function SaleClient() {
                     product.slug ?? product.sku ?? idx
                   }`}
                   product={product}
+                  hrefQuery={buildSaleHrefQuery(product)}
                 />
               ))
             ) : (

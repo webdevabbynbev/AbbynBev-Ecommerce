@@ -182,7 +182,7 @@ export default function HomeClient() {
               </h3>
             </div>
             <div className="">
-              <Button variant="primary" size="sm">
+              <Button variant="primary" size="sm" onClick={() => router.push("/sale")}>
                 Lihat semua
               </Button>
             </div>
