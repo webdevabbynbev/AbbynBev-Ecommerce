@@ -222,9 +222,30 @@ export function logoutLocal() {
 
 export async function logoutUser() {
   try {
-    await api.post("/auth/logout", null, { withCredentials: true });
+    // Menggunakan fetch untuk kontrol lebih baik atas respons non-JSON
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include", // Penting untuk mengirim cookie
+    });
+
+    if (!res.ok) {
+      // Coba parsing error dari body jika ada
+      let errorPayload = null;
+      try {
+        errorPayload = await res.json();
+      } catch {
+        // Abaikan jika body error bukan JSON
+      }
+      const msg = errorPayload?.message || `Logout failed (HTTP ${res.status})`;
+      throw new Error(msg);
+    }
+
+    // Logout berhasil, tidak perlu mengembalikan data
   } catch (err) {
-    const msg = err?.response?.data?.message || err?.message || "Logout failed";
+    const msg = err?.message || "Logout failed";
     throw new Error(msg);
   } finally {
     clearToken();

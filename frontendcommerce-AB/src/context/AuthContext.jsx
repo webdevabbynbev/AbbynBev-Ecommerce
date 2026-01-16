@@ -1,5 +1,11 @@
 "use client";
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 import { getUser, logoutUser } from "@/services/auth";
 
 const AuthContext = createContext();
@@ -23,10 +29,9 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     try {
       await logoutUser(); // backend clear cookie
-    } catch {
-      // ignore logout errors
-    } finally {
       clearSession();
+    } catch (err) {
+      console.error("Logout failed:", err);
     }
   }, [clearSession]);
 

@@ -7,7 +7,7 @@ import { BtnIconToggle } from "..";
 import { formatToRupiah, slugify, getAverageRating } from "@/utils";
 import { DataReview } from "@/data";
 
-export function RegularCard({ product }) {
+export function RegularCard({ product, hrefQuery }) {
   const [wishlist, setWishlist] = useState([]);
 
   if (!product) return null;
@@ -115,7 +115,20 @@ export function RegularCard({ product }) {
 
   const averageRating = getAverageRating(reviewsForProduct);
 
-  const href = item.slug ? `/${encodeURIComponent(item.slug)}` : "#";
+  const queryString = useMemo(() => {
+    if (!hrefQuery || typeof hrefQuery !== "object") return "";
+    const params = new URLSearchParams();
+
+    Object.entries(hrefQuery).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === "") return;
+      params.set(key, String(value));
+    });
+
+    return params.toString();
+  }, [hrefQuery]);
+
+  const slugHref = item.slug ? `/${encodeURIComponent(item.slug)}` : "#";
+  const href = queryString ? `${slugHref}?${queryString}` : slugHref;
 
   return (
     <div className="group relative flex h-full w-full flex-col rounded-lg bg-white space-y-4 transition-all overflow-hidden">

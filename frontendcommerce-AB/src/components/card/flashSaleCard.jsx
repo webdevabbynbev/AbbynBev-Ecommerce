@@ -4,43 +4,91 @@ import { useMemo } from "react";
 import { formatToRupiah, normalizeCardProduct, slugify } from "@/utils";
 import { ProgressBar } from "../progress/progressBar";
 
-export function FlashSaleCard({ product, item }) {
-  const flashStock = 100
-  const flashStockLeft = 10
-  const data = useMemo(
-    () => normalizeCardProduct(product ?? item),
-    [product, item]
-  );
+export function FlashSaleCard({ product, item, hrefQuery }) {
+  const flashStock = 100;
+  const flashStockLeft = 10;
+  const data = useMemo(() => {
+    if (!product && !item) return null;
+    const raw = product ?? item;
+    const source = raw.product ?? raw;
+
+    const name =
+      source.name ?? source.productName ?? source.title ?? "Unnamed Product";
+
+    // API sends flash sale price in `flashPrice` and original price in `price`
+    const salePrice = Number(source.flashPrice ?? 0);
+    const originalPrice = Number(source.price ?? 0);
+
+    const isSale = salePrice > 0 && salePrice < originalPrice;
+
+    const finalPrice = isSale ? salePrice : originalPrice;
+    const comparePrice = isSale ? originalPrice : NaN;
+
+    const image =
+      source.image ??
+      (Array.isArray(source.images) ? source.images[0] : null) ??
+      (Array.isArray(source.medias) ? source.medias[0]?.url : null) ??
+      "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
+
+    return {
+      id: source.id ?? source._id ?? crypto.randomUUID(),
+      name,
+      price: finalPrice,
+      compareAt: comparePrice,
+      image,
+      rating: Number(source.rating ?? source.stars ?? 0),
+      brand:
+        source.brand?.name ??
+        source.brand?.brandname ??
+        source.brand ??
+        source.brandName ??
+        "",
+      category:
+        source.categoryType?.name ??
+        source.category_type?.name ??
+        source.category?.name ??
+        source.category?.categoryname ??
+        source.category ??
+        source.categoryName ??
+        "",
+      slug: slugify(source.slug || source.path || name || ""),
+      sale: isSale,
+    };
+  }, [product, item]);
+
   if (!data) return null;
 
   const hasSale =
     Number.isFinite(data.compareAt) && data.compareAt > data.price;
 
+  const queryString = useMemo(() => {
+    if (!hrefQuery || typeof hrefQuery !== "object") return "";
+    const params = new URLSearchParams();
+
+    Object.entries(hrefQuery).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === "") return;
+      params.set(key, String(value));
+    });
+
+    return params.toString();
+  }, [hrefQuery]);
+
   const slugSource = data.slug || item?.slug || data.name;
   const safeSlug = slugSource ? slugify(String(slugSource)) : "";
-  const href = safeSlug ? `/${encodeURIComponent(safeSlug)}` : "#";
+  const slugHref = safeSlug ? `/${encodeURIComponent(safeSlug)}` : "#";
+  const href = queryString ? `${slugHref}?${queryString}` : slugHref;
 
   // ===== FLASH SALE PROGRESS =====
   const totalStock = Number(flashStock ?? 0);
   const stockLeft = Number(flashStockLeft ?? 0);
 
   const progress =
-    totalStock > 0
-      ? Math.round((stockLeft / totalStock) * 100)
-      : 0;
+    totalStock > 0 ? Math.round((stockLeft / totalStock) * 100) : 0;
 
   return (
     <div className="group relative flex h-full w-full flex-col rounded-lg bg-white space-y-4 transition-all overflow-hidden">
       <Link href={href}>
         <div className="image flex w-full items-center justify-center relative">
-          {(data.sale || hasSale) && (
-            <img
-              src="/sale-tag.svg"
-              alt="Sale"
-              className="absolute top-0 left-0 z-10 w-10 h-auto"
-            />
-          )}
-
           <div className="image">
             <img
               src={data.image}
@@ -86,9 +134,7 @@ export function FlashSaleCard({ product, item }) {
               <ProgressBar value={progress} height={6} />
               <p className="text-xs text-neutral-500">
                 Tersisa{" "}
-                <span className="font-bold text-primary-700">
-                  {stockLeft}
-                </span>{" "}
+                <span className="font-bold text-primary-700">{stockLeft}</span>{" "}
                 dari {totalStock}
               </p>
             </div>

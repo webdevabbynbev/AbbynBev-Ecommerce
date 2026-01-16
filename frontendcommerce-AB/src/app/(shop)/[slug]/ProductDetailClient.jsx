@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { FaStar } from "react-icons/fa";
 import { formatToRupiah, getDiscountPercent } from "@/utils";
@@ -32,6 +32,12 @@ import {
   MobileProductActionBar,
 } from "@/components";
 
+const parseNumericParam = (value) => {
+  if (value === null || value === undefined || value === "") return NaN;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : NaN;
+};
+
 const RATING_OPTIONS = [
   { id: 1, value: "5", star: "5" },
   { id: 2, value: "4", star: "4" },
@@ -43,6 +49,7 @@ const RATING_OPTIONS = [
 export default function ProductDetailClient({ product }) {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const searchParams = useSearchParams();
 
   // Prevent hydration mismatch for relative time
   const [mounted, setMounted] = useState(false);
@@ -89,25 +96,43 @@ export default function ProductDetailClient({ product }) {
 
   const [qty, setQty] = useState(1);
 
+  const salePriceParam = parseNumericParam(searchParams?.get("salePrice"));
+  const realPriceParam = parseNumericParam(searchParams?.get("realPrice"));
+
+  const priceOverride =
+    Number.isFinite(salePriceParam) && salePriceParam > 0
+      ? salePriceParam
+      : undefined;
+
+  const baseProductPrice =
+    product?.price ?? product?.base_price ?? product?.basePrice ?? 0;
+
+  const baseRealPrice =
+    product?.realprice ?? product?.price ?? product?.base_price ?? product?.basePrice ?? 0;
+
   const finalPrice =
-    selectedVariantObj?.price ??
-    product?.price ??
-    product?.base_price ??
-    product?.basePrice ??
-    product?.realprice ??
-    0;
+    priceOverride ?? selectedVariantObj?.price ?? baseProductPrice;
+
+  const realPriceOverride =
+    Number.isFinite(realPriceParam) && realPriceParam > 0
+      ? realPriceParam
+      : undefined;
 
   const realPrice =
-    product?.realprice ??
-    product?.base_price ??
-    product?.basePrice ??
-    finalPrice;
+    realPriceOverride ?? baseRealPrice ?? finalPrice;
+
+  const saleOverrideActive =
+    priceOverride !== undefined &&
+    Number.isFinite(realPrice) &&
+    priceOverride < realPrice;
+
+  const isSale = product?.sale || saleOverrideActive;
 
   const stock = selectedVariantObj?.stock ?? product?.stock ?? 0;
   const subtotal = finalPrice * qty;
 
   const discount =
-    product?.sale && realPrice
+    isSale && realPrice
       ? getDiscountPercent(realPrice, finalPrice)
       : null;
 
@@ -283,7 +308,7 @@ export default function ProductDetailClient({ product }) {
               {/* Product Image */}
               <div className="Image-container">
                 <div className="h-auto w-full relative overflow-hidden rounded-lg">
-                  {product?.sale && (
+                  {isSale && (
                     <img
                       src="/sale-tag.svg"
                       alt="Sale"
@@ -328,7 +353,7 @@ export default function ProductDetailClient({ product }) {
 
                 {/* Price */}
                 <div className="price space-y-2">
-                  {product?.sale ? (
+                  {isSale ? (
                     <>
                       <div className="finalPrice">
                         <span className="text-primary-700 text-2xl font-bold">
@@ -545,7 +570,7 @@ export default function ProductDetailClient({ product }) {
               </div>
 
               <div className="flex-row space-y-1">
-                {product?.sale && (
+                {isSale && (
                   <img
                     src="/sale-tag-square.svg"
                     alt="Sale"
@@ -577,7 +602,7 @@ export default function ProductDetailClient({ product }) {
           </div>
 
           <div className="price space-y-2 w-full flex-row justify-end">
-            {product?.sale ? (
+            {isSale ? (
               <>
                 <div className="reapPrice-container w-full flex space-x-2 items-center justify-end">
                   {discount > 0 && (

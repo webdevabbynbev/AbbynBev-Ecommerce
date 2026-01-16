@@ -33,22 +33,22 @@ api.interceptors.response.use(
   (err) => {
     if (err?.response?.status === 401) {
       clearToken();
-      if (typeof window !== "undefined") {
-        const path = window.location.pathname;
-        const hasUser = Boolean(localStorage.getItem("user"));
-        const isAuthPage =
-          path === "/login" ||
-          path === "/register" ||
-          path.startsWith("/auth") ||
-          path === "/sign-in";
+      // if (typeof window !== "undefined") {
+      //   const path = window.location.pathname;
+      //   const hasUser = Boolean(localStorage.getItem("user"));
+      //   const isAuthPage =
+      //     path === "/login" ||
+      //     path === "/register" ||
+      //     path.startsWith("/auth") ||
+      //     path === "/sign-in";
 
-        if (!isAuthPage && hasUser) {
-          if (path !== "/") {
-            window.location.href = "/";
-            return new Promise(() => {});
-          }
-        }
-      }
+      //   if (!isAuthPage && hasUser) {
+      //     if (path !== "/") {
+      //       window.location.href = "/";
+      //       return new Promise(() => {});
+      //     }
+      //   }
+      // }
     }
     return Promise.reject(err);
   }
