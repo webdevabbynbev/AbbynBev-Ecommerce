@@ -4,6 +4,9 @@ import Link from "next/link";
 import Image from "next/image";
 import clsx from "clsx";
 import * as FaIcons from "react-icons/fa";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import axios from "axios";
 
 import {
   BtnIcon,
@@ -62,6 +65,8 @@ export function NavbarLoggedIn({
   setOpen,
   onLogout,
 }) {
+  const router = useRouter();
+
   // category dari DB
   const [categoryTypes, setCategoryTypes] = useState([]);
   const [catLoading, setCatLoading] = useState(false);
@@ -74,10 +79,19 @@ export function NavbarLoggedIn({
       try {
         setCatLoading(true);
 
-        // pastikan baseURL axios kamu sudah benar (atau ganti ke instance axios internal)
-        const res = await axios.get("/category-types");
+        // ✅ pakai Next API route biar gak 404 di /category-types
+        const res = await axios.get("http://localhost:3000/category-types");
 
-        const arr = Array.isArray(res?.data?.serve) ? res.data.serve : [];
+        // ✅ fleksibel: support beberapa bentuk response
+        const raw = res?.data;
+        const arr = Array.isArray(raw?.serve)
+          ? raw.serve
+          : Array.isArray(raw?.data)
+          ? raw.data
+          : Array.isArray(raw)
+          ? raw
+          : [];
+
         if (alive) setCategoryTypes(arr);
       } catch (err) {
         console.error("Failed to load category-types:", err);
@@ -121,12 +135,7 @@ export function NavbarLoggedIn({
         {/* LEFT SIDE */}
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
-            <Image
-              src="/Logoabby-text.svg"
-              alt="Logo"
-              width={160}
-              height={80}
-            />
+            <Image src="/Logoabby-text.svg" alt="Logo" width={160} height={80} />
           </div>
 
           {/* STATIC LINKS */}
@@ -137,9 +146,7 @@ export function NavbarLoggedIn({
 
             const className = clsx(
               "whitespace-nowrap text-sm font-medium transition-colors",
-              active
-                ? "text-primary-700"
-                : "text-gray-700 hover:text-primary-500"
+              active ? "text-primary-700" : "text-gray-700 hover:text-primary-500"
             );
 
             if (isExternal) {
@@ -168,7 +175,7 @@ export function NavbarLoggedIn({
             <ShopByCategoryDropdown
               label="Shop By Category"
               categories={categoryTypes}
-              loading={catLoading} // opsional kalau component kamu handle state loading
+              loading={catLoading}
             />
 
             <MegaDropdown label="Shop by Concern" items={shopByConcern} />
@@ -205,9 +212,7 @@ export function NavbarLoggedIn({
                     className="w-37.5 h-auto"
                   />
                 </SheetTitle>
-                <SheetDescription className="py-1">
-                  Account menu
-                </SheetDescription>
+                <SheetDescription className="py-1">Account menu</SheetDescription>
               </SheetHeader>
 
               <nav className="py-4 space-y-1">
@@ -231,9 +236,7 @@ export function NavbarLoggedIn({
                       )}
                     >
                       <span>{linkside.label}</span>
-                      {Icon && (
-                        <Icon className="font-bold w-3.5 h-3.5 shrink-0" />
-                      )}
+                      {Icon && <Icon className="font-bold w-3.5 h-3.5 shrink-0" />}
                     </Link>
                   );
                 })}

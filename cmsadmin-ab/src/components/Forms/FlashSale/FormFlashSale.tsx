@@ -11,7 +11,9 @@ import {
   Select,
   Divider,
   message,
+  Modal,
 } from "antd";
+
 import type { RuleObject } from "antd/es/form";
 import dayjs, { Dayjs } from "dayjs";
 import http from "../../../api/http";
@@ -293,11 +295,50 @@ const FormFlashSale: React.FC<Props> = ({ data, handleClose }) => {
 
       form.resetFields();
       handleClose();
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || "Failed to submit");
-    } finally {
-      setLoading(false);
-    }
+   } catch (e: any) {
+  const status = e?.response?.status;
+  const data = e?.response?.data;
+  const serve = data?.serve;
+
+  // ✅ backend flashsales_controller.ts return 409 DISCOUNT_CONFLICT
+  if (status === 409 && serve?.code === "DISCOUNT_CONFLICT") {
+    const ids: number[] = serve?.productIds ?? [];
+    const discountIds: number[] = serve?.discountIds ?? [];
+
+    const preview = ids.slice(0, 10).map((id) => getLabel(id)).join(", ");
+
+    Modal.error({
+      title: "Tidak bisa simpan Flash Sale",
+      content: (
+        <div>
+          <div style={{ marginBottom: 8 }}>
+            Beberapa produk yang kamu pilih sedang ikut <b>Discount</b> pada periode tersebut.
+          </div>
+
+          <div style={{ marginBottom: 8 }}>
+            Produk: <b>{preview}</b>
+            {ids.length > 10 ? " ..." : ""}
+          </div>
+
+          <div style={{ marginBottom: 8 }}>
+            Discount ID terkait: <b>{discountIds.join(", ") || "-"}</b>
+          </div>
+
+          <div>
+            Solusi: nonaktifkan/ubah jadwal Discount, atau ubah periode Flash Sale.
+          </div>
+        </div>
+      ),
+    });
+
+    return;
+  }
+
+  message.error(data?.message || e?.message || "Failed to submit");
+} finally {
+  setLoading(false);
+}
+
   };
 
   return (
