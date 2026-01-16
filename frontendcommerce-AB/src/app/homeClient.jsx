@@ -15,12 +15,21 @@ import {
   FlashSaleCarousel,
 } from "@/components";
 import { DataBrand } from "@/data";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/Carousel";
 import { getProducts } from "@/services/api/product.services";
 import { getCategories } from "@/services/api/category.services";
 
 export default function HomeClient() {
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(true);
+  const [bestSellers, setBestSellers] = useState([]);
+  const [bestSellersLoading, setBestSellersLoading] = useState(true);
   const [categories, setCategories] = useState([]);
   const [, setCategoriesLoading] = useState(true);
 
@@ -40,7 +49,6 @@ export default function HomeClient() {
         const level1 = arr.filter(
           (c) => c.level === 1 && (c.parentId == null || c.parent_id == null)
         );
-
         setCategories(level1);
       } catch (err) {
         console.error("getCategories error:", err);
@@ -53,7 +61,12 @@ export default function HomeClient() {
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await getProducts({ page: 1, per_page: 50 });
+        const { data } = await getProducts({
+          page: 1,
+          per_page: 30,
+          sort_by: "created_at",
+          order: "desc",
+        });
         setProducts(data);
       } catch (err) {
         console.error("getProducts error:", err);
@@ -63,6 +76,26 @@ export default function HomeClient() {
     })();
   }, []);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        // ✅ Mengambil data Best Seller: urutkan berdasarkan 'sold' (terjual) secara descending (terbanyak)
+        const { data } = await getProducts({
+          page: 1,
+          per_page: 15,
+          sort_by: "sold",
+          order: "desc",
+        });
+        setBestSellers(data);
+      } catch (err) {
+        console.error("getBestSellers error:", err);
+      } finally {
+        setBestSellersLoading(false);
+      }
+    })();
+  }, []);
+
+  // --- COMPONENT: PICK SECTION (Existing) ---
   const PickSection = ({
     title,
     subtitle,
@@ -134,6 +167,143 @@ export default function HomeClient() {
     );
   };
 
+  // --- NEW COMPONENT: DUAL PROMO SECTION (Split Left/Right) ---
+  const DualPromoSection = () => {
+    // Data untuk carousel (ambil dari products state)
+    // Gunakan slice yang berbeda agar variatif, fallback ke array kosong
+    const editorPicks = products.length > 0 ? products.slice(0, 15) : [];
+    const trendingPicks = bestSellers;
+
+    const bannerUrl =
+      "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
+
+    return (
+      <div className="w-full xl:max-w-7xl lg:max-w-240 mx-auto px-6 py-6">
+        {/* Grid 2 Kolom: Kiri dan Kanan */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10">
+          {/* === BAGIAN KIRI (Left Section) === */}
+          <div className="flex flex-col space-y-4">
+            {/* Bagian Kiri Atas: Banner */}
+            <div className="w-full aspect-[16/9] bg-gray-200 rounded-xl overflow-hidden relative shadow-sm group">
+              {/* Placeholder IMG untuk Banner Kiri */}
+              <img
+                src={bannerUrl}
+                alt="Left Banner"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.style.display = "none";
+                  e.target.parentNode.classList.add(
+                    "flex",
+                    "items-center",
+                    "justify-center",
+                    "text-gray-500",
+                    "font-bold"
+                  );
+                  e.target.parentNode.innerText = "BANNER KIRI (Top Left)";
+                }}
+              />
+            </div>
+
+            {/* Bagian Kiri Bawah: Carousel */}
+            <div className="space-y-2">
+              <h4 className="font-damion text-2xl text-primary-700">
+                New Arrival
+              </h4>
+              <Carousel
+                opts={{
+                  align: "start",
+                }}
+                className="w-full relative"
+              >
+                <CarouselContent className="-ml-2 md:-ml-4">
+                  {productsLoading
+                    ? Array.from({ length: 3 }).map((_, i) => (
+                        <CarouselItem
+                          key={`skel-left-${i}`}
+                          className="pl-2 md:pl-4 basis-1/2"
+                        >
+                          <RegularCardSkeleton />
+                        </CarouselItem>
+                      ))
+                    : editorPicks.map((product) => (
+                        <CarouselItem
+                          key={product.id || product._id}
+                          className="pl-2 md:pl-4 basis-1/2"
+                        >
+                          <RegularCard product={product} />
+                        </CarouselItem>
+                      ))}
+                </CarouselContent>
+                <CarouselPrevious className="left-2" />
+                <CarouselNext className="right-2" />
+              </Carousel>
+            </div>
+          </div>
+
+          {/* === BAGIAN KANAN (Right Section) === */}
+          <div className="flex flex-col space-y-4">
+            {/* Bagian Kanan Atas: Banner */}
+            <div className="w-full aspect-[16/9] bg-gray-200 rounded-xl overflow-hidden relative shadow-sm group">
+              {/* Placeholder IMG untuk Banner Kanan */}
+              <img
+                src={bannerUrl}
+                alt="Right Banner"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.style.display = "none";
+                  e.target.parentNode.classList.add(
+                    "flex",
+                    "items-center",
+                    "justify-center",
+                    "text-gray-500",
+                    "font-bold"
+                  );
+                  e.target.parentNode.innerText = "BANNER KANAN (Top Right)";
+                }}
+              />
+            </div>
+
+            {/* Bagian Kanan Bawah: Carousel */}
+            <div className="space-y-2">
+              <h4 className="font-damion text-2xl text-primary-700">
+                Best Seller
+              </h4>
+              <Carousel
+                opts={{
+                  align: "start",
+                }}
+                className="w-full relative"
+              >
+                <CarouselContent className="-ml-2 md:-ml-4">
+                  {bestSellersLoading
+                    ? Array.from({ length: 3 }).map((_, i) => (
+                        <CarouselItem
+                          key={`skel-right-${i}`}
+                          className="pl-2 md:pl-4 basis-1/2"
+                        >
+                          <RegularCardSkeleton />
+                        </CarouselItem>
+                      ))
+                    : trendingPicks.map((product) => (
+                        <CarouselItem
+                          key={product.id || product._id}
+                          className="pl-2 md:pl-4 basis-1/2"
+                        >
+                          <RegularCard product={product} />
+                        </CarouselItem>
+                      ))}
+                </CarouselContent>
+                <CarouselPrevious className="left-2" />
+                <CarouselNext className="right-2" />
+              </Carousel>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+  // ----------------------------------------------------
+
   const abbyPicks = products.slice(0, 12);
   const bevPicks = products.slice(12, 24);
 
@@ -148,7 +318,7 @@ export default function HomeClient() {
         </div>
       </div>
 
-      <div className="ContainerCategory p-6 space-y-4 mx-auto w-full xl:max-w-7xl lg:max-w-240 overflow-hidden">
+      {/* <div className="ContainerCategory p-6 space-y-4 mx-auto w-full xl:max-w-7xl lg:max-w-240 overflow-hidden">
         <h3 className="text-primary-700 text-lg font-bold">Kategori</h3>
         <div className="w-full">
           <div
@@ -171,7 +341,11 @@ export default function HomeClient() {
             ))}
           </div>
         </div>
-      </div>
+      </div> */}
+
+      {/* --- ADDED NEW DUAL PROMO SECTION HERE --- */}
+      <DualPromoSection />
+      {/* ----------------------------------------- */}
 
       <div className="ContainerFlashSale w-full flex-col bg-primary-100 items-center justify-center bg-[url('/Logo_SVG_AB.svg')] bg-no-repeat bg-center">
         <div className="Wrapper p-6 flex flex-col xl:max-w-7xl lg:max-w-240 mx-auto">
@@ -182,7 +356,11 @@ export default function HomeClient() {
               </h3>
             </div>
             <div className="">
-              <Button variant="primary" size="sm" onClick={() => router.push("/sale")}>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => router.push("/sale")}
+              >
                 Lihat semua
               </Button>
             </div>
