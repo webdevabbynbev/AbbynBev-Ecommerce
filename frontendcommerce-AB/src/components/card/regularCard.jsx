@@ -4,7 +4,13 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { FaStar } from "react-icons/fa6";
 import { BtnIconToggle } from "..";
-import { formatToRupiah, slugify, getAverageRating, getDiscountPercent } from "@/utils";
+import {
+  formatToRupiah,
+  slugify,
+  getAverageRating,
+  getDiscountPercent,
+  applyExtraDiscount,
+} from "@/utils";
 import { DataReview } from "@/data";
 
 export function RegularCard({ product, hrefQuery }) {
@@ -13,7 +19,15 @@ export function RegularCard({ product, hrefQuery }) {
   if (!product) return null;
 
   const item = useMemo(() => {
-    const raw = product;
+    // ✅ AMAN: kalau Home masih passing wrapper { product: {...} }
+    const raw = product?.product ?? product;
+
+    // ✅ AMAN: extraDiscount bisa nyangkut di raw atau wrapper
+    const extra =
+      raw?.extraDiscount ??
+      product?.extraDiscount ??
+      product?.product?.extraDiscount ??
+      null;
 
     const id =
       raw.id ??
@@ -28,21 +42,61 @@ export function RegularCard({ product, hrefQuery }) {
 
     const name = raw.name ?? raw.productName ?? raw.title ?? "Unnamed Product";
 
-    const price = Number(
+    // harga dasar yg tampil (kalau ada promo salePrice/flashPrice, ikut jadi base)
+    let basePrice = Number(
       raw.price ??
-      raw.base_price ??
-      raw.basePrice ??
-      raw.salePrice ??
-      (Array.isArray(raw.prices) ? raw.prices[0] : undefined) ??
-      0
+        raw.base_price ??
+        raw.basePrice ??
+        raw.salePrice ??
+        raw.flashPrice ??
+        (Array.isArray(raw.prices) ? raw.prices[0] : undefined) ??
+        0
     );
 
-    const compareAt = Number(
+    let baseCompareAt = Number(
       raw.realprice ??
-      raw.oldPrice ??
-      (Array.isArray(raw.prices) ? raw.prices[1] : undefined) ??
-      NaN
+        raw.oldPrice ??
+        (Array.isArray(raw.prices) ? raw.prices[1] : undefined) ??
+        NaN
     );
+
+    // fallback kalau FE ga punya harga tapi BE ngirim range extraDiscount
+    if ((!Number.isFinite(basePrice) || basePrice <= 0) && extra?.baseMinPrice) {
+      basePrice = Number(extra.baseMinPrice) || 0;
+    }
+
+    let price = basePrice;
+    let compareAt = baseCompareAt;
+    let extraDiscountLabel = "";
+
+    if (extra) {
+      extraDiscountLabel = String(extra.label || "").trim();
+
+      // appliesTo=0 = storewide: diskon nempel ke harga yg sedang tampil (termasuk harga promo)
+      if (Number(extra.appliesTo) === 0) {
+        const after = applyExtraDiscount(extra, basePrice);
+        if (Number.isFinite(after) && after > 0 && after < basePrice) {
+          // kalau belum ada compareAt, coret basePrice
+          if (!(Number.isFinite(compareAt) && compareAt > basePrice)) {
+            compareAt = basePrice;
+          }
+          price = after;
+        }
+      } else {
+        // target lainnya: pakai range dari backend (min)
+        const after = Number(extra.finalMinPrice);
+        const before = Number(extra.baseMinPrice) || basePrice;
+        if (
+          Number.isFinite(after) &&
+          after > 0 &&
+          Number.isFinite(before) &&
+          before > after
+        ) {
+          price = after;
+          compareAt = before;
+        }
+      }
+    }
 
     const image =
       raw.image ??
@@ -50,14 +104,11 @@ export function RegularCard({ product, hrefQuery }) {
       "https://res.cloudinary.com/abbymedia/image/upload/v1766202017/placeholder.png";
 
     const slugSource = raw.slug || raw.path || "";
-    const safeSlug = slugSource
-      ? String(slugSource)
-      : slugify(String(name || ""));
+    const safeSlug = slugSource ? String(slugSource) : slugify(String(name || ""));
 
-      const isFlashSale = Boolean(
+    const isFlashSale = Boolean(
       raw.is_flash_sale ?? raw.is_flashsale ?? raw.flashSaleId ?? raw.flashSaleID
     );
-
 
     return {
       id: String(id),
@@ -82,13 +133,13 @@ export function RegularCard({ product, hrefQuery }) {
         "",
       slug: safeSlug,
       sale: Boolean(raw.sale),
-       isFlashSale,
+      isFlashSale,
+      extraDiscountLabel,
     };
   }, [product]);
 
-  const hasSale =
-    Number.isFinite(item.compareAt) && item.compareAt > item.price;
-    const discountPercent = getDiscountPercent(item.compareAt, item.price);
+  const hasSale = Number.isFinite(item.compareAt) && item.compareAt > item.price;
+  const discountPercent = hasSale ? getDiscountPercent(item.compareAt, item.price) : 0;
 
   useEffect(() => {
     try {
@@ -147,25 +198,32 @@ export function RegularCard({ product, hrefQuery }) {
                 Flash Sale
               </span>
             )}
+
             {(item.sale || hasSale) && (
               <span className="rounded-full bg-black/80 px-2 py-1 text-[10px] font-semibold uppercase text-white">
                 Sale
               </span>
             )}
-            {discountPercent > 0 && (
+
+            {/* ✅ Badge utama dari backend */}
+            {item.extraDiscountLabel ? (
+              <span className="rounded-full bg-primary-200 px-2 py-1 text-[10px] font-semibold text-primary-700">
+                {item.extraDiscountLabel}
+              </span>
+            ) : discountPercent > 0 ? (
               <span className="rounded-full bg-primary-200 px-2 py-1 text-[10px] font-semibold text-primary-700">
                 {discountPercent}% off
               </span>
-            )}
+            ) : null}
           </div>
 
           <div
             className={`absolute top-4 right-4 z-10 transition-all duration-200
-            ${isWishlisted
+            ${
+              isWishlisted
                 ? "opacity-100 scale-100 pointer-events-auto"
                 : "opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto"
-              }
-            `}
+            }`}
           >
             <BtnIconToggle
               active={isWishlisted}
@@ -219,9 +277,7 @@ export function RegularCard({ product, hrefQuery }) {
           <div className="rating flex space-x-2 items-center">
             <div className="flex space-x-1 items-center">
               {averageRating === 0 ? (
-                <span className="text-xs text-primary-700 font-light">
-                  No rating
-                </span>
+                <span className="text-xs text-primary-700 font-light">No rating</span>
               ) : (
                 <div className="flex items-center space-x-1 font-bold text-primary-700 text-xs">
                   <span>{averageRating}</span>
@@ -238,9 +294,6 @@ export function RegularCard({ product, hrefQuery }) {
           <div className="text-xs category-brand flex flex-row relative items-center space-x-1.5 overflow-hidden h-6">
             <p className="text-neutral-400 transition-transform duration-300 group-hover:-translate-y-6">
               {item.brand || "—"}
-            </p>
-            <p className="text-neutral-400 absolute top-0 left-0 translate-y-6 transition-transform duration-300 group-hover:translate-y-0">
-              {item.category || "—"}
             </p>
           </div>
         </div>

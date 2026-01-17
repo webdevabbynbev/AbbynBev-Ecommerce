@@ -60,13 +60,20 @@ export default class ProductsController {
         .orderByRaw(`products.${sortBy} IS NULL, products.${sortBy} ${sortType}`)
         .paginate(page, perPage)
 
-      const { meta, data } = productsQuery.toJSON()
+      // ✅ PENTING: ambil rows model (belum toJSON)
+      const rows = productsQuery.all()
 
+      // ✅ attach extraDiscount ke product preload (MODEL OBJECT)
       const svc = new DiscountPricingService()
-      const products = (data as any[]).map((row) => row?.product).filter(Boolean)
+      const products = (rows as any[]).map((row) => row?.product).filter(Boolean)
+
       if (products.length) {
         await svc.attachExtraDiscount(products as any[])
+        console.log('DEBUG extraDiscount sample (LIST):', products?.[0]?.extraDiscount)
       }
+
+      // ✅ baru serialize setelah attach
+      const { meta, data } = productsQuery.toJSON()
 
       return response.status(200).send({
         message: 'success',
@@ -121,7 +128,6 @@ export default class ProductsController {
                   mq.apply((scopes) => scopes.active())
                   mq.orderBy('slot', 'asc')
                 })
-                // ✅ OPSI B: attributes ambil dari attribute_values langsung (NO pivot)
                 .preload('attributes', (attributeLoader) => {
                   attributeLoader
                     .whereNull('attribute_values.deleted_at')
@@ -148,6 +154,7 @@ export default class ProductsController {
         })
       }
 
+      // ✅ ambil JSON dulu, lalu attach
       const p = productOnline.product.toJSON()
 
       const svc = new DiscountPricingService()

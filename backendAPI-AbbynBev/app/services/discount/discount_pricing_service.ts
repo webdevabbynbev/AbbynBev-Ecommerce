@@ -56,7 +56,8 @@ type DiscountCtx = {
 
   variantEligibleRange: Map<number, Map<number, { min: number; max: number; count: number }>>
 
-  // ✅ produk yang sedang promo Flash/Sale aktif → DISCOUNT tidak boleh nempel
+  // ✅ produk yang sedang promo Flash/Sale aktif (anti stacking)
+  // ⚠️ tapi storewide (appliesTo=0) tetap boleh nempel untuk tampilan badge global
   blockedProductIds: Set<number>
 }
 
@@ -107,11 +108,11 @@ function toNumber(v: any, fallback = 0) {
 }
 
 function readProductBrandId(p: ProductLike) {
-  return toNumber(p.brandId ?? p.brand_id ?? p.brand?.id, 0) || null
+  return toNumber(p.brandId ?? p.brand_id ?? (p as any)?.brand?.id, 0) || null
 }
 
 function readProductCategoryId(p: ProductLike) {
-  return toNumber(p.categoryTypeId ?? p.category_type_id ?? p.categoryType?.id, 0) || null
+  return toNumber(p.categoryTypeId ?? p.category_type_id ?? (p as any)?.categoryType?.id, 0) || null
 }
 
 function computeProductPriceRange(p: ProductLike): { min: number; max: number } {
@@ -158,7 +159,8 @@ export class DiscountPricingService {
 
     const valueType = Number(discount.valueType)
     const value = Number(discount.value || 0)
-    const maxDiscount = discount.maxDiscount ? Number(discount.maxDiscount) : null
+    const maxDiscount =
+      discount.maxDiscount !== null && discount.maxDiscount !== undefined ? Number(discount.maxDiscount) : null
 
     if (valueType === 2) {
       return Math.max(0, Math.min(value, eligibleSubtotal))
@@ -196,7 +198,7 @@ export class DiscountPricingService {
       const nowStr = this.nowWibStr(now)
 
       // =========================
-      // ✅ blockedProductIds = produk yang sedang promo Flash/Sale aktif
+      // ✅ blockedProductIds = produk yang sedang promo Flash/Sale aktif (anti stacking)
       // =========================
       const blockedProductIds = new Set<number>()
 
@@ -246,7 +248,7 @@ export class DiscountPricingService {
                AND TABLE_NAME = 'discounts'
                AND COLUMN_NAME = 'is_auto'`
           )
-          const rows = Array.isArray(res) ? res[0] : (res?.rows ?? res)
+          const rows = Array.isArray(res) ? res[0] : res?.rows ?? res
           return Number(rows?.[0]?.total ?? 0) > 0
         } catch {
           return false
@@ -293,9 +295,9 @@ export class DiscountPricingService {
       const productTargets = new Map<number, Set<number>>()
 
       for (const t of targets) {
-        const did = toNumber(t.discountId, 0)
-        const tid = toNumber(t.targetId, 0)
-        const tt = toNumber(t.targetType, 0)
+        const did = toNumber((t as any).discountId, 0)
+        const tid = toNumber((t as any).targetId, 0)
+        const tt = toNumber((t as any).targetType, 0)
         if (!did || !tid) continue
 
         // 1 = category_type
@@ -384,10 +386,7 @@ export class DiscountPricingService {
     for (const p of products) {
       p.extraDiscount = null
 
-      // ✅ kalau lagi FlashSale/Sale aktif → jangan tempel discount
-      if (ctx.blockedProductIds.has(Number(p.id))) {
-        continue
-      }
+      const isBlockedByPromo = ctx.blockedProductIds.has(Number(p.id)) // FlashSale/Sale aktif
 
       const base = computeProductPriceRange(p)
       const brandId = readProductBrandId(p)
@@ -399,6 +398,10 @@ export class DiscountPricingService {
       for (const d of ctx.discounts) {
         const appliesTo = Number(d.appliesTo)
 
+        // ✅ Anti-stacking: kalau produk lagi promo, skip semua extra discount
+        // ✅ EXCEPTION: appliesTo=0 (storewide) tetap boleh nempel supaya semua produk tampil diskon.
+        if (isBlockedByPromo && appliesTo !== 0) continue
+
         let eligibleRange = { ...base }
         let eligibleVariantCount: number | null = null
 
@@ -406,13 +409,12 @@ export class DiscountPricingService {
         if (appliesTo === 0) {
         }
 
-        // 1 = min order (display tetap boleh, tapi secara konsep nanti di checkout yang validasi subtotal)
+        // 1 = min order
         else if (appliesTo === 1) {
-          const minAmount = d.minOrderAmount ? Number(d.minOrderAmount) : null
+          const minAmount = d.minOrderAmount !== null && d.minOrderAmount !== undefined ? Number(d.minOrderAmount) : null
           const minQty = d.minOrderQty ?? null
 
-          // karena ini attach di listing produk (tanpa cart),
-          // kita cuma filter yang "jelas-jelas" tidak mungkin, biar tidak misleading:
+          // listing (tanpa cart): filter yang jelas-jelas tidak mungkin, biar tidak misleading
           if (minAmount !== null && base.min < minAmount) continue
           if (minQty !== null && Number(minQty) > 1) continue
         }
@@ -423,7 +425,7 @@ export class DiscountPricingService {
           if (!set || !categoryId || !set.has(categoryId)) continue
         }
 
-        // 3 = variant (target_id = product_variants.id)
+        // 3 = variant (eligible range dari variantEligibleRange)
         else if (appliesTo === 3) {
           const mp = ctx.variantEligibleRange.get(d.id)
           const row = mp ? mp.get(Number(p.id)) : null
@@ -457,12 +459,13 @@ export class DiscountPricingService {
           bestSaving = saving
           best = {
             discountId: d.id,
-            code: String(d.code || '').trim(),
+            code: String((d as any).code || '').trim(),
             label: this.buildLabel(d),
 
             valueType: Number(d.valueType),
             value: Number(d.value || 0),
-            maxDiscount: d.maxDiscount ? Number(d.maxDiscount) : null,
+            maxDiscount:
+              d.maxDiscount !== null && d.maxDiscount !== undefined ? Number(d.maxDiscount) : null,
 
             appliesTo,
 
@@ -476,8 +479,9 @@ export class DiscountPricingService {
             finalMinPrice: finalMin,
             finalMaxPrice: finalMax,
 
-            minOrderAmount: d.minOrderAmount ? Number(d.minOrderAmount) : null,
-            minOrderQty: d.minOrderQty ?? null,
+            minOrderAmount:
+              d.minOrderAmount !== null && d.minOrderAmount !== undefined ? Number(d.minOrderAmount) : null,
+            minOrderQty: (d as any).minOrderQty ?? null,
           }
         }
       }

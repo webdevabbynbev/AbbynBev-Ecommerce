@@ -38,3 +38,11 @@ export const http = defineConfig({
     sameSite: 'lax',
   },
 })
+
+export const providers = [
+  '@adonisjs/core',
+  '@adonisjs/session',
+  '@adonisjs/view',
+  '@adonisjs/lucid',
+  '@adonisjs/auth',
+]

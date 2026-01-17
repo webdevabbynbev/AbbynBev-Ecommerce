@@ -86,8 +86,6 @@
       "types": "./app/enums/*.ts",
       "default": "./app/enums/*.js"
     }
-
-    
   },
   "devDependencies": {
     "@adonisjs/assembler": "^7.8.2",
@@ -139,7 +137,9 @@
     "mysql2": "^3.14.3",
     "openai": "^5.23.2",
     "reflect-metadata": "^0.2.2",
-    "rollup": "^4.54.0"
+    "rollup": "^4.54.0",
+    "swagger": "^0.7.5",
+    "swagger-ui": "^5.31.0"
   },
   "hotHook": {
     "boundaries": [
