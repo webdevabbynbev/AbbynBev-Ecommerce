@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { FaStar } from "react-icons/fa6";
 import { BtnIconToggle } from "..";
-import { formatToRupiah, slugify, getAverageRating } from "@/utils";
+import { formatToRupiah, slugify, getAverageRating, getDiscountPercent } from "@/utils";
 import { DataReview } from "@/data";
 
 export function RegularCard({ product, hrefQuery }) {
@@ -54,6 +54,11 @@ export function RegularCard({ product, hrefQuery }) {
       ? String(slugSource)
       : slugify(String(name || ""));
 
+      const isFlashSale = Boolean(
+      raw.is_flash_sale ?? raw.is_flashsale ?? raw.flashSaleId ?? raw.flashSaleID
+    );
+
+
     return {
       id: String(id),
       name,
@@ -77,11 +82,13 @@ export function RegularCard({ product, hrefQuery }) {
         "",
       slug: safeSlug,
       sale: Boolean(raw.sale),
+       isFlashSale,
     };
   }, [product]);
 
   const hasSale =
     Number.isFinite(item.compareAt) && item.compareAt > item.price;
+    const discountPercent = getDiscountPercent(item.compareAt, item.price);
 
   useEffect(() => {
     try {
@@ -134,13 +141,23 @@ export function RegularCard({ product, hrefQuery }) {
     <div className="group relative flex h-full w-full flex-col rounded-lg bg-white space-y-4 transition-all overflow-hidden">
       <Link href={href}>
         <div className="image flex w-full items-center justify-center relative">
-          {(item.sale || hasSale) && (
-            <img
-              src="/sale-tag.svg"
-              alt="Sale"
-              className="absolute top-0 left-0 z-10 w-10 h-auto"
-            />
-          )}
+          <div className="absolute left-3 top-3 z-10 flex flex-col gap-1">
+            {item.isFlashSale && (
+              <span className="rounded-full bg-orange-500 px-2 py-1 text-[10px] font-semibold uppercase text-white">
+                Flash Sale
+              </span>
+            )}
+            {(item.sale || hasSale) && (
+              <span className="rounded-full bg-black/80 px-2 py-1 text-[10px] font-semibold uppercase text-white">
+                Sale
+              </span>
+            )}
+            {discountPercent > 0 && (
+              <span className="rounded-full bg-primary-200 px-2 py-1 text-[10px] font-semibold text-primary-700">
+                {discountPercent}% off
+              </span>
+            )}
+          </div>
 
           <div
             className={`absolute top-4 right-4 z-10 transition-all duration-200
